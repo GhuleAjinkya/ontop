@@ -60,10 +60,20 @@ class _MyHomePageState extends State<MyHomePage> {
   // List of strings to display as dropdown items
   final List<String> _items = ['Contacts', 'Events', 'Workplaces', 'To-Do', 'Notes'];
 
-  // List to store selected items for logging
-  final List<String> _logMessages = [];
+  // List of titles for the navbar
+  final List<String> _navbarTitles = ['Home', 'Profile', 'Settings', 'Notifications', 'Help'];
 
-  // Placeholder function for button actions
+  // String for tracking selected navbar title
+  String _selectedNavbarTitle = "";
+  // Placeholder function for navbar button actions
+  void _onNavbarButtonPressed(String title) {
+    setState(() {
+      _selectedNavbarTitle = title;
+    });
+    print('$title button pressed');
+  }
+
+  // Placeholder function for dropdown button actions
   void _onButtonPressed(String item) async {
     final message = '$item selected';
     print(message);
@@ -76,6 +86,9 @@ class _MyHomePageState extends State<MyHomePage> {
     // Save the log to a JSON file
     await _saveLogToFile();
   }
+
+  // List to store selected items for logging
+  final List<String> _logMessages = [];
 
   // Function to get the correct directory for storing the file
   Future<Directory> _getStorageDirectory() async {
@@ -102,12 +115,57 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
-      body: Center(
-        child: Text(
-          'Press the "+" button to open the dropdown.',
-          style: Theme.of(context).textTheme.headlineSmall,
-          textAlign: TextAlign.center,
-        ),
+      body: Column(
+        children: [
+          // Navbar at the top
+          Container(
+          alignment: Alignment.topLeft,
+          padding: const EdgeInsets.symmetric(vertical: 10.0,horizontal: 8.0),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center, // Align items to the left
+              children: _navbarTitles.map((title) {
+                final bool isSelected = _selectedNavbarTitle == title;
+                  return AnimatedContainer(
+                    padding: EdgeInsets.zero,
+                    duration: const Duration(milliseconds: 200), // Smooth transition
+                    margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                    height: isSelected ? 35.0 : 30.0, // Taller when selected
+                    width: isSelected ? 110.0 : 100.0, // Wider when selected
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white, // Background color
+                        foregroundColor: Colors.black, // Text color
+                        side: const BorderSide(color: Colors.black, width: 1), // Border styling
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.zero, // Rectangular shape
+                        ),
+                        padding: EdgeInsets.zero, // Remove internal padding
+                      ),
+                      onPressed: () => _onNavbarButtonPressed(title),
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, // Bold if selected
+                        ),
+                      ),),);
+                }).toList(),
+                
+              ),
+            ),
+          ),
+          // Main content
+          Expanded(
+            child: Center(
+              child: Text(
+                'Press the "+" button to open the dropdown.',
+                style: Theme.of(context).textTheme.headlineSmall,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: PopupMenuButton<String>(
         icon: const Icon(Icons.add),
