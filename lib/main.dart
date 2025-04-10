@@ -6,11 +6,24 @@ void main() {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
+  final String username = 'Test';
+  String getGreetingTime() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      return 'Morning';
+    } else if (hour < 17) {
+      return 'Afternoon';
+    } else {
+      return 'Evening';
+    }
+  }
+  
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    final greetingTime = getGreetingTime();
     return MaterialApp(
+
       title: 'Flutter Demo',
       theme: ThemeData(
         // This is the theme of your application.
@@ -28,9 +41,9 @@ class MyApp extends StatelessWidget {
         //
         // This works for code too, not just values: Most code changes can be
         // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.orange.shade800),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: MyHomePage(title: 'Good $greetingTime, $username'),
     );
   }
 }
@@ -67,6 +80,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  
   @override
   Widget build(BuildContext context) {
     // This method is rerun every time setState is called, for instance as done
