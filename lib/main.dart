@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'package:flutter/material.dart';
 void main() {
   runApp(const MyApp());
@@ -72,7 +74,13 @@ class _MyHomePageState extends State<MyHomePage> {
               colors: [Colors.deepOrange, Colors.orange], // Darker to lighter orange
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-            ),
+              ),
+            border: Border(
+              bottom: BorderSide(
+                color: Colors.black,
+                width: 2.0, // Border width
+              ),
+            )
           ),
         ),
         toolbarHeight: 100,
@@ -110,8 +118,8 @@ class _MyHomePageState extends State<MyHomePage> {
               },
             ),
           ],
-        ),  
-      ),
+        ), 
+      ), 
       body: Center(
         child: ListView.builder(
           shrinkWrap: true,
@@ -138,6 +146,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ),
                     onTap: () {
+                      
                       print('Tapped on ${titles[index]}');
                     },
                   ),
@@ -145,7 +154,7 @@ class _MyHomePageState extends State<MyHomePage> {
             );
           },
         ), 
-      ),
+      )
     );
   }
 }
