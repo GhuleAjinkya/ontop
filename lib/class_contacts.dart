@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 
 class Contact {
   final String name;
@@ -10,11 +13,41 @@ class Contact {
     required this.organization, 
     required this.phoneNumber,
   });
+
+  Map<String, String> toJSON() {
+    return {
+      'name': name,
+      'organization': organization,
+      'phoneNumber': phoneNumber,
+    };  
+  }
+
+ factory Contact.fromJSON(Map<String, String> json) {
+    return Contact(
+      name: json['name'] as String,
+      organization: json['organization'] as String,
+      phoneNumber: json['phoneNumber'] as String,
+    );
+  }
+ 
+}
+
+class JSONHelper {
+  static const String fileName  ='contacts.json';
+  
+  Future<File> getFile() async {
+    final directory = await getApplicationDocumentsDirectory();
+    return File('${directory.path}/$fileName');
+  }
+
+
 }
 
 class Contacts extends StatefulWidget {
   const Contacts({super.key});
-
+  // To-Do Wrap homepage and tabspage icons in HERO widgets to smooth out UI
+  // Understand backend
+  
   @override
   State<Contacts> createState() => _ContactsState();
 }
@@ -34,8 +67,11 @@ class _ContactsState extends State<Contacts> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: ListTile(
+                  onTap: () {
 
+                  },
                 ),
+                
               ),
             );
           },

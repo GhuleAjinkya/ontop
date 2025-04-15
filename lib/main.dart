@@ -34,7 +34,7 @@ class HomePage extends StatefulWidget {
   final String username = 'usernameDefault';
   final List<Map<String, IconData>> pages = [
   {'Contacts': Icons.contact_phone_rounded},
-  {'Docket': Icons.abc},
+  {'Docket': Icons.note},
   {'Projects': Icons.abc},
   {'Notes': Icons.abc},
   {'Events': Icons.event}];
@@ -240,7 +240,7 @@ class TabsContentCaller extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     /* {'Contacts': Icons.contact_phone_rounded},
-  {'Docket': Icons.abc},
+  {'Docket': Icons.note},
   {'Projects': Icons.abc},
   {'Notes': Icons.abc},
   {'Events': Icons.event}]; 
@@ -248,8 +248,6 @@ class TabsContentCaller extends StatelessWidget {
     switch (index) {
       case 0:
         return Contacts(); 
-      case 2:
-        // return Projects();
       default:
         return const Text("Wrong index passed as an arguement from _TabsState");
     }
