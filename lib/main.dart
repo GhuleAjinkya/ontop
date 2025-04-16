@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'class_contacts.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 const LinearGradient appGradient = LinearGradient(
               colors: [Colors.orange,Colors.deepOrange],
@@ -9,6 +10,8 @@ const LinearGradient appGradient = LinearGradient(
               end: Alignment.bottomRight,
             );
 void main() {
+  sqfliteFfiInit();
+  databaseFactory = databaseFactoryFfi;
   runApp(const MyApp());
 }
 
@@ -189,10 +192,10 @@ class _TabsState extends State<Tabs> {
           ],
         ),
       ),
-      body: TabsContentCaller(index: index),
+      body: TabsContentCaller(page: index),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Colors.orange,
+          color: Colors.deepOrange,
           border: Border(
             top: BorderSide(
               color: Colors.black,
@@ -235,8 +238,8 @@ class _TabsState extends State<Tabs> {
 }
 
 class TabsContentCaller extends StatelessWidget {
-  const TabsContentCaller({super.key, required this.index});
-  final int index;
+  const TabsContentCaller({super.key, required this.page});
+  final int page;
   @override
   Widget build(BuildContext context) {
     /* {'Contacts': Icons.contact_phone_rounded},
@@ -245,11 +248,11 @@ class TabsContentCaller extends StatelessWidget {
   {'Notes': Icons.abc},
   {'Events': Icons.event}]; 
   Pages for referance */
-    switch (index) {
+    switch (page) {
       case 0:
         return Contacts(); 
       default:
-        return const Text("Wrong index passed as an arguement from _TabsState");
+        return const Text("Body not added");
     }
   }
 }
