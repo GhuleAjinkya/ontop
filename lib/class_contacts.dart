@@ -1,10 +1,11 @@
 // import 'dart:io';
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 // import 'package:path_provider/path_provider.dart';
 
-// Contact Object
+// Contact Object, will likely modify later
 class Contact {
   final String name;
   final String organization;
@@ -17,15 +18,16 @@ class Contact {
   });
 }
 
-class DBHelper{
+class DBHelper{ // Class for holding methods with which we'll modify the contactcts database
   
   static final DBHelper _instance = DBHelper._internal();
   factory DBHelper() => _instance;
   DBHelper._internal();
-
+  // This just ensures we dont try to open miltiple databases at the same time
+// idk how this works tho lol
   static Database? _database;
 
-  Future<Database> get database async {
+  Future<Database> get database async { // just checks if the database already exists or needs to be remade
     if (_database != null) {
       final dbPath = await getDatabasesPath();
       final expectedPath = join(dbPath, 'contacts.db');
@@ -36,7 +38,7 @@ class DBHelper{
     _database = await initDatabase();
     return _database!;
   }
-  Future<Database> initDatabase() async {
+  Future<Database> initDatabase() async { // iF db doesn't exist, create the table
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'contacts.db');
 
@@ -95,12 +97,12 @@ class _ContactsState extends State<Contacts> {
   final DBHelper dbHelper = DBHelper();
   List<Contact> contacts = [];
 
-  Future<void> begin() async {
+  Future<void> begin() async { // just connect db to local variable
     contacts = await dbHelper.fetchContacts();
     setState(() {});
   }
 
-  Future<void> addDummy() async {
+  Future<void> addDummy() async { // dummy contacts for testing
     final newContact = Contact(
       name: 'John Doe',
       organization: 'Example Corp',
@@ -112,7 +114,7 @@ class _ContactsState extends State<Contacts> {
   @override
   void initState() {
     super.initState();
-    begin();
+    begin(); 
   }
 
   @override
@@ -120,7 +122,7 @@ class _ContactsState extends State<Contacts> {
     return Scaffold(
       floatingActionButtonLocation: FloatingActionButtonLocation.miniCenterFloat,
       floatingActionButton: FloatingActionButton(
-        onPressed: addDummy,
+        onPressed: addDummy, // currently calls dummy, will class
         backgroundColor: Colors.orange,
         child: Icon(Icons.add),
       ),
@@ -136,7 +138,7 @@ class _ContactsState extends State<Contacts> {
                   color: Colors.orange[400],
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: ListTile(
+                child: ListTile( // layout needs to be made better
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),

@@ -46,3 +46,6 @@ app.*.map.json
 
 # Personal Reference Material
 /references/
+
+# Assets folder which stores nothing rn
+/assets/
