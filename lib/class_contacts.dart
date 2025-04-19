@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:flutter/material.dart';
@@ -22,7 +24,54 @@ class Contact {
     required this.starred,
   });
 }
-
+Widget buildContactTiles(List<Contact> contacts, BuildContext context, {bool starred = false}) {
+  Icon contactIcon;
+  if (starred) {
+    contactIcon = Icon(Icons.star_rounded);
+  } else {
+    contactIcon = Icon(Icons.person);
+  }
+  return ListView.builder(  
+    physics: const BouncingScrollPhysics(),
+    shrinkWrap: true,
+    itemCount: contacts.length,
+    itemBuilder: (context,index) {
+      final name = contacts[index].name;
+      final position = contacts[index].position;
+      final organization = contacts[index].organization;
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
+        child: Container(
+          decoration: standardTile(10),
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          child: ListTile(
+            dense: true,
+            leading: Icon(
+              contactIcon.icon,
+              color: Theme.of(context).colorScheme.onPrimary,
+            ),
+            title: Text(
+              name,
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onPrimary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            subtitle: Text(
+              '$position, $organization',
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.tertiary,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
 class DBHelper{ // Class for holding methods with which we'll modify the contactcts database
   
   static final DBHelper _instance = DBHelper._internal();
@@ -99,8 +148,6 @@ class DBHelper{ // Class for holding methods with which we'll modify the contact
 }
 class Contacts extends StatefulWidget {
   const Contacts({super.key});
-  // To-Do Wrap homepage and tabspage icons in HERO widgets to smooth out UI
-  // Understand backend
   
   @override
   State<Contacts> createState() => _ContactsState();
@@ -109,10 +156,31 @@ class _ContactsState extends State<Contacts> {
   final DBHelper dbHelper = DBHelper();
   List<Contact> contacts = [];
   List<Contact> starred = [];
+  Map<String, List<Contact>> sections = {};
 
   Future<void> begin() async { // just connect db to local variable
     contacts = await dbHelper.fetchContacts();
-    starred = contacts.where((contact) => contact.starred == 1).toList();
+    
+    // Organize in memory
+    sections = {
+      'A': [], 'B': [], 'C': [], 'D': [], 'E': [], 'F': [], 'G': [], 'H': [],
+      'I': [], 'J': [], 'K': [], 'L': [], 'M': [], 'N': [], 'O': [], 'P': [],
+      'Q': [], 'R': [], 'S': [], 'T': [], 'U': [], 'V': [], 'W': [], 'X': [],
+      'Y': [], 'Z': [],
+    };
+
+    // Sort contacts into sections
+    for (var contact in contacts.where((c) => c.starred == 0)) {
+      String key = contact.name[0].toUpperCase();
+      sections[key]!.add(contact);
+    }
+
+    // Sort each section
+    sections.forEach((key, list) {
+        list.sort((a, b) => a.name.compareTo(b.name));
+    });
+
+    starred = contacts.where((c) => c.starred == 1).toList();
     setState(() {});
   }
 
@@ -120,10 +188,10 @@ class _ContactsState extends State<Contacts> {
     final newContact = Contact(
       id: 0,
       name: 'John Doe',
-      organization: 'Example Corp',
+      organization: 'A Example Corp',
       phoneNumber: '123-456-7890',
       position: 'Example Position',
-      starred: 0,
+      starred: Random().nextInt(2),
     );
     await dbHelper.insertContact(newContact);
     await begin();
@@ -138,85 +206,141 @@ class _ContactsState extends State<Contacts> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.primary,
-      floatingActionButtonLocation: FloatingActionButtonLocation.miniCenterFloat,
-      floatingActionButton: FloatingActionButton(
-        onPressed: addDummy, // currently calls dummy, will class
-        backgroundColor: Theme.of(context).colorScheme.tertiary,
-        child: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary,),
-      ),
+      //floatingActionButtonLocation: FloatingActionButtonLocation.miniCenterFloat,
+      //floatingActionButton: FloatingActionButton(
+        //onPressed: addDummy, // currently calls dummy, will class
+        //backgroundColor: Theme.of(context).colorScheme.tertiary,
+       // child: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary,),
+      //),
       body: Column(
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    margin: EdgeInsets.symmetric(horizontal: 20),
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.search, 
+                    margin: EdgeInsets.only(left: 40),
+                    child: Text(
+                      'Contacts',
+                      style: TextStyle(
+                        fontSize: 28,
                         color: Theme.of(context).colorScheme.onPrimary,
-                        size: 28,
+                        fontWeight: FontWeight.w600,
                       ),
-                      onPressed: () {
-                        // Search Goes here
-                      }
                     ),
                   ),
-                  Text(
-                    'Contacts',
-                    style: TextStyle(
-                      fontSize: 28,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      fontWeight: FontWeight.w600,
+                  Container(
+                    margin: EdgeInsets.only(right: 20),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            Icons.search, 
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            size: 30,
+                          ),
+                          onPressed: () {
+                            
+                          }
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.add_call, 
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            size: 26,
+                          ),
+                          onPressed: () {
+                            addDummy(); // currently calls dummy
+                          }
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.more_vert, 
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            size: 28,
+                          ),
+                          onPressed: () {                            
+                          }
+                        ),
+                      ],
                     ),
-                  )
+                  ),                  
                 ],),
             ),
             Expanded(
-              child: ListView.builder(
-                physics: const BouncingScrollPhysics(),
-                shrinkWrap: true,
-                itemCount: contacts.length,
-                itemBuilder: (context,index) {
-                  final name = contacts[index].name;
-                  final position = contacts[index].position;
-                  final organization = contacts[index].organization;
-                  return Padding(
-                    padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
-                    child: Container(
-                      decoration: standardTile(10),
-                      margin: const EdgeInsets.symmetric(horizontal: 20),
-                      child: ListTile(
-                        dense: true,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        leading: Icon(
-                          Icons.person, 
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                        title: Text(
-                          name,
-                          style: TextStyle(
-                            fontSize: 14,
+              child: ListView(
+                children: [
+                  if (starred.isNotEmpty) ...[
+                    Container(
+                      margin: const EdgeInsets.only(left: 40),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.star_rounded, 
                             color: Theme.of(context).colorScheme.onPrimary,
-                            fontWeight: FontWeight.bold,
+                            size: 20,
                           ),
-                        ),
-                        subtitle: Text(
-                          '$position, $organization',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).colorScheme.tertiary,
-                            fontWeight: FontWeight.w400,
+                          Expanded(
+                            child: Container(
+                              margin: const EdgeInsets.only(left: 10, right: 40),
+                              height: 5,
+                              decoration: BoxDecoration(
+                                color: Colors.transparent,
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: Theme.of(context).colorScheme.onPrimary,
+                                    width: 0.75,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
-                  );
-                },
+                    buildContactTiles(starred, context, starred: true),
+                  ],
+
+                  for (var entry in sections.entries) ...[
+                    const Divider(
+                      height: 1,
+                      color: Colors.transparent,
+                    ),
+                    if (entry.value.isNotEmpty) ...[
+                      Container(
+                        margin: const EdgeInsets.only(left: 40),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.sort_by_alpha, // Placeholder icon
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              size: 20,
+                            ),
+                            Expanded(
+                              child: Container(
+                                margin: const EdgeInsets.only(left: 10, right: 40),
+                                height: 5,
+                                decoration: BoxDecoration(
+                                  color: Colors.transparent,
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: Theme.of(context).colorScheme.onPrimary,
+                                      width: 0.75,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    buildContactTiles(entry.value, context),
+                    ],
+                  ],
+                ],
               ),
             ),
           ],
