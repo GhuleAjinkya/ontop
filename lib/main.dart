@@ -6,6 +6,19 @@ import 'class_contacts.dart';
 import 'dart:io';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+standardTile(double borderRadius) {
+  return BoxDecoration(
+                      color: Color.fromARGB(25, 255, 255, 255),
+                      borderRadius: BorderRadius.circular(borderRadius),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color.fromARGB(10, 255, 255, 255), //color: Color.fromARGB(255, 201, 185, 253)
+                          blurRadius: 15,
+                          spreadRadius: 0,
+                        ),
+                      ],  
+                    );
+}
 void main() {
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS){
     sqfliteFfiInit();
@@ -28,7 +41,8 @@ class MyApp extends StatelessWidget {
           primary: Colors.black,
           onPrimary: Colors.white,
           secondary: Color.fromARGB(255, 101, 28, 132),
-          tertiary: Color.fromARGB(255, 200, 162, 200)
+          tertiary: Color.fromARGB(255, 200, 162, 200),
+          onSecondary: Color.fromRGBO(88, 81, 111, 1),
           ),
       ),
       home: HomePage(),
@@ -187,17 +201,7 @@ class _HomePageState extends State<HomePage> {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                   child : Container(
-                    decoration: BoxDecoration(
-                      color: Color.fromARGB(25, 255, 255, 255),
-                      borderRadius: BorderRadius.circular(50),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color.fromARGB(10, 255, 255, 255), //color: Color.fromARGB(255, 201, 185, 253)
-                          blurRadius: 15,
-                          spreadRadius: 0,
-                        ),
-                      ],  
-                    ),
+                    decoration: standardTile(50),
                     margin: const EdgeInsets.symmetric(horizontal: 25),
                     child: ListTile(
                       title: Center(
@@ -274,15 +278,15 @@ class _TabsState extends State<Tabs> {
               ),
               IconButton(
                 icon: const Icon(Icons.menu_rounded, size: 35),
-                onPressed: () {
-                  Navigator.pop(context); // Go back to the previous screen
+                onPressed: () {   
+                  Navigator.pop(context); 
                 },
               ),
             ],
           ),
         ),
       ),
-      //body: TabsContentCaller(tab: index),
+      body: TabsContentCaller(tab: index),
     );
   }
 }

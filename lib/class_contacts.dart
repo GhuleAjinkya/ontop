@@ -1,20 +1,25 @@
-// import 'dart:io';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
-// import 'package:path_provider/path_provider.dart';
+import 'main.dart';
 
 // Contact Object, will likely modify later
 class Contact {
+  final int id;
   final String name;
   final String organization;
+  final String position;
   final String phoneNumber;
+  final int starred;
 
   Contact({
+    required this.id,
     required this.name,
     required this.organization, 
     required this.phoneNumber,
+    required this.position, 
+    required this.starred,
   });
 }
 
@@ -24,7 +29,7 @@ class DBHelper{ // Class for holding methods with which we'll modify the contact
   factory DBHelper() => _instance;
   DBHelper._internal();
   // This just ensures we dont try to open miltiple databases at the same time
-// idk how this works tho lol
+  // idk how this works tho lol
   static Database? _database;
 
   Future<Database> get database async { // just checks if the database already exists or needs to be remade
@@ -50,8 +55,10 @@ class DBHelper{ // Class for holding methods with which we'll modify the contact
           CREATE TABLE contacts(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
+            position TEXT,
             organization TEXT,
-            phoneNumber TEXT NOT NULL
+            phoneNumber TEXT NOT NULL,
+            starred INTEGER DEFAULT 0
           )
         ''');
       },
@@ -64,6 +71,8 @@ class DBHelper{ // Class for holding methods with which we'll modify the contact
       'name': contact.name,
       'organization': contact.organization,
       'phoneNumber': contact.phoneNumber,
+      'position': contact.position,
+      'starred': contact.starred,
      });
   }
   Future<List<Contact>> fetchContacts() async {
@@ -73,9 +82,12 @@ class DBHelper{ // Class for holding methods with which we'll modify the contact
     );
     return List.generate(maps.length, (i) {
       return Contact(
+        id: maps[i]['id'],
         name: maps[i]['name'],
         organization: maps[i]['organization'],
         phoneNumber: maps[i]['phoneNumber'],
+        position: maps[i]['position'],
+        starred: maps[i]['starred'],
       );
     });
   }
@@ -96,17 +108,22 @@ class Contacts extends StatefulWidget {
 class _ContactsState extends State<Contacts> {
   final DBHelper dbHelper = DBHelper();
   List<Contact> contacts = [];
+  List<Contact> starred = [];
 
   Future<void> begin() async { // just connect db to local variable
     contacts = await dbHelper.fetchContacts();
+    starred = contacts.where((contact) => contact.starred == 1).toList();
     setState(() {});
   }
 
   Future<void> addDummy() async { // dummy contacts for testing
     final newContact = Contact(
+      id: 0,
       name: 'John Doe',
       organization: 'Example Corp',
       phoneNumber: '123-456-7890',
+      position: 'Example Position',
+      starred: 0,
     );
     await dbHelper.insertContact(newContact);
     await begin();
@@ -120,39 +137,90 @@ class _ContactsState extends State<Contacts> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.primary,
       floatingActionButtonLocation: FloatingActionButtonLocation.miniCenterFloat,
       floatingActionButton: FloatingActionButton(
         onPressed: addDummy, // currently calls dummy, will class
-        backgroundColor: Colors.orange,
-        child: Icon(Icons.add),
+        backgroundColor: Theme.of(context).colorScheme.tertiary,
+        child: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary,),
       ),
-      body: Center(
-        child: ListView.builder(
-          itemCount: contacts.length,
-          itemBuilder: (context,index) {
-            final contact = contacts[index];
-            return Padding(
-              padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.orange[400],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: ListTile( // layout needs to be made better
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+      body: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Container(
+                    margin: EdgeInsets.symmetric(horizontal: 20),
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.search, 
+                        color: Theme.of(context).colorScheme.onPrimary,
+                        size: 28,
+                      ),
+                      onPressed: () {
+                        // Search Goes here
+                      }
+                    ),
                   ),
-                  tileColor: Colors.orange,
-                  title: Text(contact.name),
-                  subtitle: Text(contact.organization),
-                  trailing: Text(contact.phoneNumber),
-                ),
-                
+                  Text(
+                    'Contacts',
+                    style: TextStyle(
+                      fontSize: 28,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  )
+                ],),
+            ),
+            Expanded(
+              child: ListView.builder(
+                physics: const BouncingScrollPhysics(),
+                shrinkWrap: true,
+                itemCount: contacts.length,
+                itemBuilder: (context,index) {
+                  final name = contacts[index].name;
+                  final position = contacts[index].position;
+                  final organization = contacts[index].organization;
+                  return Padding(
+                    padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
+                    child: Container(
+                      decoration: standardTile(10),
+                      margin: const EdgeInsets.symmetric(horizontal: 20),
+                      child: ListTile(
+                        dense: true,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        leading: Icon(
+                          Icons.person, 
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                        title: Text(
+                          name,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '$position, $organization',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.tertiary,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
-            );
-          },
-        ),
-      ),
-    );
+            ),
+          ],
+          ),
+      );
   }
 }
