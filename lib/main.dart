@@ -6,12 +6,6 @@ import 'class_contacts.dart';
 import 'dart:io';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-const LinearGradient appGradient = LinearGradient(
-              colors: [Colors.orange,Colors.deepOrange],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            );
-
 void main() {
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS){
     sqfliteFfiInit();
@@ -22,7 +16,6 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -34,6 +27,8 @@ class MyApp extends StatelessWidget {
           seedColor: Colors.black, 
           primary: Colors.black,
           onPrimary: Colors.white,
+          secondary: Color.fromARGB(255, 101, 28, 132),
+          tertiary: Color.fromARGB(255, 200, 162, 200)
           ),
       ),
       home: HomePage(),
@@ -43,7 +38,7 @@ class MyApp extends StatelessWidget {
 class HomePage extends StatefulWidget {
   HomePage({super.key});
   final String username = 'usernameDefault';
-  final List<Map<String, IconData>> pages = [
+  final List<Map<String, IconData>> tabs = [
   {'Contacts': Icons.contact_phone_rounded},
   {'Docket': Icons.note},
   {'Projects': Icons.abc},
@@ -73,16 +68,16 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Theme.of(context).colorScheme.primary,
       appBar: AppBar( 
-        backgroundColor: Colors.black,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         toolbarHeight: MediaQuery.of(context).size.height * 0.33,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         flexibleSpace: Stack(
           children: [
             Container(
               decoration: BoxDecoration(
                 color: Colors.black,
-                
               ),
             ),
             Positioned(  // Background blob
@@ -93,7 +88,7 @@ class _HomePageState extends State<HomePage> {
                 height: 125,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Color.fromARGB(255, 101, 28, 132),
+                  color: Theme.of(context).colorScheme.secondary,
                 ),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(
@@ -111,11 +106,11 @@ class _HomePageState extends State<HomePage> {
               right: 8,
               child: IconButton(
                 onPressed: () {
-              
+                  
                 }, 
-                icon: const Icon(
+                icon: Icon(
                   Icons.person_2_outlined,
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.onPrimary,
                   size: 35,
                   )
                 ),
@@ -123,9 +118,6 @@ class _HomePageState extends State<HomePage> {
           ],
           ),
         centerTitle: true,
-        titleTextStyle: const TextStyle(
-          color: Colors.white,
-        ),
         titleSpacing: 10,
         title: SizedBox(
           child: Column(
@@ -164,8 +156,7 @@ class _HomePageState extends State<HomePage> {
           )
         )
       ),
-      body: 
-      Stack(
+      body: Stack(
         children: [
           Positioned(
             right: -75, 
@@ -175,7 +166,7 @@ class _HomePageState extends State<HomePage> {
               height: 120,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Color.fromARGB(255, 101, 28, 132),
+                color: Theme.of(context).colorScheme.secondary,
               ),
               child: BackdropFilter(
                 filter: ImageFilter.blur(
@@ -192,7 +183,7 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              for (int index = 0; index < widget.pages.length; index++)
+              for (int index = 0; index < widget.tabs.length; index++)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                   child : Container(
@@ -210,12 +201,14 @@ class _HomePageState extends State<HomePage> {
                     margin: const EdgeInsets.symmetric(horizontal: 25),
                     child: ListTile(
                       title: Center(
-                        child: Text(widget.pages[index].keys.first, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),),
+                        child: Text(widget.tabs[index].keys.first, style: TextStyle(
+                          color: Theme.of(context).colorScheme.onPrimary,
+                          fontWeight: FontWeight.bold),),
                       ),
                       onTap: (){
                         Navigator.push(context, MaterialPageRoute(builder: (context) => Tabs(
                           currentIndex: index,
-                          pages: widget.pages)));
+                          tabs: widget.tabs)));
                       },
                     ),
                   ),
@@ -230,105 +223,74 @@ class _HomePageState extends State<HomePage> {
 }
 
 class Tabs extends StatefulWidget {
-  const Tabs({super.key, required this.currentIndex, required this.pages});
+  const Tabs({super.key, required this.currentIndex, required this.tabs});
   final int currentIndex;
-  final List<Map<String, IconData>> pages;
+  final List<Map<String, IconData>> tabs;
+
   @override
   State<Tabs> createState() => _TabsState();
 }
-
 class _TabsState extends State<Tabs> {
   int index = 0;
+  
   @override
   void initState() {
     super.initState();
     index = widget.currentIndex;
   }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.primary,
       appBar: AppBar(
-        flexibleSpace: Container(
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        toolbarHeight: MediaQuery.of(context).size.height * 0.15,
+        automaticallyImplyLeading: false,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary,),
+        title: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          margin: const EdgeInsets.symmetric(horizontal: 20),
           decoration: BoxDecoration(
-            border : Border(
+            color: Colors.transparent,
+            border: Border(
               bottom: BorderSide(
-                color: Colors.black,
+                color: Theme.of(context).colorScheme.onPrimary,
                 width: 2.0,
               ),
-            ),
-            gradient: appGradient,
+            )
           ),
-        ),
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween, 
-          crossAxisAlignment: CrossAxisAlignment.center,  
-          children: [
-            Row(
-              spacing: 10,
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [ 
-                Icon(widget.pages[index].values.first, color: Colors.white, size: 40,),
-                Text(widget.pages[index].keys.first, style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold),),
-              ],
-            ),
-            IconButton(
-              icon: const Icon(Icons.home, color: Colors.white, size: 35),
-              onPressed: () {
-                Navigator.pop(context);
-              },
-            ),
-          ],
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween, 
+            crossAxisAlignment: CrossAxisAlignment.start,  
+            children: [
+              Text(
+                "onTop.",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 40,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.menu_rounded, size: 35),
+                onPressed: () {
+                  Navigator.pop(context); // Go back to the previous screen
+                },
+              ),
+            ],
+          ),
         ),
       ),
-      body: TabsContentCaller(page: index),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.deepOrange,
-          border: Border(
-            top: BorderSide(
-              color: Colors.black,
-              width: 2.0,
-            ),
-          ),
-        ),
-        child: BottomNavigationBar(
-          backgroundColor: Colors.transparent,
-          currentIndex: index,
-          items: [
-            for (var page in widget.pages)
-              BottomNavigationBarItem(
-                icon: Icon(page.values.first),
-                label: page.keys.first,
-              )
-          ],
-          onTap: (currentIndex) {
-            setState(() {
-              index = currentIndex;
-            });
-          },
-          selectedLabelStyle: const TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
-          unselectedLabelStyle: const TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
-          selectedItemColor: Colors.black,
-          unselectedItemColor: Colors.black,
-          showUnselectedLabels: true,
-          showSelectedLabels: true,
-          type: BottomNavigationBarType.fixed,
-        ),
-      ),
+      //body: TabsContentCaller(tab: index),
     );
   }
 }
 
 class TabsContentCaller extends StatelessWidget {
-  const TabsContentCaller({super.key, required this.page});
-  final int page;
+  const TabsContentCaller({super.key, required this.tab});
+  final int tab;
+
   @override
   Widget build(BuildContext context) {
     /* {'Contacts': Icons.contact_phone_rounded},
@@ -337,7 +299,7 @@ class TabsContentCaller extends StatelessWidget {
   {'Notes': Icons.abc},
   {'Events': Icons.event}]; 
   Pages for referance */
-    switch (page) {
+    switch (tab) {
       case 0:
         return Contacts(); 
       default:
