@@ -1,6 +1,7 @@
-// Containts logic for home page, tabs page header and footers, and logic to call their bod functions
+// Containts logic for home page, tabs page header and footers, and logic to call their body functions
 
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'class_contacts.dart';
 import 'dart:io';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -10,6 +11,7 @@ const LinearGradient appGradient = LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             );
+
 void main() {
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS){
     sqfliteFfiInit();
@@ -17,7 +19,6 @@ void main() {
   }
   runApp(const MyApp());
 }
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -28,13 +29,17 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Flutter Demo',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.orange, primary: Colors.orange),
+        fontFamily: 'Poppins',
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.black, 
+          primary: Colors.black,
+          onPrimary: Colors.white,
+          ),
       ),
       home: HomePage(),
     );
   }
 }
-
 class HomePage extends StatefulWidget {
   HomePage({super.key});
   final String username = 'usernameDefault';
@@ -44,14 +49,7 @@ class HomePage extends StatefulWidget {
   {'Projects': Icons.abc},
   {'Notes': Icons.abc},
   {'Events': Icons.event}];
-  /* Old pages:
-  {'Contacts': Icons.contact_phone_rounded},
-  {'Events': Icons.event},
-  {'To-Do': Icons.abc},
-  {'Projects': Icons.abc},
-  {'Reminders': Icons.abc},
-  {'Notes': Icons.abc}];
-  */
+
   String getGreetingTime(){
     final hour = DateTime.now().hour;
     if (hour < 12) {
@@ -65,9 +63,7 @@ class HomePage extends StatefulWidget {
   @override
   State<HomePage> createState() => _HomePageState();
 }
-
 class _HomePageState extends State<HomePage> {
-
   String greetingTime = 'notInitialized';
   @override
   void initState() {
@@ -77,69 +73,159 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: BoxDecoration(
-            border : Border(
-              bottom: BorderSide(
+      backgroundColor: Colors.black,
+      appBar: AppBar( 
+        backgroundColor: Colors.black,
+        toolbarHeight: MediaQuery.of(context).size.height * 0.33,
+        flexibleSpace: Stack(
+          children: [
+            Container(
+              decoration: BoxDecoration(
                 color: Colors.black,
-                width: 2.0,
+                
               ),
             ),
-            gradient: appGradient
-          ),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Good $greetingTime,',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            Text(
-              widget.username,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            )
-          ],
-        ), 
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            for (int index = 0; index < widget.pages.length; index++)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                child : Container(
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade400,
-                    borderRadius: BorderRadius.circular(10),
+            Positioned(  // Background blob
+              top: 25,  // Negative value to position it partially off-screen
+              left: -35,
+              child: Container(
+                width: 125,
+                height: 125,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color.fromARGB(255, 101, 28, 132),
+                ),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(
+                    sigmaX: 55,
+                    sigmaY: 40,
                   ),
-                  margin: const EdgeInsets.symmetric(horizontal: 25),
-                  child: ListTile(
-                    leading: Icon(widget.pages[index].values.first, color: Colors.black, size: 30,),
-                    title: Center(
-                      child: Text(widget.pages[index].keys.first, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),),
-                    ),
-                    onTap: (){
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => Tabs(
-                        currentIndex: index,
-                        pages: widget.pages)));
-                    },
+                  child: Container(
+                    color: Colors.transparent,
                   ),
                 ),
               ),
-          ]
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                onPressed: () {
+              
+                }, 
+                icon: const Icon(
+                  Icons.person_2_outlined,
+                  color: Colors.white,
+                  size: 35,
+                  )
+                ),
+            ),
+          ],
+          ),
+        centerTitle: true,
+        titleTextStyle: const TextStyle(
+          color: Colors.white,
         ),
+        titleSpacing: 10,
+        title: SizedBox(
+          child: Column(
+            spacing: 20,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: 5,),
+              Text(
+                "onTop.",
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.bold,
+                  fontSize: 40,
+                ),
+              ),
+              Column(
+                children: [
+                  Text(
+                    "Good $greetingTime,",
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 20,
+                    ),
+                  ),
+                  Text(
+                    widget.username,
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 20,
+                    ),
+                  ),
+                ],
+              )
+            ],
+          )
+        )
+      ),
+      body: 
+      Stack(
+        children: [
+          Positioned(
+            right: -75, 
+            top: MediaQuery.of(context).size.height * 0.35, 
+            child: Container(
+              width: 175,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color.fromARGB(255, 101, 28, 132),
+              ),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(
+                  sigmaX: 100,
+                  sigmaY: 100,
+                ),
+                child: Container(
+                  color: Colors.transparent,
+                ),
+              ),
+            ),
+          ),
+          Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (int index = 0; index < widget.pages.length; index++)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  child : Container(
+                    decoration: BoxDecoration(
+                      color: Color.fromARGB(25, 255, 255, 255),
+                      borderRadius: BorderRadius.circular(50),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color.fromARGB(10, 255, 255, 255), //color: Color.fromARGB(255, 201, 185, 253)
+                          blurRadius: 15,
+                          spreadRadius: 0,
+                        ),
+                      ],  
+                    ),
+                    margin: const EdgeInsets.symmetric(horizontal: 25),
+                    child: ListTile(
+                      title: Center(
+                        child: Text(widget.pages[index].keys.first, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),),
+                      ),
+                      onTap: (){
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => Tabs(
+                          currentIndex: index,
+                          pages: widget.pages)));
+                      },
+                    ),
+                  ),
+                ),
+            ]
+          ),
+        ),
+        ],
       )
-    );
+    );  
   }
 }
 

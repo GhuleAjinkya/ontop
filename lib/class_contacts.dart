@@ -31,6 +31,7 @@ class DBHelper{ // Class for holding methods with which we'll modify the contact
     if (_database != null) {
       final dbPath = await getDatabasesPath();
       final expectedPath = join(dbPath, 'contacts.db');
+      
       if (_database!.path == expectedPath) {
         return _database!;
       }
@@ -41,7 +42,6 @@ class DBHelper{ // Class for holding methods with which we'll modify the contact
   Future<Database> initDatabase() async { // iF db doesn't exist, create the table
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'contacts.db');
-
     return await openDatabase(
       path,
       version: 1,
@@ -69,7 +69,7 @@ class DBHelper{ // Class for holding methods with which we'll modify the contact
   Future<List<Contact>> fetchContacts() async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
-      'contacts', orderBy: 'name ASC',
+      'contacts', orderBy: 'organization ASC',
     );
     return List.generate(maps.length, (i) {
       return Contact(
