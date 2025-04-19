@@ -246,8 +246,12 @@ class _TabsState extends State<Tabs> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: false,
       backgroundColor: Theme.of(context).colorScheme.primary,
       appBar: AppBar(
+        elevation: 0,  // Add this
+        surfaceTintColor: Colors.transparent,  // Add this
+        scrolledUnderElevation: 0,  // Add this
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
         toolbarHeight: MediaQuery.of(context).size.height * 0.15,
         automaticallyImplyLeading: false,

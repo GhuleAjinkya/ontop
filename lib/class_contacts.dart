@@ -1,5 +1,4 @@
 import 'dart:math';
-
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:flutter/material.dart';
@@ -154,9 +153,14 @@ class Contacts extends StatefulWidget {
 }
 class _ContactsState extends State<Contacts> {
   final DBHelper dbHelper = DBHelper();
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController organizationController = TextEditingController();
+  final TextEditingController positionController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
   List<Contact> contacts = [];
   List<Contact> starred = [];
   Map<String, List<Contact>> sections = {};
+  bool addingContact = false; 
 
   Future<void> begin() async { // just connect db to local variable
     contacts = await dbHelper.fetchContacts();
@@ -171,16 +175,22 @@ class _ContactsState extends State<Contacts> {
 
     // Sort contacts into sections
     for (var contact in contacts.where((c) => c.starred == 0)) {
-      String key = contact.name[0].toUpperCase();
-      sections[key]!.add(contact);
+      if (contact.name.isNotEmpty) {  // Check for empty name
+        String firstLetter = contact.name[0].toUpperCase();
+        if (sections.containsKey(firstLetter)) {
+          sections[firstLetter]!.add(contact);
+        }
+      }
     }
 
     // Sort each section
     sections.forEach((key, list) {
-        list.sort((a, b) => a.name.compareTo(b.name));
+        if (list.isNotEmpty) {  // Add this check
+      list.sort((a, b) => a.name.compareTo(b.name));
+    }
     });
 
-    starred = contacts.where((c) => c.starred == 1).toList();
+    starred = contacts.where((c) => c.starred == 1).toList(); // print database contents to console for debugging
     setState(() {});
   }
 
@@ -202,9 +212,22 @@ class _ContactsState extends State<Contacts> {
     begin(); 
   }
 
+  void clearForm() {
+    if (mounted) {
+      setState(() {
+        addingContact = false;
+      });
+      nameController.clear();
+      organizationController.clear();
+      positionController.clear();
+      phoneController.clear();
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: false,
       backgroundColor: Theme.of(context).colorScheme.primary,
       //floatingActionButtonLocation: FloatingActionButtonLocation.miniCenterFloat,
       //floatingActionButton: FloatingActionButton(
@@ -212,110 +235,182 @@ class _ContactsState extends State<Contacts> {
         //backgroundColor: Theme.of(context).colorScheme.tertiary,
        // child: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary,),
       //),
-      body: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    margin: EdgeInsets.only(left: 40),
-                    child: Text(
-                      'Contacts',
-                      style: TextStyle(
-                        fontSize: 28,
+      body: SafeArea(
+        child: Container(
+          color: Theme.of(context).colorScheme.primary,
+          child: Column(     
+            children: [
+              Container(
+                color: Theme.of(context).colorScheme.primary,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        margin: EdgeInsets.only(left: 40),
+                        child: Text(
+                          'Contacts',
+                          style: TextStyle(
+                            fontSize: 28,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        margin: EdgeInsets.only(right: 20),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                Icons.search, 
+                                color: Theme.of(context).colorScheme.onPrimary,
+                                size: 30,
+                              ),
+                              onPressed: () {
+                                
+                              }
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.add_call, 
+                                color: Theme.of(context).colorScheme.onPrimary,
+                                size: 26,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  addingContact = true;
+                                });
+                              }
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.more_vert, 
+                                color: Theme.of(context).colorScheme.onPrimary,
+                                size: 28,
+                              ),
+                              onPressed: () {                            
+                              }
+                            ),
+                          ],
+                        ),
+                      ),                  
+                    ],),
+                ),
+              ),
+              if (addingContact) ...[
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 36, vertical: 5),
+                  decoration: standardTile(10),
+                  child: ListTile(
+                    contentPadding: EdgeInsets.symmetric(horizontal: 2),
+                    leading: IconButton(
+                      alignment: Alignment.centerLeft,
+                      onPressed: clearForm, 
+                      icon: Icon(
+                        Icons.close,
                         color: Theme.of(context).colorScheme.onPrimary,
-                        fontWeight: FontWeight.w600,
+                        size: 20,
                       ),
                     ),
-                  ),
-                  Container(
-                    margin: EdgeInsets.only(right: 20),
-                    child: Row(
+                    title: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        IconButton(
-                          icon: Icon(
-                            Icons.search, 
-                            color: Theme.of(context).colorScheme.onPrimary,
-                            size: 30,
+                        SizedBox(
+                          width: MediaQuery.of(context).size.width * 0.20,
+                          child: TextField(
+                            controller: nameController,
+                            style: TextStyle(color: Theme.of(context).colorScheme.onPrimary,),
+                            decoration: InputDecoration(
+                              hintText: 'Name',
+                              labelText: 'Name',
+                              hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
+                              border: const UnderlineInputBorder(),
+                            ),
                           ),
-                          onPressed: () {
-                            
-                          }
                         ),
-                        IconButton(
-                          icon: Icon(
-                            Icons.add_call, 
-                            color: Theme.of(context).colorScheme.onPrimary,
-                            size: 26,
+                        SizedBox(
+                          width: MediaQuery.of(context).size.width * 0.20,
+                          child: TextField(
+                            controller: phoneController,
+                            style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 14),
+                            decoration: InputDecoration(
+                              hintText: 'Number',
+                              labelText: 'Number',
+                              hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
+                              border: const UnderlineInputBorder(),
+                            ),
                           ),
-                          onPressed: () {
-                            addDummy(); // currently calls dummy
-                          }
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            Icons.more_vert, 
-                            color: Theme.of(context).colorScheme.onPrimary,
-                            size: 28,
-                          ),
-                          onPressed: () {                            
-                          }
                         ),
                       ],
                     ),
-                  ),                  
-                ],),
-            ),
-            Expanded(
-              child: ListView(
-                children: [
-                  if (starred.isNotEmpty) ...[
-                    Container(
-                      margin: const EdgeInsets.only(left: 40),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.star_rounded, 
-                            color: Theme.of(context).colorScheme.onPrimary,
-                            size: 20,
-                          ),
-                          Expanded(
-                            child: Container(
-                              margin: const EdgeInsets.only(left: 10, right: 40),
-                              height: 5,
-                              decoration: BoxDecoration(
-                                color: Colors.transparent,
-                                border: Border(
-                                  bottom: BorderSide(
-                                    color: Theme.of(context).colorScheme.onPrimary,
-                                    width: 0.75,
-                                  ),
-                                ),
-                              ),
+                    subtitle: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        SizedBox(
+                          width: MediaQuery.of(context).size.width * 0.20,
+                          child: TextField(
+                            controller: positionController,
+                            style: TextStyle(color: Theme.of(context).colorScheme.onPrimary,),
+                            decoration: InputDecoration(
+                              hintText: 'Position',
+                              labelText: 'Position',
+                              hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
+                              border: const UnderlineInputBorder(),
                             ),
                           ),
-                        ],
+                        ),
+                        SizedBox(
+                          width: MediaQuery.of(context).size.width * 0.20,
+                          child: TextField(
+                            controller: organizationController,
+                            style: TextStyle(color: Theme.of(context).colorScheme.onPrimary,),
+                            decoration: InputDecoration(
+                              hintText: 'Organization',
+                              labelText: 'Organization',
+                              hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
+                              border: const UnderlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    trailing: IconButton(
+                      alignment: Alignment.centerRight,
+                      onPressed: () async {
+                        final newContact = Contact(
+                          id: 0,
+                          name: nameController.text,
+                          organization: organizationController.text,
+                          phoneNumber: phoneController.text,
+                          position: positionController.text,
+                          starred: 0,
+                        );
+                        clearForm();
+                        await dbHelper.insertContact(newContact);
+                        await begin();
+                      },
+                      icon: Icon(
+                        Icons.check, 
+                        color: Theme.of(context).colorScheme.onPrimary,
+                        size: 20,
                       ),
                     ),
-                    buildContactTiles(starred, context, starred: true),
-                  ],
-
-                  for (var entry in sections.entries) ...[
-                    const Divider(
-                      height: 1,
-                      color: Colors.transparent,
-                    ),
-                    if (entry.value.isNotEmpty) ...[
+                  ),
+                ),
+              ],
+              Expanded(
+                child: ListView(
+                  children: [
+                    if (starred.isNotEmpty) ...[
                       Container(
                         margin: const EdgeInsets.only(left: 40),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Icon(
-                              Icons.sort_by_alpha, // Placeholder icon
+                              Icons.star_rounded, 
                               color: Theme.of(context).colorScheme.onPrimary,
                               size: 20,
                             ),
@@ -337,14 +432,55 @@ class _ContactsState extends State<Contacts> {
                           ],
                         ),
                       ),
-                    buildContactTiles(entry.value, context),
+                      buildContactTiles(starred, context, starred: true),
+                    ],
+                    for (var entry in sections.entries) ...[
+                      const Divider(
+                        height: 1,
+                        color: Colors.transparent,
+                      ),
+                      if (entry.value.isNotEmpty) ...[
+                        Container(                           
+                          margin: const EdgeInsets.only(left: 40),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(
+                                entry.key,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  //fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Expanded(
+                                child: Container(
+                                  margin: const EdgeInsets.only(left: 10, right: 40),
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    color: Colors.transparent,
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        color: Theme.of(context).colorScheme.onPrimary,
+                                        width: 0.75,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      buildContactTiles(entry.value, context),
+                      ],
                     ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
           ),
-      );
+        ),
+      ),    
+    );
   }
 }
