@@ -8,16 +8,16 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 standardTile(double borderRadius) {
   return BoxDecoration(
-                      color: Color.fromARGB(25, 255, 255, 255),
-                      borderRadius: BorderRadius.circular(borderRadius),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color.fromARGB(10, 255, 255, 255), //color: Color.fromARGB(255, 201, 185, 253)
-                          blurRadius: 15,
-                          spreadRadius: 0,
-                        ),
-                      ],  
-                    );
+    color: Color.fromARGB(25, 255, 255, 255),
+    borderRadius: BorderRadius.circular(borderRadius),
+    boxShadow: [
+      BoxShadow(
+        color: Color.fromARGB(10, 255, 255, 255), //color: Color.fromARGB(255, 201, 185, 253)
+        blurRadius: 15,
+        spreadRadius: 0,
+      ),
+    ],  
+  );
 }
 void main() {
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS){
@@ -52,12 +52,12 @@ class MyApp extends StatelessWidget {
 class HomePage extends StatefulWidget {
   HomePage({super.key});
   final String username = 'usernameDefault';
-  final List<Map<String, IconData>> tabs = [
-  {'Contacts': Icons.contact_phone_rounded},
-  {'Docket': Icons.note},
-  {'Projects': Icons.abc},
-  {'Notes': Icons.abc},
-  {'Events': Icons.event}];
+  final List<String> tabs = [
+    'Tasks',
+    'Contacts',
+    'Projects',
+    'Events'
+  ];
 
   String getGreetingTime(){
     final hour = DateTime.now().hour;
@@ -116,11 +116,11 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             Positioned(
-              top: 8,
-              right: 8,
+              top: 20,
+              right: 20,
               child: IconButton(
                 onPressed: () {
-                  
+                   
                 }, 
                 icon: Icon(
                   Icons.person_2_outlined,
@@ -205,7 +205,7 @@ class _HomePageState extends State<HomePage> {
                     margin: const EdgeInsets.symmetric(horizontal: 25),
                     child: ListTile(
                       title: Center(
-                        child: Text(widget.tabs[index].keys.first, style: TextStyle(
+                        child: Text(widget.tabs[index], style: TextStyle(
                           color: Theme.of(context).colorScheme.onPrimary,
                           fontWeight: FontWeight.bold),),
                       ),
@@ -229,7 +229,7 @@ class _HomePageState extends State<HomePage> {
 class Tabs extends StatefulWidget {
   const Tabs({super.key, required this.currentIndex, required this.tabs});
   final int currentIndex;
-  final List<Map<String, IconData>> tabs;
+  final List<String> tabs;
 
   @override
   State<Tabs> createState() => _TabsState();
@@ -308,7 +308,7 @@ class TabsContentCaller extends StatelessWidget {
   {'Events': Icons.event}]; 
   Pages for referance */
     switch (tab) {
-      case 0:
+      case 1:
         return Contacts(); 
       default:
         return const Text("Body not added");

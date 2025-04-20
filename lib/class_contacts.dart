@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/services.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:flutter/material.dart';
@@ -103,10 +104,10 @@ class DBHelper{ // Class for holding methods with which we'll modify the contact
           CREATE TABLE contacts(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            position TEXT,
-            organization TEXT,
+            position TEXT NOT NULL,
+            organization TEXT NOT NULL,
             phoneNumber TEXT NOT NULL,
-            starred INTEGER DEFAULT 0
+            starred INTEGER NOT NULL DEFAULT 0
           )
         ''');
       },
@@ -274,7 +275,7 @@ class _ContactsState extends State<Contacts> {
                             ),
                             IconButton(
                               icon: Icon(
-                                Icons.add_call, 
+                                Icons.add, 
                                 color: Theme.of(context).colorScheme.onPrimary,
                                 size: 26,
                               ),
@@ -314,61 +315,59 @@ class _ContactsState extends State<Contacts> {
                         size: 20,
                       ),
                     ),
-                    title: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    title: Column(
                       children: [
                         SizedBox(
-                          width: MediaQuery.of(context).size.width * 0.20,
                           child: TextField(
                             controller: nameController,
                             style: TextStyle(color: Theme.of(context).colorScheme.onPrimary,),
                             decoration: InputDecoration(
                               hintText: 'Name',
-                              labelText: 'Name',
+                              labelText: 'Name*',
                               hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               border: const UnderlineInputBorder(),
+
                             ),
                           ),
                         ),
                         SizedBox(
-                          width: MediaQuery.of(context).size.width * 0.20,
                           child: TextField(
+                            keyboardType: TextInputType.numberWithOptions(signed: false, decimal: false),
+                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                             controller: phoneController,
                             style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 14),
                             decoration: InputDecoration(
                               hintText: 'Number',
-                              labelText: 'Number',
+                              labelText: 'Number*',
                               hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               border: const UnderlineInputBorder(),
+
                             ),
                           ),
                         ),
                       ],
                     ),
-                    subtitle: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    subtitle: Column(
                       children: [
                         SizedBox(
-                          width: MediaQuery.of(context).size.width * 0.20,
                           child: TextField(
                             controller: positionController,
                             style: TextStyle(color: Theme.of(context).colorScheme.onPrimary,),
                             decoration: InputDecoration(
                               hintText: 'Position',
-                              labelText: 'Position',
+                              labelText: 'Position*',
                               hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               border: const UnderlineInputBorder(),
                             ),
                           ),
                         ),
                         SizedBox(
-                          width: MediaQuery.of(context).size.width * 0.20,
                           child: TextField(
                             controller: organizationController,
                             style: TextStyle(color: Theme.of(context).colorScheme.onPrimary,),
                             decoration: InputDecoration(
                               hintText: 'Organization',
-                              labelText: 'Organization',
+                              labelText: 'Organization*',
                               hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               border: const UnderlineInputBorder(),
                             ),
@@ -379,14 +378,31 @@ class _ContactsState extends State<Contacts> {
                     trailing: IconButton(
                       alignment: Alignment.centerRight,
                       onPressed: () async {
+                        if (nameController.text.trim().isEmpty ||
+                            organizationController.text.trim().isEmpty ||
+                            phoneController.text.trim().isEmpty ||
+                            positionController.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('All fields are required',
+                                style: TextStyle(color: Theme.of(context).colorScheme.onError),
+                              ),
+                              backgroundColor: Theme.of(context).colorScheme.error,
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                          return;
+                        }
+
                         final newContact = Contact(
                           id: 0,
-                          name: nameController.text,
-                          organization: organizationController.text,
-                          phoneNumber: phoneController.text,
-                          position: positionController.text,
+                          name: nameController.text.trim(),
+                          organization: organizationController.text.trim(),
+                          phoneNumber: phoneController.text.trim(),
+                          position: positionController.text.trim(),
                           starred: 0,
                         );
+
                         clearForm();
                         await dbHelper.insertContact(newContact);
                         await begin();
@@ -435,11 +451,11 @@ class _ContactsState extends State<Contacts> {
                       buildContactTiles(starred, context, starred: true),
                     ],
                     for (var entry in sections.entries) ...[
-                      const Divider(
-                        height: 1,
-                        color: Colors.transparent,
-                      ),
                       if (entry.value.isNotEmpty) ...[
+                        const Divider(
+                          height: 1,
+                          color: Colors.transparent,
+                        ),
                         Container(                           
                           margin: const EdgeInsets.only(left: 40),
                           child: Row(
