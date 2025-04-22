@@ -13,7 +13,7 @@ class Contact {
   final String organization;
   final String position;
   final String phoneNumber;
-  final int starred;
+  int starred;
 
   Contact({
     required this.id,
@@ -24,54 +24,7 @@ class Contact {
     required this.starred,
   });
 }
-Widget buildContactTiles(List<Contact> contacts, BuildContext context, {bool starred = false}) {
-  Icon contactIcon;
-  if (starred) {
-    contactIcon = Icon(Icons.star_rounded);
-  } else {
-    contactIcon = Icon(Icons.person);
-  }
-  return ListView.builder(  
-    physics: const BouncingScrollPhysics(),
-    shrinkWrap: true,
-    itemCount: contacts.length,
-    itemBuilder: (context,index) {
-      final name = contacts[index].name;
-      final position = contacts[index].position;
-      final organization = contacts[index].organization;
-      return Padding(
-        padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
-        child: Container(
-          decoration: standardTile(10),
-          margin: const EdgeInsets.symmetric(horizontal: 20),
-          child: ListTile(
-            dense: true,
-            leading: Icon(
-              contactIcon.icon,
-              color: Theme.of(context).colorScheme.onPrimary,
-            ),
-            title: Text(
-              name,
-              style: TextStyle(
-                fontSize: 14,
-                color: Theme.of(context).colorScheme.onPrimary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            subtitle: Text(
-              '$position, $organization',
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.tertiary,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-          ),
-        ),
-      );
-    },
-  );
-}
+
 class DBHelper{ // Class for holding methods with which we'll modify the contactcts database
   
   static final DBHelper _instance = DBHelper._internal();
@@ -160,8 +113,77 @@ class _ContactsState extends State<Contacts> {
   final TextEditingController phoneController = TextEditingController();
   List<Contact> contacts = [];
   List<Contact> starred = [];
+  Set<int> selectedIDs = {};
   Map<String, List<Contact>> sections = {};
   bool addingContact = false; 
+
+  Widget buildContactTiles(List<Contact> contacts, BuildContext context, {bool starred = false}) {
+    Icon contactIcon;
+    if (starred) {
+      contactIcon = Icon(Icons.star_rounded);
+    } else {
+      contactIcon = Icon(Icons.person);
+    }
+    return ListView.builder(  
+      physics: const BouncingScrollPhysics(),
+      shrinkWrap: true,
+      itemCount: contacts.length,
+      itemBuilder: (context,index) {
+        final contact = contacts[index];
+        final isSelected = selectedIDs.contains(contact.id);
+        return Padding(
+          padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
+          child: Container(
+            decoration: standardTile(10, isSelected: isSelected),
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            child: ListTile(
+              dense: true,
+              leading: Icon(
+                isSelected ? Icons.check_circle : contactIcon.icon,
+                color: isSelected ? Theme.of(context).colorScheme.tertiary: Theme.of(context).colorScheme.onPrimary,
+              ),
+              title: Text(
+                contact.name,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                '${contact.position}, ${contact.organization}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.tertiary,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+              onLongPress: () {
+                setState(() {
+                  if (!isSelected) {
+                    selectedIDs.add(contact.id);
+                  }
+                });
+              },
+              onTap: () {
+                setState(() {
+                  if (isSelected) {
+                    selectedIDs.remove(contact.id);
+                  }
+                  else  if (selectedIDs.isNotEmpty){
+                    selectedIDs.add(contact.id);
+                  }
+                  else {
+                    // Detailed Contacts Page here
+                  }
+                });
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   Future<void> begin() async { // just connect db to local variable
     contacts = await dbHelper.fetchContacts();
@@ -191,7 +213,10 @@ class _ContactsState extends State<Contacts> {
     }
     });
 
-    starred = contacts.where((c) => c.starred == 1).toList(); // print database contents to console for debugging
+    starred = contacts.where((c) => c.starred == 1).toList();
+    if (starred.isNotEmpty) {
+    starred.sort((a, b) => a.name.compareTo(b.name));
+    }
     setState(() {});
   }
 
@@ -224,18 +249,61 @@ class _ContactsState extends State<Contacts> {
       phoneController.clear();
     }
   }
+
+  void starSelected() async {
+    for (var id in selectedIDs) {
+      // Find the contact with matching ID
+      var contact = contacts.firstWhere((contact) => contact.id == id);
+      contact.starred = 1;
+      await dbHelper.insertContact(contact);
+    }
+    await begin();
+  }
+
+  void deStarSelected() async {
+    for (var id in selectedIDs) {
+      // Find the contact with matching ID
+      var starredContact = starred.firstWhere((star) => star.id == id);
+      starredContact.starred = 0;
+      await dbHelper.insertContact(starredContact);
+    }
+    await begin();
+  }
+
+  void deleteSelected() async {
+    for (var id in selectedIDs) {
+      await dbHelper.deleteContact(id);
+    }
+    selectedIDs.clear();
+    await begin();
+  }
+
+  void selectAll() {
+    selectedIDs.addAll(contacts.map((contact) => contact.id));
+  }
+  
+  bool allAreSelected() {
+
+    return contacts.every((contact) {
+      return selectedIDs.contains(contact.id);
+    });
+  }
+  
+  bool allSeletedAreStarred() {
+
+    return selectedIDs.every((id) {
+      var contact = contacts.firstWhere((c) => c.id == id);
+      return contact.starred == 1;
+    });
+  }
   
   @override
   Widget build(BuildContext context) {
+    bool allStarred = allSeletedAreStarred(); // Moved to the State class to persist its value
+    bool allSelected = allAreSelected();
     return Scaffold(
       extendBodyBehindAppBar: false,
       backgroundColor: Theme.of(context).colorScheme.primary,
-      //floatingActionButtonLocation: FloatingActionButtonLocation.miniCenterFloat,
-      //floatingActionButton: FloatingActionButton(
-        //onPressed: addDummy, // currently calls dummy, will class
-        //backgroundColor: Theme.of(context).colorScheme.tertiary,
-       // child: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary,),
-      //),
       body: SafeArea(
         child: Container(
           color: Theme.of(context).colorScheme.primary,
@@ -259,7 +327,8 @@ class _ContactsState extends State<Contacts> {
                           ),
                         ),
                       ),
-                      Container(
+                      if (selectedIDs.isEmpty) ...[
+                        Container(
                         margin: EdgeInsets.only(right: 20),
                         child: Row(
                           children: [
@@ -296,9 +365,114 @@ class _ContactsState extends State<Contacts> {
                             ),
                           ],
                         ),
-                      ),                  
-                    ],),
-                ),
+                        ),                  
+                      ]
+                      else ...[
+                        Container(
+                          margin: EdgeInsets.only(right: 20),
+                          child: Row(
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  // ignore: dead_code
+                                  allSelected ? Icons.check_circle_outline_rounded : Icons.circle_outlined, 
+                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  size: 30,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    if(allSelected) {
+                                      selectedIDs.clear();
+                                    }
+                                    else {
+                                      selectAll();
+                                    }
+                                  });
+                                }
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  // ignore: dead_code
+                                  allStarred ? Icons.star_outline_rounded : Icons.star_rounded, 
+                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  size: 26,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    if (allStarred) {
+                                      deStarSelected();
+                                    }
+                                    else {
+                                      starSelected();
+                                    }
+                                    deleteSelected();
+                                  });
+                                }
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.delete_outline_rounded, 
+                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  size: 28,
+                                ),
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      backgroundColor: Theme.of(context).colorScheme.primary,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        side: BorderSide(
+                                          color: Theme.of(context).colorScheme.onSecondary,
+                                          width: 1.5,
+                                        )
+                                      ),
+                                      title: Text(
+                                        'Delete Contacts?',
+                                        style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onPrimary),
+                                      ),
+                                      content: Text(
+                                        'Selected contacts will be permanently deleted.',
+                                        style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
+                                      ),
+                                      actions: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                          children: [
+                                            IconButton(
+                                              onPressed: () => Navigator.pop(context),
+                                              icon: Icon(
+                                                Icons.close,
+                                                color: Theme.of(context).colorScheme.onPrimary,
+                                                size: 30,
+                                              ),
+                                            ),
+                                            IconButton(
+                                              onPressed: () {
+                                                deleteSelected();
+                                                Navigator.pop(context);
+                                              },
+                                              icon: Icon(
+                                                Icons.check,
+                                                color: Theme.of(context).colorScheme.error,
+                                                size: 30,
+                                              ),
+                                            )
+                                          ],
+                                        ),
+                                        
+                                      ],
+                                    ),
+                                  );
+                                }
+                              ),
+                            ],
+                          ),
+                        ),                  
+                      ],
+                    ],
+                  ),
+                ),  
               ),
               if (addingContact) ...[
                 Container(
@@ -417,7 +591,7 @@ class _ContactsState extends State<Contacts> {
                 ),
               ],
               Expanded(
-                child: ListView(
+                child: ListView( 
                   children: [
                     if (starred.isNotEmpty) ...[
                       Container(
