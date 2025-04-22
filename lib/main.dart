@@ -6,9 +6,9 @@ import 'class_contacts.dart';
 import 'dart:io';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-standardTile(double borderRadius) {
+standardTile(double borderRadius, {bool isSelected = false}) {
   return BoxDecoration(
-    color: Color.fromARGB(25, 255, 255, 255),
+    color: isSelected ? Color.fromARGB(100, 255, 255, 255) : Color.fromARGB(25, 255, 255, 255),
     borderRadius: BorderRadius.circular(borderRadius),
     boxShadow: [
       BoxShadow(
@@ -245,6 +245,8 @@ class _TabsState extends State<Tabs> {
   
   @override
   Widget build(BuildContext context) {
+    List<String> drawerTabs = ['Home', ...widget.tabs];
+
     return Scaffold(
       extendBodyBehindAppBar: false,
       backgroundColor: Theme.of(context).colorScheme.primary,
@@ -257,6 +259,7 @@ class _TabsState extends State<Tabs> {
         automaticallyImplyLeading: false,
         backgroundColor: Theme.of(context).colorScheme.primary,
         iconTheme: IconThemeData(color: Theme.of(context).colorScheme.onPrimary,),
+        actions: [Container()],
         title: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -280,17 +283,105 @@ class _TabsState extends State<Tabs> {
                   fontSize: 40,
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.menu_rounded, size: 35),
-                onPressed: () {   
-                  Navigator.pop(context); 
-                },
+              Builder( // Add this Builder widget
+                builder: (context) => IconButton(
+                  icon: const Icon(Icons.menu, size: 35),
+                  onPressed: () => Scaffold.of(context).openEndDrawer(),
+                ),
               ),
             ],
           ),
         ),
       ),
       body: TabsContentCaller(tab: index),
+      endDrawer: Drawer(  // Changed from Drawer() in onPressed to endDrawer here
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(
+                width: 1.5,
+                color: Theme.of(context).colorScheme.tertiary,
+              )
+            )
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              IconButton(
+                padding: EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+                icon: Icon(
+                  Icons.arrow_forward, 
+                  color: Colors.white,
+                  size: 30,
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+              ),
+              Expanded(
+                child: ListView.separated(
+                  padding: EdgeInsets.only(top: MediaQuery.of(context).size.height * 0.10),
+                  itemCount: drawerTabs.length,
+                  separatorBuilder: (context, index) => Container(
+                    height: 3,
+                    margin: EdgeInsets.symmetric(horizontal: 20),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      border: Border(
+                        bottom: BorderSide(
+                          width: 1.5, 
+                          color: Theme.of(context).colorScheme.tertiary
+                        ),
+                      )
+                    ),
+                  ),
+                  itemBuilder: (context, drawerIndex) => ListTile(
+                    
+                    contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 30),
+                    title: Text(
+                      drawerTabs[drawerIndex],
+                      style: TextStyle(
+                        color: drawerIndex - 1 == index ?
+                        Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.tertiary,
+                        fontSize: 18,
+                      ),
+                      textAlign: TextAlign.right,
+                    ),
+                    onTap: () {
+                      if (drawerIndex == 0){
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(builder: (context) => HomePage()),
+                          (route) => false
+                        );
+                      }
+                      else {
+                        Navigator.pop(context);
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => 
+                        Tabs(currentIndex: drawerIndex - 1, tabs: widget.tabs)));
+                      }
+                    },
+                    
+                  ),
+                  
+                ),
+              ),
+              IconButton(
+                padding: EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+                icon: Icon(
+                  Icons.person_outline, 
+                  color: Colors.white,
+                  size: 30,
+                ),
+                onPressed: () {
+
+                },
+              )
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -298,20 +389,17 @@ class _TabsState extends State<Tabs> {
 class TabsContentCaller extends StatelessWidget {
   const TabsContentCaller({super.key, required this.tab});
   final int tab;
-
+  /*'Tasks',
+    'Contacts',
+    'Projects',
+    'Events'*/
   @override
   Widget build(BuildContext context) {
-    /* {'Contacts': Icons.contact_phone_rounded},
-  {'Docket': Icons.note},
-  {'Projects': Icons.abc},
-  {'Notes': Icons.abc},
-  {'Events': Icons.event}]; 
-  Pages for referance */
     switch (tab) {
       case 1:
         return Contacts(); 
       default:
-        return const Text("Body not added");
+        return Text("$tab Body not added");
     }
   }
 }
