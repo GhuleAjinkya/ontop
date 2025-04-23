@@ -5,6 +5,9 @@ import 'dart:ui';
 import 'class_contacts.dart';
 import 'dart:io';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'class_projects.dart';
+import 'class_events.dart';
+import 'class_tasks.dart';
 
 standardTile(double borderRadius, {bool isSelected = false}) {
   return BoxDecoration(
@@ -173,7 +176,7 @@ class _HomePageState extends State<HomePage> {
             right: -75,
             top: MediaQuery.of(context).size.height * 0.35,
             child: Container(
-              width: 175,
+              width: 160,
               height: 120,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
@@ -412,6 +415,16 @@ class TabsContentCaller extends StatelessWidget {
     switch (tab) {
       case 1:
         return Contacts();
+
+      case 2:
+        return Projects();
+
+      case 3:
+        return Events();
+
+      case 0:
+        return Tasks();
+        
       default:
         return Text("$tab Body not added");
     }
