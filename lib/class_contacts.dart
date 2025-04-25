@@ -1,10 +1,12 @@
-import 'dart:math';
+// dependancies
 import 'package:flutter/services.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 import 'main.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 // Contact Object, will likely modify later
 class Contact {
@@ -31,7 +33,6 @@ class DBHelper{ // Class for holding methods with which we'll modify the contact
   factory DBHelper() => _instance;
   DBHelper._internal();
   // This just ensures we dont try to open miltiple databases at the same time
-  // idk how this works tho lol
   static Database? _database;
 
   Future<Database> get database async { // just checks if the database already exists or needs to be remade
@@ -77,7 +78,8 @@ class DBHelper{ // Class for holding methods with which we'll modify the contact
       'starred': contact.starred,
      });
   }
-  Future<List<Contact>> fetchContacts() async {
+
+  Future<List<Contact>> fetchContacts() async { // saves contacts to a var
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
       'contacts', orderBy: 'organization ASC',
@@ -93,30 +95,37 @@ class DBHelper{ // Class for holding methods with which we'll modify the contact
       );
     });
   }
+
   Future<void> deleteContact(id) async{
     final db = await database;
     await db.delete('contacts', where: 'id = ?', whereArgs: [id]);
   } 
 
 }
+
 class Contacts extends StatefulWidget {
   const Contacts({super.key});
   
   @override
   State<Contacts> createState() => _ContactsState();
 }
+
 class _ContactsState extends State<Contacts> {
-  final DBHelper dbHelper = DBHelper();
+  final DBHelper dbHelper = DBHelper(); // initialize dbHelper methods
+  // for adding a new contact 
   final TextEditingController nameController = TextEditingController();
   final TextEditingController organizationController = TextEditingController();
   final TextEditingController positionController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
+  
   List<Contact> contacts = [];
   List<Contact> starred = [];
   Set<int> selectedIDs = {};
   Map<String, List<Contact>> sections = {};
   bool addingContact = false; 
+  Contact? openedContact;
 
+  // stores data about how individual contacts in the list look like and how they react
   Widget buildContactTiles(List<Contact> contacts, BuildContext context, {bool starred = false}) {
     Icon contactIcon;
     if (starred) {
@@ -174,7 +183,7 @@ class _ContactsState extends State<Contacts> {
                     selectedIDs.add(contact.id);
                   }
                   else {
-                    // Detailed Contacts Page here
+                    openedContact = contact; 
                   }
                 });
               },
@@ -218,24 +227,6 @@ class _ContactsState extends State<Contacts> {
     starred.sort((a, b) => a.name.compareTo(b.name));
     }
     setState(() {});
-  }
-
-  Future<void> addDummy() async { // dummy contacts for testing
-    final newContact = Contact(
-      id: 0,
-      name: 'John Doe',
-      organization: 'A Example Corp',
-      phoneNumber: '123-456-7890',
-      position: 'Example Position',
-      starred: Random().nextInt(2),
-    );
-    await dbHelper.insertContact(newContact);
-    await begin();
-  }
-  @override
-  void initState() {
-    super.initState();
-    begin(); 
   }
 
   void clearForm() {
@@ -298,9 +289,23 @@ class _ContactsState extends State<Contacts> {
   }
   
   @override
+  void initState() {
+    super.initState();
+    begin(); 
+  }
+
+  @override
   Widget build(BuildContext context) {
     bool allStarred = allSeletedAreStarred(); // Moved to the State class to persist its value
     bool allSelected = allAreSelected();
+    if (openedContact != null) {
+      return ContactDetails(
+        contact: openedContact!, 
+        onBack: () => setState(() {
+          openedContact = null;
+        })
+      );
+    }
     return Scaffold(
       extendBodyBehindAppBar: false,
       backgroundColor: Theme.of(context).colorScheme.primary,
@@ -661,7 +666,7 @@ class _ContactsState extends State<Contacts> {
                             ],
                           ),
                         ),
-                      buildContactTiles(entry.value, context),
+                        buildContactTiles(entry.value, context),
                       ],
                     ],
                   ],
@@ -671,6 +676,242 @@ class _ContactsState extends State<Contacts> {
           ),
         ),
       ),    
+    );
+  }
+}
+
+class ContactDetails extends StatefulWidget {
+  const ContactDetails({super.key, required this.contact, required this.onBack});
+  final Contact contact;
+  final VoidCallback onBack;
+
+  @override
+  State<ContactDetails> createState() => _ContactDetailsState();
+}
+
+class _ContactDetailsState extends State<ContactDetails> {
+
+  void callNumber(String phoneNumber, VoidCallback onError) async {
+    final Uri uri = Uri(scheme: 'tel', path: phoneNumber);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+      return;
+    }
+    onError();
+  }
+
+  void openWhatsApp(String phoneNumber, VoidCallback onError) async {
+    // Format the number for India (country code +91)
+    String formattedNumber = phoneNumber.replaceAll(RegExp(r'\D'), '');
+    
+    // Check and adjust formatting for Indian numbers
+    if (formattedNumber.length == 10) {
+      // It's a 10-digit mobile number without country code
+      formattedNumber = '91$formattedNumber';
+    } else if (formattedNumber.startsWith('0') && formattedNumber.length == 11) {
+      // Number starts with 0 (sometimes people add 0 before mobile number)
+      formattedNumber = '91${formattedNumber.substring(1)}';
+    } else if (formattedNumber.startsWith('91') && formattedNumber.length == 12) {
+      // Already has country code without + sign
+      // formattedNumber is already correct
+    } else if (formattedNumber.startsWith('+91') || (formattedNumber.startsWith('091'))) {
+      // Has +91 or 091 prefix
+      // Extract just the last 10 digits and add 91
+      String lastTenDigits = formattedNumber.substring(formattedNumber.length - 10);
+      formattedNumber = '91$lastTenDigits';
+    }
+    
+    String text = Uri.encodeComponent('');
+    final Uri appUri = Uri.parse("whatsapp://send?phone=$formattedNumber&text=$text");
+    
+    if (await canLaunchUrl(appUri)) {
+      await launchUrl(appUri, mode: LaunchMode.externalNonBrowserApplication);
+      return;
+    }
+    final Uri webUri = Uri.parse("https://wa.me/$formattedNumber?text=$text");
+    if (await canLaunchUrl(webUri)) {
+      await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      return;
+    }
+    onError(); 
+  }
+
+  Widget divLine(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 8),
+      height: 3,
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            width: 0.75,
+            color: Theme.of(context).colorScheme.onPrimary,
+          )
+        )
+      ),
+    );
+  }
+  bool starred = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.contact.starred == 1) {
+      starred = true;
+    }
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.primary,
+      body: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            margin: EdgeInsets.only(left: 35, bottom: 30, right: 35, top: 60),
+            alignment: AlignmentDirectional.topStart,
+            decoration: standardTile(40),
+            child: Container(
+              margin: EdgeInsets.only(top: 60, left: 20, right: 20, bottom: 30),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Center(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          widget.contact.name,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18
+                          ),
+                        ),
+                        Text(
+                          "${widget.contact.position}, ${widget.contact.organization}",
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSecondary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                        Text(
+                          widget.contact.phoneNumber,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSecondary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        )
+                      ],),
+                  ),
+                  divLine(context),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      IconButton(
+                        onPressed: (){ callNumber(widget.contact.phoneNumber, () {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Couldn't open the contact"))
+                            );
+                          });
+                        },
+                        icon: Icon(
+                          Icons.phone_in_talk_outlined,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        )
+                      ),
+                      IconButton(
+                        onPressed: () {
+                          openWhatsApp(widget.contact.phoneNumber, () {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Could not launch WhatsApp")),
+                            );
+                          });
+                        },
+                        icon: Icon(
+                          FontAwesomeIcons.whatsapp,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        )
+                      )
+                    ],
+                  ),  
+                  divLine(context),
+                  ListTile( // Redo for final 
+                    title: Text(
+                      "Projects", 
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold, 
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
+                    ),
+                    subtitle: Text(
+                      "No current projects with this contact",
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSecondary,
+                      )
+                    ),
+                  ),
+                  divLine(context),
+                  ListTile( // Redo for final 
+                    title: Text(
+                      "Notes", 
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold, 
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
+                    ),
+                    subtitle: Text(
+                      "Store some details regarding this contact",
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSecondary,
+                      )
+                    ),
+                  ),
+                  divLine(context),
+                ],
+              ),
+            )
+          ),
+          Positioned(
+            top: -20,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: EdgeInsets.all(20),
+                child: Container(
+                  padding: EdgeInsets.all(25),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Theme.of(context).colorScheme.primary,
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      width: 1.5
+                    )
+                  ),
+                  child: Icon(
+                    starred ? Icons.star_rounded : Icons.person_2_outlined,
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    size: 60,
+                  ),
+                ),
+              ),
+            )
+          ),
+          Container(
+            margin: EdgeInsets.only(left: 30),
+            alignment: Alignment.topLeft,
+            child: IconButton(
+              onPressed: widget.onBack, 
+              icon: Icon(
+                Icons.arrow_back,
+                color: Theme.of(context).colorScheme.onPrimary,  
+                size: 30,
+              )
+            ),
+          )
+        ],
+      ),
     );
   }
 }
