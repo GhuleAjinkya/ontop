@@ -296,8 +296,10 @@ class _ContactsState extends State<Contacts> {
 
   @override
   Widget build(BuildContext context) {
+    
     bool allStarred = allSeletedAreStarred(); // Moved to the State class to persist its value
     bool allSelected = allAreSelected();
+    int starredValue = 0;
     if (openedContact != null) {
       return ContactDetails(
         contact: openedContact!, 
@@ -505,7 +507,6 @@ class _ContactsState extends State<Contacts> {
                               labelText: 'Name*',
                               hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               border: const UnderlineInputBorder(),
-
                             ),
                           ),
                         ),
@@ -579,7 +580,7 @@ class _ContactsState extends State<Contacts> {
                           organization: organizationController.text.trim(),
                           phoneNumber: phoneController.text.trim(),
                           position: positionController.text.trim(),
-                          starred: 0,
+                          starred: starredValue,
                         );
 
                         clearForm();
@@ -750,8 +751,10 @@ class _ContactDetailsState extends State<ContactDetails> {
       ),
     );
   }
-  bool starred = false;
 
+  bool starred = false;
+  bool editingContact = false;
+  
   @override
   Widget build(BuildContext context) {
     if (widget.contact.starred == 1) {
@@ -768,39 +771,37 @@ class _ContactDetailsState extends State<ContactDetails> {
             decoration: standardTile(40),
             child: Container(
               margin: EdgeInsets.only(top: 60, left: 20, right: 20, bottom: 30),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.center,
+              child: ListView(
                 children: [
                   Center(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.start,
                       children: [
                         Text(
                           widget.contact.name,
                           style: TextStyle(
                             color: Theme.of(context).colorScheme.onPrimary,
                             fontWeight: FontWeight.bold,
-                            fontSize: 18
-                          ),
-                        ),
-                        Text(
-                          "${widget.contact.position}, ${widget.contact.organization}",
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSecondary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
+                            fontSize: 19,
                           ),
                         ),
                         Text(
                           widget.contact.phoneNumber,
                           style: TextStyle(
                             color: Theme.of(context).colorScheme.onSecondary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
+                            fontSize: 16,
                           ),
-                        )
-                      ],),
+                        ),
+                        Text(
+                          "${widget.contact.position}, ${widget.contact.organization}",
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSecondary,
+                            fontSize: 17,
+                          ),
+                        ),
+                      ],  
+                    ),
                   ),
                   divLine(context),
                   Row(
@@ -834,7 +835,7 @@ class _ContactDetailsState extends State<ContactDetails> {
                         )
                       )
                     ],
-                  ),  
+                  ),
                   divLine(context),
                   ListTile( // Redo for final 
                     title: Text(
@@ -867,9 +868,8 @@ class _ContactDetailsState extends State<ContactDetails> {
                       )
                     ),
                   ),
-                  divLine(context),
                 ],
-              ),
+              )
             )
           ),
           Positioned(
