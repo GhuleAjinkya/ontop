@@ -40,7 +40,7 @@ dependencies:
   font_awesome_flutter: ^10.5.0
 
 dev_dependencies:
-#  flutter_launcher_icons: ^0.13.1
+  flutter_launcher_icons: ^0.13.1
   flutter_test:
     sdk: flutter
 
@@ -51,10 +51,9 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
 
-#flutter_launcher_icons:
-#  android: "launcher_icon"
-#  ios: true
-#  image_path: "assets/icon/icon.png"
+flutter_launcher_icons:
+  android: true
+  image_path: "assets/icon/app_icon.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

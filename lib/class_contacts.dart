@@ -101,6 +101,22 @@ class DBHelper{ // Class for holding methods with which we'll modify the contact
     await db.delete('contacts', where: 'id = ?', whereArgs: [id]);
   } 
 
+  Future<int> updateContact(Contact contact) async {
+    final db = await database;
+    return await db.update(
+      'contacts',
+      {
+        'name': contact.name,
+        'organization': contact.organization,
+        'phoneNumber': contact.phoneNumber,
+        'position': contact.position,
+        'starred': contact.starred,
+      },
+      where: 'id = ?',
+      whereArgs: [contact.id],
+    );
+  }
+
 }
 
 class Contacts extends StatefulWidget {
@@ -243,20 +259,18 @@ class _ContactsState extends State<Contacts> {
 
   void starSelected() async {
     for (var id in selectedIDs) {
-      // Find the contact with matching ID
       var contact = contacts.firstWhere((contact) => contact.id == id);
       contact.starred = 1;
-      await dbHelper.insertContact(contact);
+      await dbHelper.updateContact(contact);
     }
     await begin();
   }
 
   void deStarSelected() async {
     for (var id in selectedIDs) {
-      // Find the contact with matching ID
       var starredContact = starred.firstWhere((star) => star.id == id);
       starredContact.starred = 0;
-      await dbHelper.insertContact(starredContact);
+      await dbHelper.updateContact(starredContact);
     }
     await begin();
   }
@@ -297,15 +311,19 @@ class _ContactsState extends State<Contacts> {
   @override
   Widget build(BuildContext context) {
     
-    bool allStarred = allSeletedAreStarred(); // Moved to the State class to persist its value
+    bool allStarred = allSeletedAreStarred();
     bool allSelected = allAreSelected();
-    int starredValue = 0;
+    
     if (openedContact != null) {
       return ContactDetails(
         contact: openedContact!, 
-        onBack: () => setState(() {
-          openedContact = null;
-        })
+        onBack: () async {
+          setState(() {
+            openedContact = null;
+          });
+
+          await begin();
+        }
       );
     }
     return Scaffold(
@@ -412,7 +430,6 @@ class _ContactsState extends State<Contacts> {
                                     else {
                                       starSelected();
                                     }
-                                    deleteSelected();
                                   });
                                 }
                               ),
@@ -580,7 +597,7 @@ class _ContactsState extends State<Contacts> {
                           organization: organizationController.text.trim(),
                           phoneNumber: phoneController.text.trim(),
                           position: positionController.text.trim(),
-                          starred: starredValue,
+                          starred: 0,
                         );
 
                         clearForm();
@@ -752,14 +769,63 @@ class _ContactDetailsState extends State<ContactDetails> {
     );
   }
 
+  Widget inputField(BuildContext context, TextEditingController fieldController, String fieldName) {
+
+    return SizedBox(
+      child: TextField(
+        cursorColor: Theme.of(context).colorScheme.onPrimary,
+        controller: fieldController,
+        style: TextStyle(color: Theme.of(context).colorScheme.onPrimary,),
+        decoration: InputDecoration(
+          hintText: fieldName,
+          labelText: '$fieldName*',
+          hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
+          border: const UnderlineInputBorder(),
+        ),
+      ),
+    );
+  }
+  
   bool starred = false;
   bool editingContact = false;
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController organizationController = TextEditingController();
+  final TextEditingController positionController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
+  final DBHelper dbHelper = DBHelper();
+  late Contact localContact;
   
   @override
+  void initState() {
+    super.initState();
+    localContact = Contact(
+      id: widget.contact.id,
+      name: widget.contact.name,
+      organization: widget.contact.organization,
+      position: widget.contact.position,
+      phoneNumber: widget.contact.phoneNumber,
+      starred: widget.contact.starred,
+    );
+    
+    nameController.text = localContact.name;
+    organizationController.text = localContact.organization;
+    positionController.text = localContact.position;
+    phoneController.text = localContact.phoneNumber;
+    
+    starred = localContact.starred == 1;
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    organizationController.dispose();
+    positionController.dispose();
+    phoneController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (widget.contact.starred == 1) {
-      starred = true;
-    }
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.primary,
       body: Stack(
@@ -773,42 +839,134 @@ class _ContactDetailsState extends State<ContactDetails> {
               margin: EdgeInsets.only(top: 60, left: 20, right: 20, bottom: 30),
               child: ListView(
                 children: [
-                  Center(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.contact.name,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onPrimary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 19,
+                  if (!editingContact) ...[
+                    Center(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Text(
+                            localContact.name,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 19,
+                            ),
                           ),
-                        ),
-                        Text(
-                          widget.contact.phoneNumber,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSecondary,
-                            fontSize: 16,
+                          Text(
+                            localContact.phoneNumber,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSecondary,
+                              fontSize: 16,
+                            ),
                           ),
-                        ),
-                        Text(
-                          "${widget.contact.position}, ${widget.contact.organization}",
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSecondary,
-                            fontSize: 17,
+                          Text(
+                            "${localContact.position}, ${localContact.organization}",
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSecondary,
+                              fontSize: 17,
+                            ),
                           ),
-                        ),
-                      ],  
+                        ],  
+                      ),
                     ),
-                  ),
+                  ] 
+                  else ...[
+                    Container(
+                      margin: EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        spacing: 10,
+                        children: [
+                          IconButton(
+                            onPressed: () {
+                              setState(() {
+                                editingContact = false;
+                              });
+                              nameController.text = localContact.name;
+                              organizationController.text = localContact.organization;
+                              positionController.text = localContact.position;
+                              phoneController.text = localContact.phoneNumber;
+                            }, 
+                            icon: Icon(
+                              Icons.close,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            )
+                          ),
+                          SizedBox(
+                            width: MediaQuery.of(context).size.width * 0.4,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                inputField(context, nameController, "Name"),
+                                SizedBox(
+                                  child: TextField(
+                                    cursorColor: Theme.of(context).colorScheme.onPrimary,
+                                    keyboardType: TextInputType.numberWithOptions(signed: false, decimal: false),
+                                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                    controller: phoneController,
+                                    style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 14),
+                                    decoration: InputDecoration(
+                                      hintText: 'Number',
+                                      labelText: 'Number*',
+                                      hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
+                                      border: const UnderlineInputBorder(),
+                                    ),
+                                  ),
+                                ),
+                                inputField(context, positionController, "Position"),
+                                inputField(context, organizationController, "Organization"),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () async {
+                              if (nameController.text.trim().isEmpty ||
+                                organizationController.text.trim().isEmpty ||
+                                phoneController.text.trim().isEmpty ||
+                                positionController.text.trim().isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('All fields are required',
+                                    style: TextStyle(color: Theme.of(context).colorScheme.onError),
+                                  ),
+                                  backgroundColor: Theme.of(context).colorScheme.error,
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                              return;
+                              }                              
+                              
+                              setState(() {
+                                localContact = Contact(
+                                  id: localContact.id, 
+                                  name: nameController.text.trim(),
+                                  organization: organizationController.text.trim(),
+                                  phoneNumber: phoneController.text.trim(),
+                                  position: positionController.text.trim(),
+                                  starred: starred ? 1 : 0, 
+                                );
+                                editingContact = false;
+                              });
+
+                              await dbHelper.updateContact(localContact);
+                            }, 
+                            
+                            icon: Icon(
+                              Icons.check,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            )
+                          ),
+                        ],
+                      ),
+                    )
+                  ],
                   divLine(context),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       IconButton(
-                        onPressed: (){ callNumber(widget.contact.phoneNumber, () {
+                        onPressed: (){ callNumber(localContact.phoneNumber, () {
                             if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text("Couldn't open the contact"))
@@ -822,7 +980,7 @@ class _ContactDetailsState extends State<ContactDetails> {
                       ),
                       IconButton(
                         onPressed: () {
-                          openWhatsApp(widget.contact.phoneNumber, () {
+                          openWhatsApp(localContact.phoneNumber, () {
                             if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text("Could not launch WhatsApp")),
@@ -902,14 +1060,60 @@ class _ContactDetailsState extends State<ContactDetails> {
             margin: EdgeInsets.only(left: 30),
             alignment: Alignment.topLeft,
             child: IconButton(
-              onPressed: widget.onBack, 
+              onPressed: widget.onBack,
               icon: Icon(
                 Icons.arrow_back,
                 color: Theme.of(context).colorScheme.onPrimary,  
                 size: 30,
               )
             ),
-          )
+          ),
+          Container(
+            alignment: Alignment.topRight,
+            margin: EdgeInsets.only(right: 30),
+            child: Container(
+              width: 100,
+              height: 50,
+              alignment: Alignment.centerRight,
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        editingContact = true;
+                      });
+                    }, 
+                    icon: Icon(
+                      editingContact? Icons.edit : Icons.edit_outlined,
+                      color: Theme.of(context).colorScheme.onPrimary,  
+                      size: 30,
+                    )
+                  ),
+                  IconButton(
+                    onPressed: () async {
+                      setState(() {
+                        starred = !starred;
+                        localContact = Contact(
+                          id: localContact.id,
+                          name: localContact.name,
+                          organization: localContact.organization,
+                          phoneNumber: localContact.phoneNumber,
+                          position: localContact.position,
+                          starred: starred ? 1 : 0,
+                        );
+                      });
+                      await dbHelper.updateContact(localContact);
+                    }, 
+                    icon: Icon(
+                      starred ? Icons.star_rounded : Icons.star_outline_rounded,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      size: 35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
