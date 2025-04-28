@@ -1,4 +1,6 @@
 // dependancies
+import 'dart:io';
+
 import 'package:flutter/services.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -7,6 +9,7 @@ import 'package:path/path.dart';
 import 'main.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 // Contact Object, will likely modify later
 class Contact {
@@ -44,6 +47,7 @@ class DBHelper{ // Class for holding methods with which we'll modify the contact
         return _database!;
       }
     }
+
     _database = await initDatabase();
     return _database!;
   }
@@ -117,6 +121,7 @@ class DBHelper{ // Class for holding methods with which we'll modify the contact
     );
   }
 
+
 }
 
 class Contacts extends StatefulWidget {
@@ -169,6 +174,8 @@ class _ContactsState extends State<Contacts> {
               ),
               title: Text(
                 contact.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 14,
                   color: Theme.of(context).colorScheme.onPrimary,
@@ -177,6 +184,8 @@ class _ContactsState extends State<Contacts> {
               ),
               subtitle: Text(
                 '${contact.position}, ${contact.organization}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 12,
                   color: Theme.of(context).colorScheme.tertiary,
@@ -302,6 +311,13 @@ class _ContactsState extends State<Contacts> {
     });
   }
   
+  Future<void> requestStoragePermission() async {
+  var status = await Permission.manageExternalStorage.status;
+  if (!status.isGranted) {
+    await Permission.manageExternalStorage.request();
+  }
+}
+
   @override
   void initState() {
     super.initState();
@@ -379,15 +395,50 @@ class _ContactsState extends State<Contacts> {
                                 });
                               }
                             ),
-                            IconButton(
+                            PopupMenuButton<String>(
                               icon: Icon(
-                                Icons.more_vert, 
+                                Icons.more_vert,
                                 color: Theme.of(context).colorScheme.onPrimary,
                                 size: 28,
                               ),
-                              onPressed: () {                            
-                              }
-                            ),
+                              onSelected: (value) async {
+                                await requestStoragePermission(); // ask for permission first
+
+                                final downloadsPath = '/storage/emulated/0/Download/contacts_copy.db';
+                                final dbPath = join(await getDatabasesPath(), 'contacts.db');
+                                final downloadsFile = File(downloadsPath);
+                                final dbFile = File(dbPath);
+
+                                if (value == 'export') {
+                                  if (await dbFile.exists()) {
+                                    await dbFile.copy(downloadsPath);
+                                    if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Exported successfully!')),
+                                    );}
+                                  }
+                                } else if (value == 'import') {
+                                  if (await downloadsFile.exists()) {
+                                    await downloadsFile.copy(dbPath);
+                                    await begin(); // refresh contacts after import
+                                    if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Imported successfully!')),
+                                    );}
+                                  } else {
+                                    if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('contacts_copy.db not found in Downloads')),
+                                    );}
+                                  }
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                PopupMenuItem(value: 'import', child: Text('Import')),
+                                PopupMenuItem(value: 'export', child: Text('Export')),
+                              ],
+                            )
+  
                           ],
                         ),
                         ),                  
@@ -519,9 +570,11 @@ class _ContactsState extends State<Contacts> {
                           child: TextField(
                             controller: nameController,
                             style: TextStyle(color: Theme.of(context).colorScheme.onPrimary,),
+                            cursorColor: Theme.of(context).colorScheme.tertiary,
                             decoration: InputDecoration(
                               hintText: 'Name',
                               labelText: 'Name*',
+                              labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               border: const UnderlineInputBorder(),
                             ),
@@ -532,10 +585,12 @@ class _ContactsState extends State<Contacts> {
                             keyboardType: TextInputType.numberWithOptions(signed: false, decimal: false),
                             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                             controller: phoneController,
+                            cursorColor: Theme.of(context).colorScheme.tertiary,
                             style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 14),
                             decoration: InputDecoration(
                               hintText: 'Number',
                               labelText: 'Number*',
+                              labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               border: const UnderlineInputBorder(),
 
@@ -549,10 +604,12 @@ class _ContactsState extends State<Contacts> {
                         SizedBox(
                           child: TextField(
                             controller: positionController,
+                            cursorColor: Theme.of(context).colorScheme.tertiary,
                             style: TextStyle(color: Theme.of(context).colorScheme.onPrimary,),
                             decoration: InputDecoration(
                               hintText: 'Position',
                               labelText: 'Position*',
+                              labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               border: const UnderlineInputBorder(),
                             ),
@@ -561,10 +618,12 @@ class _ContactsState extends State<Contacts> {
                         SizedBox(
                           child: TextField(
                             controller: organizationController,
+                            cursorColor: Theme.of(context).colorScheme.tertiary,
                             style: TextStyle(color: Theme.of(context).colorScheme.onPrimary,),
                             decoration: InputDecoration(
                               hintText: 'Organization',
                               labelText: 'Organization*',
+                              labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               border: const UnderlineInputBorder(),
                             ),
@@ -847,6 +906,7 @@ class _ContactDetailsState extends State<ContactDetails> {
                         children: [
                           Text(
                             localContact.name,
+                            textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Theme.of(context).colorScheme.onPrimary,
                               fontWeight: FontWeight.bold,
@@ -855,6 +915,7 @@ class _ContactDetailsState extends State<ContactDetails> {
                           ),
                           Text(
                             localContact.phoneNumber,
+                            textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Theme.of(context).colorScheme.onSecondary,
                               fontSize: 16,
@@ -862,6 +923,7 @@ class _ContactDetailsState extends State<ContactDetails> {
                           ),
                           Text(
                             "${localContact.position}, ${localContact.organization}",
+                            textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Theme.of(context).colorScheme.onSecondary,
                               fontSize: 17,
