@@ -34,7 +34,7 @@ standardTile(double borderRadius, {bool isSelected = false}) {
 }
 
 void main() {
-  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }
@@ -424,7 +424,7 @@ class TabsContentCaller extends StatelessWidget {
 
       case 0:
         return Tasks();
-        
+
       default:
         return Text("$tab Body not added");
     }
