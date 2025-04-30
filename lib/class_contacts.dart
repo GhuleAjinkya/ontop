@@ -1,10 +1,15 @@
-import 'dart:math';
+// dependancies
+import 'dart:io';
+
 import 'package:flutter/services.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 import 'main.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 // Contact Object, will likely modify later
 class Contact {
@@ -31,7 +36,6 @@ class DBHelper{ // Class for holding methods with which we'll modify the contact
   factory DBHelper() => _instance;
   DBHelper._internal();
   // This just ensures we dont try to open miltiple databases at the same time
-  // idk how this works tho lol
   static Database? _database;
 
   Future<Database> get database async { // just checks if the database already exists or needs to be remade
@@ -43,6 +47,7 @@ class DBHelper{ // Class for holding methods with which we'll modify the contact
         return _database!;
       }
     }
+
     _database = await initDatabase();
     return _database!;
   }
@@ -77,7 +82,8 @@ class DBHelper{ // Class for holding methods with which we'll modify the contact
       'starred': contact.starred,
      });
   }
-  Future<List<Contact>> fetchContacts() async {
+
+  Future<List<Contact>> fetchContacts() async { // saves contacts to a var
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
       'contacts', orderBy: 'organization ASC',
@@ -93,30 +99,54 @@ class DBHelper{ // Class for holding methods with which we'll modify the contact
       );
     });
   }
+
   Future<void> deleteContact(id) async{
     final db = await database;
     await db.delete('contacts', where: 'id = ?', whereArgs: [id]);
   } 
 
+  Future<int> updateContact(Contact contact) async {
+    final db = await database;
+    return await db.update(
+      'contacts',
+      {
+        'name': contact.name,
+        'organization': contact.organization,
+        'phoneNumber': contact.phoneNumber,
+        'position': contact.position,
+        'starred': contact.starred,
+      },
+      where: 'id = ?',
+      whereArgs: [contact.id],
+    );
+  }
+
+
 }
+
 class Contacts extends StatefulWidget {
   const Contacts({super.key});
   
   @override
   State<Contacts> createState() => _ContactsState();
 }
+
 class _ContactsState extends State<Contacts> {
-  final DBHelper dbHelper = DBHelper();
+  final DBHelper dbHelper = DBHelper(); // initialize dbHelper methods
+  // for adding a new contact 
   final TextEditingController nameController = TextEditingController();
   final TextEditingController organizationController = TextEditingController();
   final TextEditingController positionController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
+  
   List<Contact> contacts = [];
   List<Contact> starred = [];
   Set<int> selectedIDs = {};
   Map<String, List<Contact>> sections = {};
   bool addingContact = false; 
+  Contact? openedContact;
 
+  // stores data about how individual contacts in the list look like and how they react
   Widget buildContactTiles(List<Contact> contacts, BuildContext context, {bool starred = false}) {
     Icon contactIcon;
     if (starred) {
@@ -144,6 +174,8 @@ class _ContactsState extends State<Contacts> {
               ),
               title: Text(
                 contact.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 14,
                   color: Theme.of(context).colorScheme.onPrimary,
@@ -152,6 +184,8 @@ class _ContactsState extends State<Contacts> {
               ),
               subtitle: Text(
                 '${contact.position}, ${contact.organization}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 12,
                   color: Theme.of(context).colorScheme.tertiary,
@@ -174,7 +208,7 @@ class _ContactsState extends State<Contacts> {
                     selectedIDs.add(contact.id);
                   }
                   else {
-                    // Detailed Contacts Page here
+                    openedContact = contact; 
                   }
                 });
               },
@@ -220,24 +254,6 @@ class _ContactsState extends State<Contacts> {
     setState(() {});
   }
 
-  Future<void> addDummy() async { // dummy contacts for testing
-    final newContact = Contact(
-      id: 0,
-      name: 'John Doe',
-      organization: 'A Example Corp',
-      phoneNumber: '123-456-7890',
-      position: 'Example Position',
-      starred: Random().nextInt(2),
-    );
-    await dbHelper.insertContact(newContact);
-    await begin();
-  }
-  @override
-  void initState() {
-    super.initState();
-    begin(); 
-  }
-
   void clearForm() {
     if (mounted) {
       setState(() {
@@ -252,20 +268,18 @@ class _ContactsState extends State<Contacts> {
 
   void starSelected() async {
     for (var id in selectedIDs) {
-      // Find the contact with matching ID
       var contact = contacts.firstWhere((contact) => contact.id == id);
       contact.starred = 1;
-      await dbHelper.insertContact(contact);
+      await dbHelper.updateContact(contact);
     }
     await begin();
   }
 
   void deStarSelected() async {
     for (var id in selectedIDs) {
-      // Find the contact with matching ID
       var starredContact = starred.firstWhere((star) => star.id == id);
       starredContact.starred = 0;
-      await dbHelper.insertContact(starredContact);
+      await dbHelper.updateContact(starredContact);
     }
     await begin();
   }
@@ -297,10 +311,37 @@ class _ContactsState extends State<Contacts> {
     });
   }
   
+  Future<void> requestStoragePermission() async {
+  var status = await Permission.manageExternalStorage.status;
+  if (!status.isGranted) {
+    await Permission.manageExternalStorage.request();
+  }
+}
+
+  @override
+  void initState() {
+    super.initState();
+    begin(); 
+  }
+
   @override
   Widget build(BuildContext context) {
-    bool allStarred = allSeletedAreStarred(); // Moved to the State class to persist its value
+    
+    bool allStarred = allSeletedAreStarred();
     bool allSelected = allAreSelected();
+    
+    if (openedContact != null) {
+      return ContactDetails(
+        contact: openedContact!, 
+        onBack: () async {
+          setState(() {
+            openedContact = null;
+          });
+
+          await begin();
+        }
+      );
+    }
     return Scaffold(
       extendBodyBehindAppBar: false,
       backgroundColor: Theme.of(context).colorScheme.primary,
@@ -354,15 +395,50 @@ class _ContactsState extends State<Contacts> {
                                 });
                               }
                             ),
-                            IconButton(
+                            PopupMenuButton<String>(
                               icon: Icon(
-                                Icons.more_vert, 
+                                Icons.more_vert,
                                 color: Theme.of(context).colorScheme.onPrimary,
                                 size: 28,
                               ),
-                              onPressed: () {                            
-                              }
-                            ),
+                              onSelected: (value) async {
+                                await requestStoragePermission(); // ask for permission first
+
+                                final downloadsPath = '/storage/emulated/0/Download/contacts_copy.db';
+                                final dbPath = join(await getDatabasesPath(), 'contacts.db');
+                                final downloadsFile = File(downloadsPath);
+                                final dbFile = File(dbPath);
+
+                                if (value == 'export') {
+                                  if (await dbFile.exists()) {
+                                    await dbFile.copy(downloadsPath);
+                                    if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Exported successfully!')),
+                                    );}
+                                  }
+                                } else if (value == 'import') {
+                                  if (await downloadsFile.exists()) {
+                                    await downloadsFile.copy(dbPath);
+                                    await begin(); // refresh contacts after import
+                                    if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Imported successfully!')),
+                                    );}
+                                  } else {
+                                    if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('contacts_copy.db not found in Downloads')),
+                                    );}
+                                  }
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                PopupMenuItem(value: 'import', child: Text('Import')),
+                                PopupMenuItem(value: 'export', child: Text('Export')),
+                              ],
+                            )
+  
                           ],
                         ),
                         ),                  
@@ -405,7 +481,6 @@ class _ContactsState extends State<Contacts> {
                                     else {
                                       starSelected();
                                     }
-                                    deleteSelected();
                                   });
                                 }
                               ),
@@ -495,12 +570,13 @@ class _ContactsState extends State<Contacts> {
                           child: TextField(
                             controller: nameController,
                             style: TextStyle(color: Theme.of(context).colorScheme.onPrimary,),
+                            cursorColor: Theme.of(context).colorScheme.tertiary,
                             decoration: InputDecoration(
                               hintText: 'Name',
                               labelText: 'Name*',
+                              labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               border: const UnderlineInputBorder(),
-
                             ),
                           ),
                         ),
@@ -509,10 +585,12 @@ class _ContactsState extends State<Contacts> {
                             keyboardType: TextInputType.numberWithOptions(signed: false, decimal: false),
                             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                             controller: phoneController,
+                            cursorColor: Theme.of(context).colorScheme.tertiary,
                             style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 14),
                             decoration: InputDecoration(
                               hintText: 'Number',
                               labelText: 'Number*',
+                              labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               border: const UnderlineInputBorder(),
 
@@ -526,10 +604,12 @@ class _ContactsState extends State<Contacts> {
                         SizedBox(
                           child: TextField(
                             controller: positionController,
+                            cursorColor: Theme.of(context).colorScheme.tertiary,
                             style: TextStyle(color: Theme.of(context).colorScheme.onPrimary,),
                             decoration: InputDecoration(
                               hintText: 'Position',
                               labelText: 'Position*',
+                              labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               border: const UnderlineInputBorder(),
                             ),
@@ -538,10 +618,12 @@ class _ContactsState extends State<Contacts> {
                         SizedBox(
                           child: TextField(
                             controller: organizationController,
+                            cursorColor: Theme.of(context).colorScheme.tertiary,
                             style: TextStyle(color: Theme.of(context).colorScheme.onPrimary,),
                             decoration: InputDecoration(
                               hintText: 'Organization',
                               labelText: 'Organization*',
+                              labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
                               border: const UnderlineInputBorder(),
                             ),
@@ -661,7 +743,7 @@ class _ContactsState extends State<Contacts> {
                             ],
                           ),
                         ),
-                      buildContactTiles(entry.value, context),
+                        buildContactTiles(entry.value, context),
                       ],
                     ],
                   ],
@@ -671,6 +753,431 @@ class _ContactsState extends State<Contacts> {
           ),
         ),
       ),    
+    );
+  }
+}
+
+class ContactDetails extends StatefulWidget {
+  const ContactDetails({super.key, required this.contact, required this.onBack});
+  final Contact contact;
+  final VoidCallback onBack;
+
+  @override
+  State<ContactDetails> createState() => _ContactDetailsState();
+}
+
+class _ContactDetailsState extends State<ContactDetails> {
+
+  void callNumber(String phoneNumber, VoidCallback onError) async {
+    final Uri uri = Uri(scheme: 'tel', path: phoneNumber);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+      return;
+    }
+    onError();
+  }
+
+  void openWhatsApp(String phoneNumber, VoidCallback onError) async {
+    // Format the number for India (country code +91)
+    String formattedNumber = phoneNumber.replaceAll(RegExp(r'\D'), '');
+    
+    // Check and adjust formatting for Indian numbers
+    if (formattedNumber.length == 10) {
+      // It's a 10-digit mobile number without country code
+      formattedNumber = '91$formattedNumber';
+    } else if (formattedNumber.startsWith('0') && formattedNumber.length == 11) {
+      // Number starts with 0 (sometimes people add 0 before mobile number)
+      formattedNumber = '91${formattedNumber.substring(1)}';
+    } else if (formattedNumber.startsWith('91') && formattedNumber.length == 12) {
+      // Already has country code without + sign
+      // formattedNumber is already correct
+    } else if (formattedNumber.startsWith('+91') || (formattedNumber.startsWith('091'))) {
+      // Has +91 or 091 prefix
+      // Extract just the last 10 digits and add 91
+      String lastTenDigits = formattedNumber.substring(formattedNumber.length - 10);
+      formattedNumber = '91$lastTenDigits';
+    }
+    
+    String text = Uri.encodeComponent('');
+    final Uri appUri = Uri.parse("whatsapp://send?phone=$formattedNumber&text=$text");
+    
+    if (await canLaunchUrl(appUri)) {
+      await launchUrl(appUri, mode: LaunchMode.externalNonBrowserApplication);
+      return;
+    }
+    final Uri webUri = Uri.parse("https://wa.me/$formattedNumber?text=$text");
+    if (await canLaunchUrl(webUri)) {
+      await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      return;
+    }
+    onError(); 
+  }
+
+  Widget divLine(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 8),
+      height: 3,
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            width: 0.75,
+            color: Theme.of(context).colorScheme.onPrimary,
+          )
+        )
+      ),
+    );
+  }
+
+  Widget inputField(BuildContext context, TextEditingController fieldController, String fieldName) {
+
+    return SizedBox(
+      child: TextField(
+        cursorColor: Theme.of(context).colorScheme.onPrimary,
+        controller: fieldController,
+        style: TextStyle(color: Theme.of(context).colorScheme.onPrimary,),
+        decoration: InputDecoration(
+          hintText: fieldName,
+          labelText: '$fieldName*',
+          hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
+          border: const UnderlineInputBorder(),
+        ),
+      ),
+    );
+  }
+  
+  bool starred = false;
+  bool editingContact = false;
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController organizationController = TextEditingController();
+  final TextEditingController positionController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
+  final DBHelper dbHelper = DBHelper();
+  late Contact localContact;
+  
+  @override
+  void initState() {
+    super.initState();
+    localContact = Contact(
+      id: widget.contact.id,
+      name: widget.contact.name,
+      organization: widget.contact.organization,
+      position: widget.contact.position,
+      phoneNumber: widget.contact.phoneNumber,
+      starred: widget.contact.starred,
+    );
+    
+    nameController.text = localContact.name;
+    organizationController.text = localContact.organization;
+    positionController.text = localContact.position;
+    phoneController.text = localContact.phoneNumber;
+    
+    starred = localContact.starred == 1;
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    organizationController.dispose();
+    positionController.dispose();
+    phoneController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.primary,
+      body: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            margin: EdgeInsets.only(left: 35, bottom: 30, right: 35, top: 60),
+            alignment: AlignmentDirectional.topStart,
+            decoration: standardTile(40),
+            child: Container(
+              margin: EdgeInsets.only(top: 60, left: 20, right: 20, bottom: 30),
+              child: ListView(
+                children: [
+                  if (!editingContact) ...[
+                    Center(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Text(
+                            localContact.name,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 19,
+                            ),
+                          ),
+                          Text(
+                            localContact.phoneNumber,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSecondary,
+                              fontSize: 16,
+                            ),
+                          ),
+                          Text(
+                            "${localContact.position}, ${localContact.organization}",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSecondary,
+                              fontSize: 17,
+                            ),
+                          ),
+                        ],  
+                      ),
+                    ),
+                  ] 
+                  else ...[
+                    Container(
+                      margin: EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        spacing: 10,
+                        children: [
+                          IconButton(
+                            onPressed: () {
+                              setState(() {
+                                editingContact = false;
+                              });
+                              nameController.text = localContact.name;
+                              organizationController.text = localContact.organization;
+                              positionController.text = localContact.position;
+                              phoneController.text = localContact.phoneNumber;
+                            }, 
+                            icon: Icon(
+                              Icons.close,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            )
+                          ),
+                          SizedBox(
+                            width: MediaQuery.of(context).size.width * 0.4,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                inputField(context, nameController, "Name"),
+                                SizedBox(
+                                  child: TextField(
+                                    cursorColor: Theme.of(context).colorScheme.onPrimary,
+                                    keyboardType: TextInputType.numberWithOptions(signed: false, decimal: false),
+                                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                    controller: phoneController,
+                                    style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 14),
+                                    decoration: InputDecoration(
+                                      hintText: 'Number',
+                                      labelText: 'Number*',
+                                      hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSecondary),
+                                      border: const UnderlineInputBorder(),
+                                    ),
+                                  ),
+                                ),
+                                inputField(context, positionController, "Position"),
+                                inputField(context, organizationController, "Organization"),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () async {
+                              if (nameController.text.trim().isEmpty ||
+                                organizationController.text.trim().isEmpty ||
+                                phoneController.text.trim().isEmpty ||
+                                positionController.text.trim().isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('All fields are required',
+                                    style: TextStyle(color: Theme.of(context).colorScheme.onError),
+                                  ),
+                                  backgroundColor: Theme.of(context).colorScheme.error,
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                              return;
+                              }                              
+                              
+                              setState(() {
+                                localContact = Contact(
+                                  id: localContact.id, 
+                                  name: nameController.text.trim(),
+                                  organization: organizationController.text.trim(),
+                                  phoneNumber: phoneController.text.trim(),
+                                  position: positionController.text.trim(),
+                                  starred: starred ? 1 : 0, 
+                                );
+                                editingContact = false;
+                              });
+
+                              await dbHelper.updateContact(localContact);
+                            }, 
+                            
+                            icon: Icon(
+                              Icons.check,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            )
+                          ),
+                        ],
+                      ),
+                    )
+                  ],
+                  divLine(context),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      IconButton(
+                        onPressed: (){ callNumber(localContact.phoneNumber, () {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Couldn't open the contact"))
+                            );
+                          });
+                        },
+                        icon: Icon(
+                          Icons.phone_in_talk_outlined,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        )
+                      ),
+                      IconButton(
+                        onPressed: () {
+                          openWhatsApp(localContact.phoneNumber, () {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Could not launch WhatsApp")),
+                            );
+                          });
+                        },
+                        icon: Icon(
+                          FontAwesomeIcons.whatsapp,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        )
+                      )
+                    ],
+                  ),
+                  divLine(context),
+                  ListTile( // Redo for final 
+                    title: Text(
+                      "Projects", 
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold, 
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
+                    ),
+                    subtitle: Text(
+                      "No current projects with this contact",
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSecondary,
+                      )
+                    ),
+                  ),
+                  divLine(context),
+                  ListTile( // Redo for final 
+                    title: Text(
+                      "Notes", 
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold, 
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
+                    ),
+                    subtitle: Text(
+                      "Store some details regarding this contact",
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSecondary,
+                      )
+                    ),
+                  ),
+                ],
+              )
+            )
+          ),
+          Positioned(
+            top: -20,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: EdgeInsets.all(20),
+                child: Container(
+                  padding: EdgeInsets.all(25),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Theme.of(context).colorScheme.primary,
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      width: 1.5
+                    )
+                  ),
+                  child: Icon(
+                    starred ? Icons.star_rounded : Icons.person_2_outlined,
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    size: 60,
+                  ),
+                ),
+              ),
+            )
+          ),
+          Container(
+            margin: EdgeInsets.only(left: 30),
+            alignment: Alignment.topLeft,
+            child: IconButton(
+              onPressed: widget.onBack,
+              icon: Icon(
+                Icons.arrow_back,
+                color: Theme.of(context).colorScheme.onPrimary,  
+                size: 30,
+              )
+            ),
+          ),
+          Container(
+            alignment: Alignment.topRight,
+            margin: EdgeInsets.only(right: 30),
+            child: Container(
+              width: 100,
+              height: 50,
+              alignment: Alignment.centerRight,
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        editingContact = true;
+                      });
+                    }, 
+                    icon: Icon(
+                      editingContact? Icons.edit : Icons.edit_outlined,
+                      color: Theme.of(context).colorScheme.onPrimary,  
+                      size: 30,
+                    )
+                  ),
+                  IconButton(
+                    onPressed: () async {
+                      setState(() {
+                        starred = !starred;
+                        localContact = Contact(
+                          id: localContact.id,
+                          name: localContact.name,
+                          organization: localContact.organization,
+                          phoneNumber: localContact.phoneNumber,
+                          position: localContact.position,
+                          starred: starred ? 1 : 0,
+                        );
+                      });
+                      await dbHelper.updateContact(localContact);
+                    }, 
+                    icon: Icon(
+                      starred ? Icons.star_rounded : Icons.star_outline_rounded,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      size: 35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
