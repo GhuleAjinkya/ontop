@@ -369,7 +369,7 @@ class _ContactsState extends State<Contacts> {
                         ),
                       ),
                       if (selectedIDs.isEmpty) ...[
-                        Container(
+                      Container(
                         margin: EdgeInsets.only(right: 20),
                         child: Row(
                           children: [

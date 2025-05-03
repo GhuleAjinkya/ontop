@@ -21,13 +21,13 @@ standardTile(double borderRadius, {bool isSelected = false}) { // Code to create
     borderRadius: BorderRadius.circular(borderRadius),
     boxShadow: [
       BoxShadow(
-        color: Colors.black.withValues(alpha: 0.20),
+        color: Colors.black.withAlpha(51),
         blurRadius: 40,
         spreadRadius: 2,
         offset: Offset(0, 12),
       ),
       BoxShadow(
-        color: Colors.black.withValues(alpha: 0.10),
+        color: Colors.black.withAlpha(25),
         blurRadius: 80,
         spreadRadius: 8,
         offset: Offset(0, 24),
@@ -37,7 +37,7 @@ standardTile(double borderRadius, {bool isSelected = false}) { // Code to create
 }
 
 void main() {
-    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+  if (Platform.isWindows) {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }
@@ -51,8 +51,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Flutter Demo',
-      theme: ThemeData(
+      title: 'onTop',
+      // Theme stores details like the font and colours used
+      theme: ThemeData( 
         fontFamily: 'Poppins',
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.black,
@@ -60,7 +61,7 @@ class MyApp extends StatelessWidget {
           onPrimary: Colors.white,
           secondary: Color.fromARGB(255, 101, 28, 132),
           tertiary: Color.fromARGB(255, 200, 162, 200),
-          onSecondary: Color.fromRGBO(88, 81, 111, 1),
+          onSecondary: Color.fromARGB(255, 88, 81, 111),
         ),
       ),
       home: HomePage(),
@@ -274,7 +275,7 @@ class _TabsState extends State<Tabs> {
         iconTheme: IconThemeData(
           color: Theme.of(context).colorScheme.onPrimary,
         ),
-        actions: [Container()], // Required to remove flutter's default sidebar calling button
+        actions: [Container()], 
         title: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           margin: const EdgeInsets.symmetric(horizontal: 20),
