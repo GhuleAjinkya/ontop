@@ -2,15 +2,14 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
+import 'main.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:mongo_dart/mongo_dart.dart';
-
-import '../models/client.dart';
-import '../services/client_service.dart';
 
 // Contact Object, will likely modify later
 class Contact {
@@ -31,69 +30,98 @@ class Contact {
   });
 }
 
-class DBHelper {
+class DBHelper{ // Class for holding methods with which we'll modify the contactcts database
+  
   static final DBHelper _instance = DBHelper._internal();
   factory DBHelper() => _instance;
   DBHelper._internal();
+  // This just ensures we dont try to open miltiple databases at the same time
+  static Database? _database;
 
-  late Db _db;
-  late DbCollection _collection;
-  bool _initialized = false;
-
-  Future<void> _initDatabase() async {
-    if (!_initialized) {
-      _db = await Db.create('mongodb://localhost:27017/contacts_db');
-      await _db.open();
-      _collection = _db.collection('contacts');
-      _initialized = true;
+  Future<Database> get database async { // just checks if the database already exists or needs to be remade
+    if (_database != null) {
+      final dbPath = await getDatabasesPath();
+      final expectedPath = join(dbPath, 'contacts.db');
+      
+      if (_database!.path == expectedPath) {
+        return _database!;
+      }
     }
-  }
 
+    _database = await initDatabase();
+    return _database!;
+  }
+  Future<Database> initDatabase() async { // iF db doesn't exist, create the table
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, 'contacts.db');
+    return await openDatabase(
+      path,
+      version: 1,
+      onCreate: (db, version) async {
+        await db.execute('''
+          CREATE TABLE contacts(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            position TEXT NOT NULL,
+            organization TEXT NOT NULL,
+            phoneNumber TEXT NOT NULL,
+            starred INTEGER NOT NULL DEFAULT 0
+          )
+        ''');
+      },
+    );
+    
+  }
   Future<int> insertContact(Contact contact) async {
-    await _initDatabase();
-    var result = await _collection.insertOne({
+    final db = await database;
+    return await db.insert('contacts', {
       'name': contact.name,
       'organization': contact.organization,
       'phoneNumber': contact.phoneNumber,
       'position': contact.position,
       'starred': contact.starred,
+     });
+  }
+
+  Future<List<Contact>> fetchContacts() async { // saves contacts to a var
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'contacts', orderBy: 'organization ASC',
+    );
+    return List.generate(maps.length, (i) {
+      return Contact(
+        id: maps[i]['id'],
+        name: maps[i]['name'],
+        organization: maps[i]['organization'],
+        phoneNumber: maps[i]['phoneNumber'],
+        position: maps[i]['position'],
+        starred: maps[i]['starred'],
+      );
     });
-    
-    return result.id.toInt();
   }
 
-  Future<List<Contact>> fetchContacts() async {
-    await _initDatabase();
-    var results = await _collection.find().toList();
-    return results.map((doc) => Contact(
-      id: doc['_id'].toInt(),
-      name: doc['name'] as String,
-      organization: doc['organization'] as String,
-      phoneNumber: doc['phoneNumber'] as String,
-      position: doc['position'] as String,
-      starred: doc['starred'] as int,
-    )).toList();
-  }
-
-  Future<void> deleteContact(id) async {
-    await _initDatabase();
-    await _collection.deleteOne(where.eq('_id', id));
-  }
+  Future<void> deleteContact(id) async{
+    final db = await database;
+    await db.delete('contacts', where: 'id = ?', whereArgs: [id]);
+  } 
 
   Future<int> updateContact(Contact contact) async {
-    await _initDatabase();
-    var result = await _collection.updateOne(
-      where.eq('_id', contact.id),
-      modify.set({
+    final db = await database;
+    return await db.update(
+      'contacts',
+      {
         'name': contact.name,
         'organization': contact.organization,
         'phoneNumber': contact.phoneNumber,
         'position': contact.position,
         'starred': contact.starred,
-      }),
+      },
+      where: 'id = ?',
+      whereArgs: [contact.id],
     );
-    return result.nModified;
   }
+
+
 }
 
 class Contacts extends StatefulWidget {
