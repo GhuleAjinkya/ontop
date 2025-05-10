@@ -1,6 +1,5 @@
 // Containts logic for home page, tabs page header and footers, and logic to call their body functions
 
-
 // Dependancies
 import 'package:flutter/material.dart';
 import 'dart:ui';
@@ -10,8 +9,10 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'class_projects.dart';
 import 'class_events.dart';
 import 'class_tasks.dart';
+import 'mongodb.dart';
 
-standardTile(double borderRadius, {bool isSelected = false}) { // Code to create the common tile with the background blur
+standardTile(double borderRadius, {bool isSelected = false}) {
+  // Code to create the common tile with the background blur
   // defiend here to avoid repeating code elsewhere
   return BoxDecoration(
     color:
@@ -36,11 +37,16 @@ standardTile(double borderRadius, {bool isSelected = false}) { // Code to create
   );
 }
 
-void main() {
-  if (Platform.isWindows) {
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
-  }
+void main() async {
+  print("!!!!! APPLICATION STARTING !!!!!");
+  WidgetsFlutterBinding.ensureInitialized(); // Required for sqflite to work properly
+  
+  // Connect to MongoDB
+  print("Connecting to MongoDB...");
+  bool connected = await MongoDatabase.connect();
+  print("MongoDB connection status: $connected");
+  
+  // Run the app
   runApp(const MyApp());
 }
 
@@ -53,7 +59,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'onTop',
       // Theme stores details like the font and colours used
-      theme: ThemeData( 
+      theme: ThemeData(
         fontFamily: 'Poppins',
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.black,
@@ -148,25 +154,17 @@ class _HomePageState extends State<HomePage> {
             spacing: 20,
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
-            children: [ // Appbar with name and greeting
+            children: [
+              // Appbar with name and greeting
               SizedBox(height: 5),
               Text(
                 "onTop.",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 40,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 40),
               ),
               Column(
                 children: [
-                  Text(
-                    "Good $greetingTime,",
-                    style: TextStyle( fontSize: 20),
-                  ),
-                  Text(
-                    widget.username,
-                    style: const TextStyle( fontSize: 20),
-                  ),
+                  Text("Good $greetingTime,", style: TextStyle(fontSize: 20)),
+                  Text(widget.username, style: const TextStyle(fontSize: 20)),
                 ],
               ),
             ],
@@ -175,7 +173,8 @@ class _HomePageState extends State<HomePage> {
       ),
       body: Stack(
         children: [
-          Positioned( // The purple blob you see in the background, set behind the text and tiles
+          Positioned(
+            // The purple blob you see in the background, set behind the text and tiles
             right: -75,
             top: MediaQuery.of(context).size.height * 0.35,
             child: Container(
@@ -196,7 +195,7 @@ class _HomePageState extends State<HomePage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // for loop creates a new tile automatically, so we only need to add a string the tabs
-                for (int index = 0; index < widget.tabs.length; index++) 
+                for (int index = 0; index < widget.tabs.length; index++)
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       vertical: 8,
@@ -207,7 +206,8 @@ class _HomePageState extends State<HomePage> {
                       margin: const EdgeInsets.symmetric(horizontal: 25),
                       child: ListTile(
                         title: Center(
-                          child: Text( // Title of the tab
+                          child: Text(
+                            // Title of the tab
                             widget.tabs[index],
                             style: TextStyle(
                               color: Theme.of(context).colorScheme.onPrimary,
@@ -216,7 +216,8 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         onTap: () {
-                          Navigator.push( // Redirect to tab
+                          Navigator.push(
+                            // Redirect to tab
                             context,
                             MaterialPageRoute(
                               builder:
@@ -259,15 +260,18 @@ class _TabsState extends State<Tabs> {
 
   @override
   Widget build(BuildContext context) {
-    List<String> drawerTabs = ['Home', ...widget.tabs]; // initialize the list with drawer tiles
+    List<String> drawerTabs = [
+      'Home',
+      ...widget.tabs,
+    ]; // initialize the list with drawer tiles
     return Scaffold(
       extendBodyBehindAppBar: false,
       backgroundColor: Theme.of(context).colorScheme.primary,
       appBar: AppBar(
         // most of the following is to avoid the body showing up behing the appbar and affecting the background colours
-        elevation: 0, 
-        surfaceTintColor: Colors.transparent, 
-        scrolledUnderElevation: 0, 
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
         toolbarHeight: MediaQuery.of(context).size.height * 0.15,
         automaticallyImplyLeading: false,
@@ -275,7 +279,7 @@ class _TabsState extends State<Tabs> {
         iconTheme: IconThemeData(
           color: Theme.of(context).colorScheme.onPrimary,
         ),
-        actions: [Container()], 
+        actions: [Container()],
         title: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -296,8 +300,9 @@ class _TabsState extends State<Tabs> {
                 "onTop.",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 40),
               ),
-              Builder( // sidebar requires context, hence the builder widget 
-              // instead of directly creating an iconButton
+              Builder(
+                // sidebar requires context, hence the builder widget
+                // instead of directly creating an iconButton
                 builder:
                     (context) => IconButton(
                       icon: const Icon(Icons.menu, size: 35),
@@ -308,11 +313,14 @@ class _TabsState extends State<Tabs> {
           ),
         ),
       ),
-      body: TabsContentCaller(tab: index), // Calls tabsContentCaller with index of tab required
+      body: TabsContentCaller(
+        tab: index,
+      ), // Calls tabsContentCaller with index of tab required
       // cleaner that writing the code here
-      endDrawer: Drawer( // Sidebar code
+      endDrawer: Drawer(
+        // Sidebar code
         backgroundColor: Theme.of(context).colorScheme.primary,
-        child: Container( 
+        child: Container(
           decoration: BoxDecoration(
             border: Border(
               left: BorderSide(
@@ -322,8 +330,10 @@ class _TabsState extends State<Tabs> {
             ),
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end, // FOr right aligned icons
-            children: [ // Close sidebar button
+            crossAxisAlignment:
+                CrossAxisAlignment.end, // FOr right aligned icons
+            children: [
+              // Close sidebar button
               IconButton(
                 padding: EdgeInsets.symmetric(vertical: 20, horizontal: 20),
                 icon: Icon(Icons.arrow_forward, color: Colors.white, size: 30),
@@ -334,66 +344,75 @@ class _TabsState extends State<Tabs> {
               Expanded(
                 child: ListView.separated(
                   padding: EdgeInsets.only(
-                    top: MediaQuery.of(context).size.height * 0.10, // Vertical offset
+                    top:
+                        MediaQuery.of(context).size.height *
+                        0.10, // Vertical offset
                   ),
                   itemCount: drawerTabs.length,
                   separatorBuilder: // Add in the gap and the horizontal line between tiles
-                    (context, index) => Container(
-                      height: 3,
-                      margin: EdgeInsets.symmetric(horizontal: 20),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary,
-                        border: Border(
-                          bottom: BorderSide(
-                            width: 1.5,
-                            color: Theme.of(context).colorScheme.tertiary,
+                      (context, index) => Container(
+                        height: 3,
+                        margin: EdgeInsets.symmetric(horizontal: 20),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary,
+                          border: Border(
+                            bottom: BorderSide(
+                              width: 1.5,
+                              color: Theme.of(context).colorScheme.tertiary,
+                            ),
                           ),
                         ),
                       ),
-                    ),
                   itemBuilder:
-                    (context, drawerIndex) => ListTile(
-                      contentPadding: EdgeInsets.symmetric(
-                        vertical: 10,
-                        horizontal: 30,
-                      ),
-                      title: Text( // Contains the text of the list tile and text style
-                        drawerTabs[drawerIndex],
-                        style: TextStyle(
-                          color:
-                            drawerIndex - 1 == index // make the text white if this tile is currently opened
-                                ? Theme.of(context).colorScheme.onPrimary
-                                : Theme.of(context).colorScheme.tertiary,
-                          fontSize: 18,
+                      (context, drawerIndex) => ListTile(
+                        contentPadding: EdgeInsets.symmetric(
+                          vertical: 10,
+                          horizontal: 30,
                         ),
-                        textAlign: TextAlign.right,
+                        title: Text(
+                          // Contains the text of the list tile and text style
+                          drawerTabs[drawerIndex],
+                          style: TextStyle(
+                            color:
+                                drawerIndex - 1 ==
+                                        index // make the text white if this tile is currently opened
+                                    ? Theme.of(context).colorScheme.onPrimary
+                                    : Theme.of(context).colorScheme.tertiary,
+                            fontSize: 18,
+                          ),
+                          textAlign: TextAlign.right,
+                        ),
+                        onTap: () {
+                          if (drawerIndex == 0) {
+                            // home is at index 0, special case for it
+                            Navigator.pushAndRemoveUntil(
+                              // redirect to home, kill the history of the previous tabs visited
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => HomePage(),
+                              ),
+                              (route) =>
+                                  false, // just means no tab other than home should be in stack
+                            );
+                          } else {
+                            Navigator.pop(context); // Remove Sidebar
+                            Navigator.push(
+                              context, // Open clicked-on tab
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => Tabs(
+                                      currentIndex: drawerIndex - 1,
+                                      tabs: widget.tabs,
+                                    ),
+                              ),
+                            );
+                          }
+                        },
                       ),
-                      onTap: () {
-                        if (drawerIndex == 0) { // home is at index 0, special case for it
-                          Navigator.pushAndRemoveUntil( // redirect to home, kill the history of the previous tabs visited
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => HomePage(),
-                            ),
-                            (route) => false, // just means no tab other than home should be in stack
-                          );
-                        } else {
-                          Navigator.pop(context); // Remove Sidebar
-                          Navigator.push( context, // Open clicked-on tab
-                            MaterialPageRoute(
-                              builder:
-                                  (context) => Tabs(
-                                    currentIndex: drawerIndex - 1,
-                                    tabs: widget.tabs,
-                                  ),
-                            ),
-                          );
-                        }
-                      },
-                    ),
                 ),
               ),
-              IconButton( // Profile and Settings Button, currently a dummy
+              IconButton(
+                // Profile and Settings Button, currently a dummy
                 padding: EdgeInsets.symmetric(vertical: 20, horizontal: 20),
                 icon: Icon(Icons.person_outline, color: Colors.white, size: 30),
                 onPressed: () {},
