@@ -4,12 +4,15 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'class_contacts.dart';
+// ignore: unused_import
 import 'dart:io';
+// ignore: unused_import
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'class_projects.dart';
 import 'class_events.dart';
 import 'class_tasks.dart';
 import 'mongodb.dart';
+import 'login.dart';
 
 standardTile(double borderRadius, {bool isSelected = false}) {
   // Code to create the common tile with the background blur
@@ -70,7 +73,8 @@ class MyApp extends StatelessWidget {
           onSecondary: Color.fromARGB(255, 88, 81, 111),
         ),
       ),
-      home: HomePage(),
+      //home: HomePage(),
+      home: LoginPage(),
     );
   }
 }
