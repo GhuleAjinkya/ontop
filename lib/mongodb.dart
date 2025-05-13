@@ -96,6 +96,7 @@ class MongoDatabase {
 
     try {
       var collection = _db!.collection(collectionName);
+      // ignore: unused_local_variable
       var result = await collection.insertMany(dataList);
       print("${dataList.length} documents inserted successfully");
       print("Inserted data: $dataList");

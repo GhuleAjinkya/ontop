@@ -1,4 +1,6 @@
 // dependancies
+// ignore_for_file: avoid_print
+
 import 'dart:io';
 import 'mongodb.dart';
 import 'package:mongo_dart/mongo_dart.dart' as mongo;
@@ -377,7 +379,7 @@ class _ContactsState extends State<Contacts> {
       await begin();
 
       // Show success message
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Contacts deleted successfully'),
@@ -387,7 +389,7 @@ class _ContactsState extends State<Contacts> {
       }
     } catch (e) {
       print("Error deleting contacts: $e");
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Error deleting contacts'),
@@ -896,23 +898,27 @@ class _ContactsState extends State<Contacts> {
                         });
 
                         if (success) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Contact added to MongoDB successfully!',
+                          if(context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Contact added to MongoDB successfully!',
+                                ),
+                                duration: Duration(seconds: 2),
                               ),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                          print("Contact successfully added to MongoDB!");
+                            );
+                            print("Contact successfully added to MongoDB!");
+                          }
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          if(context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Failed to add contact to MongoDB'),
                               duration: Duration(seconds: 2),
                             ),
                           );
                           print("Failed to add contact to MongoDB");
+                          } 
                         }
 
                         await begin();
@@ -1356,23 +1362,27 @@ class _ContactDetailsState extends State<ContactDetails> {
                                   );
 
                                   if (success) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Contact updated successfully!',
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Contact updated successfully!',
+                                          ),
+                                          duration: Duration(seconds: 2),
                                         ),
-                                        duration: Duration(seconds: 2),
-                                      ),
-                                    );
+                                      );
+                                    }
                                   } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Failed to update contact',
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Failed to update contact',
+                                          ),
+                                          duration: Duration(seconds: 2),
                                         ),
-                                        duration: Duration(seconds: 2),
-                                      ),
-                                    );
+                                      );
+                                    }
                                     // Fallback to SQLite if MongoDB fails
                                     await dbHelper.updateContact(localContact);
                                   }
