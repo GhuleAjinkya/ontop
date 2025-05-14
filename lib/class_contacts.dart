@@ -327,21 +327,103 @@ class _ContactsState extends State<Contacts> {
   }
 
   void starSelected() async {
-    for (var id in selectedIDs) {
-      var contact = contacts.firstWhere((contact) => contact.id == id);
-      contact.starred = 1;
-      await dbHelper.updateContact(contact);
+    try {
+      // Get MongoDB contacts to find the actual ObjectIds
+      List<Map<String, dynamic>> mongoContacts =
+          await MongoDatabase.getContacts();
+
+      for (var id in selectedIDs) {
+        // Find the MongoDB document that matches this contact's id hash
+        var mongoDoc = mongoContacts.firstWhere(
+          (doc) => doc['_id'].toString().hashCode == id,
+          orElse: () => <String, dynamic>{},
+        );
+
+        if (mongoDoc.isNotEmpty) {
+          // Update star status in MongoDB using the actual ObjectId
+          bool success = await MongoDatabase.toggleStarContact(
+            mongoDoc['_id'],
+            true,
+          );
+
+          if (success) {
+            print("Contact starred in MongoDB successfully!");
+          } else {
+            print("Failed to star contact in MongoDB");
+            // Fallback to SQLite
+            var contact = contacts.firstWhere((contact) => contact.id == id);
+            contact.starred = 1;
+            await dbHelper.updateContact(contact);
+          }
+        } else {
+          // Contact only exists in SQLite (or not found)
+          var contact = contacts.firstWhere((contact) => contact.id == id);
+          contact.starred = 1;
+          await dbHelper.updateContact(contact);
+        }
+      }
+
+      await begin();
+    } catch (e) {
+      print("Error starring contacts: $e");
+      // Fallback to original SQLite method if anything fails
+      for (var id in selectedIDs) {
+        var contact = contacts.firstWhere((contact) => contact.id == id);
+        contact.starred = 1;
+        await dbHelper.updateContact(contact);
+      }
+      await begin();
     }
-    await begin();
   }
 
   void deStarSelected() async {
-    for (var id in selectedIDs) {
-      var starredContact = starred.firstWhere((star) => star.id == id);
-      starredContact.starred = 0;
-      await dbHelper.updateContact(starredContact);
+    try {
+      // Get MongoDB contacts to find the actual ObjectIds
+      List<Map<String, dynamic>> mongoContacts =
+          await MongoDatabase.getContacts();
+
+      for (var id in selectedIDs) {
+        // Find the MongoDB document that matches this contact's id hash
+        var mongoDoc = mongoContacts.firstWhere(
+          (doc) => doc['_id'].toString().hashCode == id,
+          orElse: () => <String, dynamic>{},
+        );
+
+        if (mongoDoc.isNotEmpty) {
+          // Update star status in MongoDB using the actual ObjectId
+          bool success = await MongoDatabase.toggleStarContact(
+            mongoDoc['_id'],
+            false,
+          );
+
+          if (success) {
+            print("Contact unstarred in MongoDB successfully!");
+          } else {
+            print("Failed to unstar contact in MongoDB");
+            // Fallback to SQLite
+            var starredContact = starred.firstWhere((star) => star.id == id);
+            starredContact.starred = 0;
+            await dbHelper.updateContact(starredContact);
+          }
+        } else {
+          // Contact only exists in SQLite (or not found)
+          var starredContact = starred.firstWhere((star) => star.id == id);
+          starredContact.starred = 0;
+          await dbHelper.updateContact(starredContact);
+        }
+      }
+
+      await begin();
+    } catch (e) {
+      print("Error unstarring contacts: $e");
+      // Fallback to original SQLite method if anything fails
+      for (var id in selectedIDs) {
+        var starredContact = starred.firstWhere((star) => star.id == id);
+        starredContact.starred = 0;
+        await dbHelper.updateContact(starredContact);
+      }
+      await begin();
     }
-    await begin();
   }
 
   void deleteSelected() async {
@@ -579,11 +661,25 @@ class _ContactsState extends State<Contacts> {
                                     (context) => [
                                       PopupMenuItem(
                                         value: 'import',
-                                        child: Text('Import'),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: const [
+                                            Text('Import'),
+                                            Icon(Icons.file_download_outlined),
+                                          ],
+                                        ),
                                       ),
                                       PopupMenuItem(
                                         value: 'export',
-                                        child: Text('Export'),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: const [
+                                            Text('Export'),
+                                            Icon(Icons.file_upload_outlined),
+                                          ],
+                                        ),
                                       ),
                                     ],
                               ),
@@ -884,15 +980,15 @@ class _ContactsState extends State<Contacts> {
                           starred: 0,
                         );
 
-                        clearForm();
-
-                        // Insert data into MongoDB
+                        clearForm(); // Insert data into MongoDB
                         bool success = await MongoDatabase.insertData({
                           'name': newContact.name,
                           'organization': newContact.organization,
                           'phoneNumber': newContact.phoneNumber,
                           'position': newContact.position,
                           'starred': 0,
+                          'created_at':
+                              DateTime.now(), // Store as Date type in MongoDB
                         });
 
                         if (success) {
@@ -1541,7 +1637,43 @@ class _ContactDetailsState extends State<ContactDetails> {
                           starred: starred ? 1 : 0,
                         );
                       });
-                      await dbHelper.updateContact(localContact);
+
+                      try {
+                        // Find the original MongoDB document to get the real ObjectId
+                        List<Map<String, dynamic>> mongoContacts =
+                            await MongoDatabase.getContacts();
+                        // Find the matching document by comparing fields
+                        var mongoDoc = mongoContacts.firstWhere(
+                          (doc) =>
+                              doc['_id'].toString().hashCode == localContact.id,
+                          orElse: () => <String, dynamic>{},
+                        );
+
+                        if (mongoDoc.isNotEmpty) {
+                          // Update star status in MongoDB using the actual ObjectId
+                          bool success = await MongoDatabase.toggleStarContact(
+                            mongoDoc['_id'],
+                            starred,
+                          );
+
+                          if (success) {
+                            print(
+                              "Contact star status updated in MongoDB successfully!",
+                            );
+                          } else {
+                            print("Failed to update star status in MongoDB");
+                            // Fallback to SQLite
+                            await dbHelper.updateContact(localContact);
+                          }
+                        } else {
+                          // Fallback to SQLite if MongoDB document is not found
+                          await dbHelper.updateContact(localContact);
+                        }
+                      } catch (e) {
+                        print("Error updating contact star status: $e");
+                        // Fallback to SQLite if MongoDB update throws an exception
+                        await dbHelper.updateContact(localContact);
+                      }
                     },
                     icon: Icon(
                       starred ? Icons.star_rounded : Icons.star_outline_rounded,

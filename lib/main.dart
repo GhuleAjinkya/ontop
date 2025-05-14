@@ -40,12 +40,12 @@ standardTile(double borderRadius, {bool isSelected = false}) {
 void main() async {
   print("!!!!! APPLICATION STARTING !!!!!");
   WidgetsFlutterBinding.ensureInitialized(); // Required for sqflite to work properly
-  
+
   // Connect to MongoDB
   print("Connecting to MongoDB...");
   bool connected = await MongoDatabase.connect();
   print("MongoDB connection status: $connected");
-  
+
   // Run the app
   runApp(const MyApp());
 }

@@ -80,6 +80,11 @@ class MongoDatabase {
     if (!isConnected) await connect();
 
     try {
+      // Ensure starred field exists (default to 0 if not provided)
+      if (!data.containsKey('starred')) {
+        data['starred'] = 0;
+      }
+
       var collection = _db!.collection(collectionName);
       await collection.insertOne(data);
       print("Document inserted successfully");
@@ -95,8 +100,15 @@ class MongoDatabase {
     if (!isConnected) await connect();
 
     try {
+      // Ensure starred field exists for each item (default to 0 if not provided)
+      for (var data in dataList) {
+        if (!data.containsKey('starred')) {
+          data['starred'] = 0;
+        }
+      }
+
       var collection = _db!.collection(collectionName);
-      var result = await collection.insertMany(dataList);
+      await collection.insertMany(dataList);
       print("${dataList.length} documents inserted successfully");
       print("Inserted data: $dataList");
       return true;
@@ -125,27 +137,24 @@ class MongoDatabase {
 
     try {
       var collection = _db!.collection(collectionName);
-      
+
       // Ensure we have the _id to identify the document to update
       if (!data.containsKey('_id')) {
         print("Error updating document: No _id provided");
         return false;
       }
-      
+
       var id = data['_id'];
-      
+
       // Remove _id from data to update since it's used for the query
       var updateData = Map<String, dynamic>.from(data);
       updateData.remove('_id');
-      
+
       // Use updateOne with a filter by _id
-      var result = await collection.updateOne(
-        where.eq('_id', id),
-        {
-          '\$set': updateData
-        },
-      );
-      
+      var result = await collection.updateOne(where.eq('_id', id), {
+        '\$set': updateData,
+      });
+
       if (result.isSuccess) {
         print("Document updated successfully");
         print("Updated data: $updateData for document with _id: $id");
@@ -165,10 +174,10 @@ class MongoDatabase {
 
     try {
       var collection = _db!.collection(collectionName);
-      
+
       // Use deleteOne with a filter by _id
       var result = await collection.deleteOne(where.eq('_id', id));
-      
+
       if (result.isSuccess) {
         print("Document deleted successfully");
         print("Deleted document with _id: $id");
@@ -179,6 +188,33 @@ class MongoDatabase {
       }
     } catch (e) {
       print("Error deleting document: $e");
+      return false;
+    }
+  }
+
+  static Future<bool> toggleStarContact(ObjectId id, bool starred) async {
+    if (!isConnected) await connect();
+
+    try {
+      var collection = _db!.collection(collectionName);
+
+      // Update the starred status
+      var result = await collection.updateOne(where.eq('_id', id), {
+        '\$set': {'starred': starred ? 1 : 0},
+      });
+
+      if (result.isSuccess) {
+        print("Contact star status updated successfully");
+        print("Updated document with _id: $id to starred: ${starred ? 1 : 0}");
+        return true;
+      } else {
+        print(
+          "Failed to update contact star status. Modified: ${result.nModified}",
+        );
+        return false;
+      }
+    } catch (e) {
+      print("Error updating contact star status: $e");
       return false;
     }
   }
