@@ -1,13 +1,12 @@
-// dependancies
-// ignore_for_file: avoid_print
-
+// dependencies
 import 'dart:io';
+import 'dart:convert'; // For JSON encoding/decoding
 import 'mongodb.dart';
 import 'package:mongo_dart/mongo_dart.dart' as mongo;
+import 'user_session.dart';
+import 'services/contacts_adapter.dart'; // Add our new adapter
 
 import 'package:flutter/services.dart';
-import 'package:sqflite/sqflite.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
 import 'main.dart';
@@ -15,9 +14,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-// Contact Object, will likely modify later
+// Contact Object for MongoDB data
 class Contact {
-  final int id;
+  final dynamic id; // Can be ObjectId or its string representation
   final String name;
   final String organization;
   final String position;
@@ -32,103 +31,48 @@ class Contact {
     required this.position,
     required this.starred,
   });
-}
 
-class DBHelper {
-  // Class for holding methods with which we'll modify the contactcts database
-
-  static final DBHelper _instance = DBHelper._internal();
-  factory DBHelper() => _instance;
-  DBHelper._internal();
-  // This just ensures we dont try to open miltiple databases at the same time
-  static Database? _database;
-
-  Future<Database> get database async {
-    // just checks if the database already exists or needs to be remade
-    if (_database != null) {
-      final dbPath = await getDatabasesPath();
-      final expectedPath = path.join(dbPath, 'contacts.db');
-
-      if (_database!.path == expectedPath) {
-        return _database!;
-      }
-    }
-
-    _database = await initDatabase();
-    return _database!;
-  }
-
-  Future<Database> initDatabase() async {
-    // iF db doesn't exist, create the table
-    final dbPath = await getDatabasesPath();
-    final dbFilePath = path.join(dbPath, 'contacts.db');
-    return await openDatabase(
-      dbFilePath,
-      version: 1,
-      onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE contacts(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            position TEXT NOT NULL,
-            organization TEXT NOT NULL,
-            phoneNumber TEXT NOT NULL,
-            starred INTEGER NOT NULL DEFAULT 0
-          )
-        ''');
-      },
+  // Convert MongoDB document to Contact object
+  factory Contact.fromMongo(Map<String, dynamic> doc) {
+    return Contact(
+      id: doc['_id'], // Keep as ObjectId
+      name: doc['name'] ?? '',
+      organization: doc['organization'] ?? '',
+      phoneNumber: doc['phoneNumber'] ?? '',
+      position: doc['position'] ?? '',
+      starred: doc['starred'] ?? 0,
     );
   }
 
-  Future<int> insertContact(Contact contact) async {
-    final db = await database;
-    return await db.insert('contacts', {
-      'name': contact.name,
-      'organization': contact.organization,
-      'phoneNumber': contact.phoneNumber,
-      'position': contact.position,
-      'starred': contact.starred,
-    });
-  }
-
-  Future<List<Contact>> fetchContacts() async {
-    // saves contacts to a var
-    final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'contacts',
-      orderBy: 'organization ASC',
+  // Create a copy of Contact with updated values
+  Contact copyWith({
+    dynamic id,
+    String? name,
+    String? organization,
+    String? position,
+    String? phoneNumber,
+    int? starred,
+  }) {
+    return Contact(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      organization: organization ?? this.organization,
+      position: position ?? this.position,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      starred: starred ?? this.starred,
     );
-    return List.generate(maps.length, (i) {
-      return Contact(
-        id: maps[i]['id'],
-        name: maps[i]['name'],
-        organization: maps[i]['organization'],
-        phoneNumber: maps[i]['phoneNumber'],
-        position: maps[i]['position'],
-        starred: maps[i]['starred'],
-      );
-    });
   }
 
-  Future<void> deleteContact(id) async {
-    final db = await database;
-    await db.delete('contacts', where: 'id = ?', whereArgs: [id]);
-  }
-
-  Future<int> updateContact(Contact contact) async {
-    final db = await database;
-    return await db.update(
-      'contacts',
-      {
-        'name': contact.name,
-        'organization': contact.organization,
-        'phoneNumber': contact.phoneNumber,
-        'position': contact.position,
-        'starred': contact.starred,
-      },
-      where: 'id = ?',
-      whereArgs: [contact.id],
-    );
+  // Convert Contact to Map for MongoDB
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'organization': organization,
+      'phoneNumber': phoneNumber,
+      'position': position,
+      'starred': starred,
+      'type': 'contact', // Add type field
+    };
   }
 }
 
@@ -140,16 +84,18 @@ class Contacts extends StatefulWidget {
 }
 
 class _ContactsState extends State<Contacts> {
-  final DBHelper dbHelper = DBHelper(); // initialize dbHelper methods
-  // for adding a new contact
+  // For adding a new contact
   final TextEditingController nameController = TextEditingController();
   final TextEditingController organizationController = TextEditingController();
   final TextEditingController positionController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
 
+  // Get current user's ID for MongoDB operations
+  String get userId => UserSession().userId ?? '';
   List<Contact> contacts = [];
   List<Contact> starred = [];
-  Set<int> selectedIDs = {};
+  Set<dynamic> selectedIDs =
+      {}; // Changed from Set<int> to Set<dynamic> to support MongoDB ObjectId
   Map<String, List<Contact>> sections = {};
   bool addingContact = false;
   Contact? openedContact;
@@ -172,7 +118,10 @@ class _ContactsState extends State<Contacts> {
       itemCount: contacts.length,
       itemBuilder: (context, index) {
         final contact = contacts[index];
-        final isSelected = selectedIDs.contains(contact.id);
+        // Use string comparison for MongoDB ObjectId equality
+        final isSelected = selectedIDs.any(
+          (id) => id.toString() == contact.id.toString(),
+        );
         return Padding(
           padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
           child: Container(
@@ -210,6 +159,7 @@ class _ContactsState extends State<Contacts> {
               onLongPress: () {
                 setState(() {
                   if (!isSelected) {
+                    // Add the MongoDB ObjectId to selection
                     selectedIDs.add(contact.id);
                   }
                 });
@@ -217,10 +167,15 @@ class _ContactsState extends State<Contacts> {
               onTap: () {
                 setState(() {
                   if (isSelected) {
-                    selectedIDs.remove(contact.id);
+                    // Remove from selection using ObjectId
+                    selectedIDs.removeWhere(
+                      (id) => id.toString() == contact.id.toString(),
+                    );
                   } else if (selectedIDs.isNotEmpty) {
+                    // Add to selection
                     selectedIDs.add(contact.id);
                   } else {
+                    // Open contact details
                     openedContact = contact;
                   }
                 });
@@ -233,31 +188,33 @@ class _ContactsState extends State<Contacts> {
   }
 
   Future<void> begin() async {
-    // Fetch contacts from MongoDB instead of SQLite
+    if (userId.isEmpty) {
+      print("No user ID available. Cannot load contacts.");
+      contacts = [];
+      return;
+    }
+
+    // Fetch contacts using the adapter which tries Node.js API first, then falls back to MongoDB
     try {
-      List<Map<String, dynamic>> mongoContacts =
-          await MongoDatabase.getContacts();
+      List<Map<String, dynamic>> fetchedContacts =
+          await ContactsAdapter.getContacts();
 
-      // Convert MongoDB documents to Contact objects
-      contacts =
-          mongoContacts.map((doc) {
-            return Contact(
-              // MongoDB uses _id which is an ObjectId, convert to int for compatibility
-              id: doc['_id'].toString().hashCode,
-              name: doc['name'] ?? '',
-              organization: doc['organization'] ?? '',
-              phoneNumber: doc['phoneNumber'] ?? '',
-              position: doc['position'] ?? '',
-              starred: doc['starred'] ?? 0,
-            );
-          }).toList();
+      // Convert documents to Contact objects
+      contacts = fetchedContacts.map((doc) => Contact.fromMongo(doc)).toList();
 
-      // Original SQLite code (commented out)
-      // contacts = await dbHelper.fetchContacts();
+      print("Successfully loaded ${contacts.length} contacts for user $userId");
     } catch (e) {
-      print("Error loading contacts from MongoDB: $e");
-      // Fallback to SQLite if MongoDB fails
-      contacts = await dbHelper.fetchContacts();
+      print("Error loading contacts: $e");
+      contacts = [];
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load contacts: $e'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
 
     // Organize in memory
@@ -329,139 +286,101 @@ class _ContactsState extends State<Contacts> {
   }
 
   void starSelected() async {
-    try {
-      // Get MongoDB contacts to find the actual ObjectIds
-      List<Map<String, dynamic>> mongoContacts =
-          await MongoDatabase.getContacts();
+    if (userId.isEmpty) {
+      print("No user ID available. Cannot star contacts.");
+      return;
+    }
 
-      for (var id in selectedIDs) {
-        // Find the MongoDB document that matches this contact's id hash
-        var mongoDoc = mongoContacts.firstWhere(
-          (doc) => doc['_id'].toString().hashCode == id,
-          orElse: () => <String, dynamic>{},
+    try {
+      // Use string comparison for MongoDB ObjectId comparison
+      for (var contact in contacts.where(
+        (c) => selectedIDs.any((id) => id.toString() == c.id.toString()),
+      )) {
+        // Update star status using our adapter which tries Node.js API first
+        bool success = await ContactsAdapter.toggleStarContact(
+          contact.id,
+          true,
         );
 
-        if (mongoDoc.isNotEmpty) {
-          // Update star status in MongoDB using the actual ObjectId
-          bool success = await MongoDatabase.toggleStarContact(
-            mongoDoc['_id'],
-            true,
-          );
-
-          if (success) {
-            print("Contact starred in MongoDB successfully!");
-          } else {
-            print("Failed to star contact in MongoDB");
-            // Fallback to SQLite
-            var contact = contacts.firstWhere((contact) => contact.id == id);
-            contact.starred = 1;
-            await dbHelper.updateContact(contact);
-          }
+        if (success) {
+          print("Contact starred successfully!");
         } else {
-          // Contact only exists in SQLite (or not found)
-          var contact = contacts.firstWhere((contact) => contact.id == id);
-          contact.starred = 1;
-          await dbHelper.updateContact(contact);
+          print("Failed to star contact");
         }
       }
 
-      await begin();
+      await begin(); // Reload contacts
     } catch (e) {
       print("Error starring contacts: $e");
-      // Fallback to original SQLite method if anything fails
-      for (var id in selectedIDs) {
-        var contact = contacts.firstWhere((contact) => contact.id == id);
-        contact.starred = 1;
-        await dbHelper.updateContact(contact);
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error starring contacts: $e')));
       }
-      await begin();
     }
   }
 
   void deStarSelected() async {
-    try {
-      // Get MongoDB contacts to find the actual ObjectIds
-      List<Map<String, dynamic>> mongoContacts =
-          await MongoDatabase.getContacts();
+    if (userId.isEmpty) {
+      print("No user ID available. Cannot unstar contacts.");
+      return;
+    }
 
-      for (var id in selectedIDs) {
-        // Find the MongoDB document that matches this contact's id hash
-        var mongoDoc = mongoContacts.firstWhere(
-          (doc) => doc['_id'].toString().hashCode == id,
-          orElse: () => <String, dynamic>{},
+    try {
+      // Use string comparison for MongoDB ObjectId comparison
+      for (var contact in contacts.where(
+        (c) => selectedIDs.any((id) => id.toString() == c.id.toString()),
+      )) {
+        // Update star status using our adapter which tries Node.js API first
+        bool success = await ContactsAdapter.toggleStarContact(
+          contact.id,
+          false,
         );
 
-        if (mongoDoc.isNotEmpty) {
-          // Update star status in MongoDB using the actual ObjectId
-          bool success = await MongoDatabase.toggleStarContact(
-            mongoDoc['_id'],
-            false,
-          );
-
-          if (success) {
-            print("Contact unstarred in MongoDB successfully!");
-          } else {
-            print("Failed to unstar contact in MongoDB");
-            // Fallback to SQLite
-            var starredContact = starred.firstWhere((star) => star.id == id);
-            starredContact.starred = 0;
-            await dbHelper.updateContact(starredContact);
-          }
+        if (success) {
+          print("Contact unstarred successfully!");
         } else {
-          // Contact only exists in SQLite (or not found)
-          var starredContact = starred.firstWhere((star) => star.id == id);
-          starredContact.starred = 0;
-          await dbHelper.updateContact(starredContact);
+          print("Failed to unstar contact");
         }
       }
 
-      await begin();
+      await begin(); // Reload contacts
     } catch (e) {
       print("Error unstarring contacts: $e");
-      // Fallback to original SQLite method if anything fails
-      for (var id in selectedIDs) {
-        var starredContact = starred.firstWhere((star) => star.id == id);
-        starredContact.starred = 0;
-        await dbHelper.updateContact(starredContact);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error unstarring contacts: $e')),
+        );
       }
-      await begin();
     }
   }
 
   void deleteSelected() async {
+    if (userId.isEmpty) {
+      print("No user ID available. Cannot delete contacts.");
+      return;
+    }
+
     try {
-      // Get MongoDB contacts to find the actual ObjectIds
-      List<Map<String, dynamic>> mongoContacts =
-          await MongoDatabase.getContacts();
+      // Use string comparison for MongoDB ObjectId comparison
+      for (var contact in contacts.where(
+        (c) => selectedIDs.any((id) => id.toString() == c.id.toString()),
+      )) {
+        // Delete using our adapter which tries Node.js API first
+        bool success = await ContactsAdapter.deleteContact(contact.id);
 
-      for (var id in selectedIDs) {
-        // Find the MongoDB document that matches this contact's id hash
-        var mongoDoc = mongoContacts.firstWhere(
-          (doc) => doc['_id'].toString().hashCode == id,
-          orElse: () => <String, dynamic>{},
-        );
-
-        if (mongoDoc.isNotEmpty) {
-          // Delete from MongoDB using the actual ObjectId
-          bool success = await MongoDatabase.deleteData(mongoDoc['_id']);
-
-          if (success) {
-            print("Contact deleted from MongoDB successfully!");
-          } else {
-            print("Failed to delete contact from MongoDB");
-            // Fallback to SQLite
-            await dbHelper.deleteContact(id);
-          }
+        if (success) {
+          print("Contact deleted successfully!");
         } else {
-          // Contact only exists in SQLite (or not found)
-          await dbHelper.deleteContact(id);
+          print("Failed to delete contact");
         }
       }
+
       selectedIDs.clear();
       await begin();
 
       // Show success message
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Contacts deleted successfully'),
@@ -471,7 +390,7 @@ class _ContactsState extends State<Contacts> {
       }
     } catch (e) {
       print("Error deleting contacts: $e");
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Error deleting contacts'),
@@ -480,35 +399,40 @@ class _ContactsState extends State<Contacts> {
         );
       }
 
-      // Try one more time with SQLite as fallback
-      try {
-        for (var id in selectedIDs) {
-          await dbHelper.deleteContact(id);
-        }
-        selectedIDs.clear();
-        await begin();
-      } catch (_) {
-        // If even this fails, just clear the UI selection
-        selectedIDs.clear();
-        setState(() {});
-      }
+      // Just clear the UI selection
+      selectedIDs.clear();
+      setState(() {});
     }
   }
 
   void selectAll() {
+    // Add all contact MongoDB ObjectIds to the selection
     selectedIDs.addAll(contacts.map((contact) => contact.id));
   }
 
   bool allAreSelected() {
+    // When using MongoDB ObjectIds, we need to do string comparison
     return contacts.every((contact) {
-      return selectedIDs.contains(contact.id);
+      return selectedIDs.any((id) => id.toString() == contact.id.toString());
     });
   }
 
   bool allSeletedAreStarred() {
     return selectedIDs.every((id) {
-      var contact = contacts.firstWhere((c) => c.id == id);
-      return contact.starred == 1;
+      // With MongoDB ObjectIds, we need to use equality differently
+      // Since ObjectId equality uses toString() comparison, we'll find matching contacts
+      try {
+        var contact = contacts.firstWhere(
+          (c) => c.id.toString() == id.toString(),
+        );
+        return contact.starred == 1;
+      } catch (e) {
+        // If contact not found, consider it not starred
+        print(
+          "Warning: Contact with ID ${id.toString()} not found in allSeletedAreStarred()",
+        );
+        return false;
+      }
     });
   }
 
@@ -603,56 +527,114 @@ class _ContactsState extends State<Contacts> {
                                   size: 28,
                                 ),
                                 onSelected: (value) async {
+                                  if (userId.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Please log in to import/export contacts',
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
                                   await requestStoragePermission(); // ask for permission first
 
-                                  final downloadsPath =
-                                      '/storage/emulated/0/Download/contacts_copy.db';
-                                  final dbPath = path.join(
-                                    await getDatabasesPath(),
-                                    'contacts.db',
-                                  );
-                                  final downloadsFile = File(downloadsPath);
-                                  final dbFile = File(dbPath);
-
+                                  final jsonPath =
+                                      '/storage/emulated/0/Download/contacts_export.json';
+                                  final jsonFile = File(jsonPath);
                                   if (value == 'export') {
-                                    if (await dbFile.exists()) {
-                                      await dbFile.copy(downloadsPath);
+                                    try {
+                                      // Get JSON export from adapter (via Node.js API or MongoDB)
+                                      final jsonData =
+                                          await ContactsAdapter.exportContactsAsJson();
+                                      if (jsonData == null) {
+                                        throw Exception(
+                                          'No contacts to export',
+                                        );
+                                      }
+
+                                      // Write to JSON file
+                                      await jsonFile.writeAsString(jsonData);
+
                                       if (context.mounted) {
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
                                           SnackBar(
                                             content: Text(
-                                              'Exported successfully!',
+                                              'Exported successfully to Download/contacts_export.json!',
                                             ),
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Export failed: $e'),
                                           ),
                                         );
                                       }
                                     }
                                   } else if (value == 'import') {
-                                    if (await downloadsFile.exists()) {
-                                      await downloadsFile.copy(dbPath);
-                                      await begin(); // refresh contacts after import
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Imported successfully!',
-                                            ),
-                                          ),
+                                    try {
+                                      if (await jsonFile.exists()) {
+                                        // Read JSON data
+                                        final jsonString =
+                                            await jsonFile.readAsString();
+                                        final List<dynamic> contactsData =
+                                            jsonDecode(jsonString);
+
+                                        // Convert to proper format
+                                        final contactsList =
+                                            contactsData
+                                                .map(
+                                                  (item) =>
+                                                      Map<String, dynamic>.from(
+                                                        item,
+                                                      ),
+                                                )
+                                                .toList(); // Import using our adapter (Node.js API first, then MongoDB fallback)
+                                        await ContactsAdapter.importContacts(
+                                          contactsList,
                                         );
+
+                                        await begin(); // refresh contacts
+
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Imported successfully!',
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      } else {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'contacts_export.json not found in Downloads',
+                                              ),
+                                            ),
+                                          );
+                                        }
                                       }
-                                    } else {
+                                    } catch (e) {
                                       if (context.mounted) {
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
                                           SnackBar(
-                                            content: Text(
-                                              'contacts_copy.db not found in Downloads',
-                                            ),
+                                            content: Text('Import failed: $e'),
                                           ),
                                         );
                                       }
@@ -953,6 +935,15 @@ class _ContactsState extends State<Contacts> {
                     trailing: IconButton(
                       alignment: Alignment.centerRight,
                       onPressed: () async {
+                        if (userId.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Please log in to add contacts'),
+                            ),
+                          );
+                          return;
+                        }
+
                         if (nameController.text.trim().isEmpty ||
                             organizationController.text.trim().isEmpty ||
                             phoneController.text.trim().isEmpty ||
@@ -973,48 +964,39 @@ class _ContactsState extends State<Contacts> {
                           return;
                         }
 
-                        final newContact = Contact(
-                          id: 0,
-                          name: nameController.text.trim(),
-                          organization: organizationController.text.trim(),
-                          phoneNumber: phoneController.text.trim(),
-                          position: positionController.text.trim(),
-                          starred: 0,
-                        );
-
-                        clearForm(); // Insert data into MongoDB
-                        bool success = await MongoDatabase.insertData({
-                          'name': newContact.name,
-                          'organization': newContact.organization,
-                          'phoneNumber': newContact.phoneNumber,
-                          'position': newContact.position,
+                        // Create contact data
+                        final contactData = {
+                          'name': nameController.text.trim(),
+                          'organization': organizationController.text.trim(),
+                          'phoneNumber': phoneController.text.trim(),
+                          'position': positionController.text.trim(),
                           'starred': 0,
+                          'type': 'contact', // Add type field
                           'created_at':
                               DateTime.now(), // Store as Date type in MongoDB
-                        });
+                        };
+
+                        clearForm(); // Clear the form first for better UX                        // Insert using our adapter (Node.js API first, then MongoDB fallback)
+                        bool success = await ContactsAdapter.addContact(
+                          contactData,
+                        );
 
                         if (success) {
-                          if(context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Contact added to MongoDB successfully!',
-                                ),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                            print("Contact successfully added to MongoDB!");
-                          }
-                        } else {
-                          if(context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                          ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Failed to add contact to MongoDB'),
+                              content: Text('Contact added successfully!'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                          print("Contact successfully added to MongoDB!");
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Failed to add contact'),
                               duration: Duration(seconds: 2),
                             ),
                           );
                           print("Failed to add contact to MongoDB");
-                          } 
                         }
 
                         await begin();
@@ -1232,20 +1214,15 @@ class _ContactDetailsState extends State<ContactDetails> {
   final TextEditingController organizationController = TextEditingController();
   final TextEditingController positionController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
-  final DBHelper dbHelper = DBHelper();
   late Contact localContact;
 
+  // Get current user's ID for MongoDB operations
+  String get userId => UserSession().userId ?? '';
   @override
   void initState() {
     super.initState();
-    localContact = Contact(
-      id: widget.contact.id,
-      name: widget.contact.name,
-      organization: widget.contact.organization,
-      position: widget.contact.position,
-      phoneNumber: widget.contact.phoneNumber,
-      starred: widget.contact.starred,
-    );
+    // Create a local copy of the contact
+    localContact = widget.contact.copyWith();
 
     nameController.text = localContact.name;
     organizationController.text = localContact.organization;
@@ -1424,69 +1401,57 @@ class _ContactDetailsState extends State<ContactDetails> {
                                 );
                                 editingContact = false;
                               });
-
                               try {
-                                // Find the original MongoDB document to get the real ObjectId
-                                List<Map<String, dynamic>> mongoContacts =
-                                    await MongoDatabase.getContacts();
-                                // Find the matching document by comparing fields
-                                var mongoDoc = mongoContacts.firstWhere(
-                                  (doc) =>
-                                      doc['_id'].toString().hashCode ==
-                                      localContact.id,
-                                  orElse: () => <String, dynamic>{},
-                                );
+                                if (userId.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Please log in to update contacts',
+                                      ),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                  return;
+                                } // Update contact using our adapter (Node.js API first, then MongoDB fallback)
+                                bool
+                                success = await ContactsAdapter.updateContact({
+                                  '_id': localContact.id, // Original ObjectId
+                                  'name': localContact.name,
+                                  'organization': localContact.organization,
+                                  'phoneNumber': localContact.phoneNumber,
+                                  'position': localContact.position,
+                                  'starred': localContact.starred,
+                                  'type': 'contact', // Add type field
+                                });
 
-                                // Check if the document ID is a valid mongo ObjectId
-                                if (mongoDoc.isNotEmpty &&
-                                    mongoDoc['_id'] is! mongo.ObjectId) {
+                                if (success) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Contact updated successfully!',
+                                      ),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
                                   print(
-                                    "MongoDB document _id is of type: ${mongoDoc['_id'].runtimeType}",
+                                    "Contact updated in MongoDB successfully!",
                                   );
-                                }
-                                if (mongoDoc.isNotEmpty) {
-                                  // Update in MongoDB using the actual ObjectId
-                                  bool success = await MongoDatabase.updateData(
-                                    {
-                                      '_id': mongoDoc['_id'],
-                                      'name': localContact.name,
-                                      'organization': localContact.organization,
-                                      'phoneNumber': localContact.phoneNumber,
-                                      'position': localContact.position,
-                                      'starred': localContact.starred,
-                                    },
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Failed to update contact'),
+                                      duration: Duration(seconds: 2),
+                                    ),
                                   );
-
-                                  if (success) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Contact updated successfully!',
-                                          ),
-                                          duration: Duration(seconds: 2),
-                                        ),
-                                      );
-                                    }
-                                  } else {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Failed to update contact',
-                                          ),
-                                          duration: Duration(seconds: 2),
-                                        ),
-                                      );
-                                    }
-                                    // Fallback to SQLite if MongoDB fails
-                                    await dbHelper.updateContact(localContact);
-                                  }
                                 }
                               } catch (e) {
                                 print("Error updating contact: $e");
-                                // Fallback to SQLite if MongoDB update throws an exception
-                                await dbHelper.updateContact(localContact);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error updating contact: $e'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
                               }
                             },
 
@@ -1636,6 +1601,15 @@ class _ContactDetailsState extends State<ContactDetails> {
                   ),
                   IconButton(
                     onPressed: () async {
+                      if (userId.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Please log in to update contacts'),
+                          ),
+                        );
+                        return;
+                      }
+
                       setState(() {
                         starred = !starred;
                         localContact = Contact(
@@ -1647,42 +1621,32 @@ class _ContactDetailsState extends State<ContactDetails> {
                           starred: starred ? 1 : 0,
                         );
                       });
-
                       try {
-                        // Find the original MongoDB document to get the real ObjectId
-                        List<Map<String, dynamic>> mongoContacts =
-                            await MongoDatabase.getContacts();
-                        // Find the matching document by comparing fields
-                        var mongoDoc = mongoContacts.firstWhere(
-                          (doc) =>
-                              doc['_id'].toString().hashCode == localContact.id,
-                          orElse: () => <String, dynamic>{},
+                        // Update star status using our adapter (Node.js API first, then MongoDB fallback)
+                        bool success = await ContactsAdapter.toggleStarContact(
+                          localContact.id, // Use the original ObjectId
+                          starred,
                         );
 
-                        if (mongoDoc.isNotEmpty) {
-                          // Update star status in MongoDB using the actual ObjectId
-                          bool success = await MongoDatabase.toggleStarContact(
-                            mongoDoc['_id'],
-                            starred,
+                        if (success) {
+                          print(
+                            "Contact star status updated in MongoDB successfully!",
                           );
-
-                          if (success) {
-                            print(
-                              "Contact star status updated in MongoDB successfully!",
-                            );
-                          } else {
-                            print("Failed to update star status in MongoDB");
-                            // Fallback to SQLite
-                            await dbHelper.updateContact(localContact);
-                          }
                         } else {
-                          // Fallback to SQLite if MongoDB document is not found
-                          await dbHelper.updateContact(localContact);
+                          print("Failed to update star status in MongoDB");
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Failed to update star status'),
+                            ),
+                          );
                         }
                       } catch (e) {
                         print("Error updating contact star status: $e");
-                        // Fallback to SQLite if MongoDB update throws an exception
-                        await dbHelper.updateContact(localContact);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error updating star status: $e'),
+                          ),
+                        );
                       }
                     },
                     icon: Icon(
