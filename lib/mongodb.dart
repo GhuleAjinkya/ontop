@@ -8,10 +8,14 @@ class MongoDatabase {
   static Db? _db;
 
   static bool get isConnected => _db?.isConnected ?? false;
-
   static connect() async {
     try {
       print("Connecting to MongoDB...");
+
+      if (mongoURL.isEmpty) {
+        print("ERROR: MongoDB URL is empty");
+        return false;
+      }
 
       // Create MongoDB connection using parseUri to properly handle mongodb+srv schema
       // This converts mongodb+srv:// to standard mongodb:// with correct configuration

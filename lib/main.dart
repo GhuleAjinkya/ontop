@@ -1,7 +1,8 @@
 // Containts logic for home page, tabs page header and footers, and logic to call their body functions
 
-// Dependancies
+// Dependencies
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:ui';
 import 'class_contacts.dart';
 // ignore: unused_import
@@ -45,11 +46,15 @@ void main() async {
   print("!!!!! APPLICATION STARTING !!!!!");
   WidgetsFlutterBinding.ensureInitialized(); // Required for sqflite to work properly
 
+  // Load environment variables
+  print("Loading environment variables...");
+  await dotenv.load(fileName: ".env");
+
   // Connect to MongoDB
   print("Connecting to MongoDB...");
   bool connected = await MongoDatabase.connect();
   print("MongoDB connection status: $connected");
-  
+
   // Initialize user session
   print("Initializing user session...");
   await userSession.initialize();
@@ -80,9 +85,10 @@ class MyApp extends StatelessWidget {
         ),
       ),
       // Show HomePage if user is logged in, otherwise show LoginPage
-      home: userSession.isLoggedIn 
-          ? HomePage(userData: userSession.currentUser)
-          : LoginPage(),
+      home:
+          userSession.isLoggedIn
+              ? HomePage(userData: userSession.currentUser)
+              : LoginPage(),
     );
   }
 }
@@ -145,7 +151,8 @@ class _HomePageState extends State<HomePage> {
                   child: Container(color: Colors.transparent),
                 ),
               ),
-            ),            Positioned(
+            ),
+            Positioned(
               top: 20,
               right: 20,
               child: Row(
@@ -154,31 +161,49 @@ class _HomePageState extends State<HomePage> {
                   IconButton(
                     onPressed: () async {
                       // Show logout confirmation dialog
-                      bool confirm = await showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: Text('Logout'),
-                          content: Text('Are you sure you want to log out?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(context).pop(false),
-                              child: Text('Cancel'),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.of(context).pop(true),
-                              child: Text('Logout'),
-                            ),
-                          ],
-                          backgroundColor: Theme.of(context).colorScheme.primary,
-                          titleTextStyle: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 20, fontWeight: FontWeight.bold),
-                          contentTextStyle: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 16),
-                        ),
-                      ) ?? false;
-                      
+                      bool confirm =
+                          await showDialog(
+                            context: context,
+                            builder:
+                                (context) => AlertDialog(
+                                  title: Text('Logout'),
+                                  content: Text(
+                                    'Are you sure you want to log out?',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed:
+                                          () =>
+                                              Navigator.of(context).pop(false),
+                                      child: Text('Cancel'),
+                                    ),
+                                    TextButton(
+                                      onPressed:
+                                          () => Navigator.of(context).pop(true),
+                                      child: Text('Logout'),
+                                    ),
+                                  ],
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.primary,
+                                  titleTextStyle: TextStyle(
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  contentTextStyle: TextStyle(
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                          ) ??
+                          false;
+
                       if (confirm) {
                         // Clear user session
                         await userSession.clearSession();
-                        
+
                         // Navigate to login page
                         Navigator.of(context).pushAndRemoveUntil(
                           MaterialPageRoute(builder: (context) => LoginPage()),
