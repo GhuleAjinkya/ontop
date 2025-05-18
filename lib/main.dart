@@ -1,7 +1,8 @@
 // Containts logic for home page, tabs page header and footers, and logic to call their body functions
 
-// Dependancies
+// Dependencies
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:ui';
 import 'class_contacts.dart';
 // ignore: unused_import
@@ -13,6 +14,7 @@ import 'class_events.dart';
 import 'class_tasks.dart';
 import 'mongodb.dart';
 import 'login.dart';
+import 'user_session.dart';
 
 standardTile(double borderRadius, {bool isSelected = false}) {
   // Code to create the common tile with the background blur
@@ -43,12 +45,21 @@ standardTile(double borderRadius, {bool isSelected = false}) {
 void main() async {
   print("!!!!! APPLICATION STARTING !!!!!");
   WidgetsFlutterBinding.ensureInitialized(); // Required for sqflite to work properly
-  
+
+  // Load environment variables
+  print("Loading environment variables...");
+  await dotenv.load(fileName: ".env");
+
   // Connect to MongoDB
   print("Connecting to MongoDB...");
   bool connected = await MongoDatabase.connect();
   print("MongoDB connection status: $connected");
-  
+
+  // Initialize user session
+  print("Initializing user session...");
+  await userSession.initialize();
+  print("User logged in: ${userSession.isLoggedIn}");
+
   // Run the app
   runApp(const MyApp());
 }
@@ -73,14 +84,18 @@ class MyApp extends StatelessWidget {
           onSecondary: Color.fromARGB(255, 88, 81, 111),
         ),
       ),
-      //home: HomePage(),
-      home: LoginPage(),
+      // Show HomePage if user is logged in, otherwise show LoginPage
+      home:
+          userSession.isLoggedIn
+              ? HomePage(userData: userSession.currentUser)
+              : LoginPage(),
     );
   }
 }
 
 class HomePage extends StatefulWidget {
-  HomePage({super.key});
+  HomePage({super.key, this.userData});
+  final Map<String, dynamic>? userData;
   final String username = 'usernameDefault';
   final List<String> tabs = ['Tasks', 'Contacts', 'Projects', 'Events'];
 
@@ -90,7 +105,7 @@ class HomePage extends StatefulWidget {
       return 'Morning';
     }
     if (hour < 17) {
-      return 'Afternoom';
+      return 'Afternoon';
     }
     return 'Evening';
   }
@@ -140,13 +155,78 @@ class _HomePageState extends State<HomePage> {
             Positioned(
               top: 20,
               right: 20,
-              child: IconButton(
-                onPressed: () {},
-                icon: Icon(
-                  Icons.person_2_outlined,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                  size: 35,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: () async {
+                      // Show logout confirmation dialog
+                      bool confirm =
+                          await showDialog(
+                            context: context,
+                            builder:
+                                (context) => AlertDialog(
+                                  title: Text('Logout'),
+                                  content: Text(
+                                    'Are you sure you want to log out?',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed:
+                                          () =>
+                                              Navigator.of(context).pop(false),
+                                      child: Text('Cancel'),
+                                    ),
+                                    TextButton(
+                                      onPressed:
+                                          () => Navigator.of(context).pop(true),
+                                      child: Text('Logout'),
+                                    ),
+                                  ],
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.primary,
+                                  titleTextStyle: TextStyle(
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  contentTextStyle: TextStyle(
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                          ) ??
+                          false;
+
+                      if (confirm) {
+                        // Clear user session
+                        await userSession.clearSession();
+
+                        // Navigate to login page
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (context) => LoginPage()),
+                          (route) => false, // Clear all routes in stack
+                        );
+                      }
+                    },
+                    icon: Icon(
+                      Icons.logout,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      size: 28,
+                    ),
+                    tooltip: 'Logout',
+                  ),
+                  IconButton(
+                    onPressed: () {},
+                    icon: Icon(
+                      Icons.person_2_outlined,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      size: 35,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -168,7 +248,12 @@ class _HomePageState extends State<HomePage> {
               Column(
                 children: [
                   Text("Good $greetingTime,", style: TextStyle(fontSize: 20)),
-                  Text(widget.username, style: const TextStyle(fontSize: 20)),
+                  Text(
+                    widget.userData != null
+                        ? widget.userData!['name']
+                        : widget.username,
+                    style: const TextStyle(fontSize: 20),
+                  ),
                 ],
               ),
             ],
@@ -228,6 +313,7 @@ class _HomePageState extends State<HomePage> {
                                   (context) => Tabs(
                                     currentIndex: index,
                                     tabs: widget.tabs,
+                                    userData: widget.userData,
                                   ),
                             ),
                           );
@@ -245,9 +331,15 @@ class _HomePageState extends State<HomePage> {
 }
 
 class Tabs extends StatefulWidget {
-  const Tabs({super.key, required this.currentIndex, required this.tabs});
+  const Tabs({
+    super.key,
+    required this.currentIndex,
+    required this.tabs,
+    this.userData,
+  });
   final int currentIndex;
   final List<String> tabs;
+  final Map<String, dynamic>? userData;
 
   @override
   State<Tabs> createState() => _TabsState();
@@ -393,7 +485,9 @@ class _TabsState extends State<Tabs> {
                               // redirect to home, kill the history of the previous tabs visited
                               context,
                               MaterialPageRoute(
-                                builder: (context) => HomePage(),
+                                builder:
+                                    (context) =>
+                                        HomePage(userData: widget.userData),
                               ),
                               (route) =>
                                   false, // just means no tab other than home should be in stack
@@ -407,6 +501,7 @@ class _TabsState extends State<Tabs> {
                                     (context) => Tabs(
                                       currentIndex: drawerIndex - 1,
                                       tabs: widget.tabs,
+                                      userData: widget.userData,
                                     ),
                               ),
                             );

@@ -1,15 +1,21 @@
 import 'package:mongo_dart/mongo_dart.dart';
 import 'constants.dart';
 import 'dart:developer';
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
 
 class MongoDatabase {
   static Db? _db;
 
   static bool get isConnected => _db?.isConnected ?? false;
-
   static connect() async {
     try {
       print("Connecting to MongoDB...");
+
+      if (mongoURL.isEmpty) {
+        print("ERROR: MongoDB URL is empty");
+        return false;
+      }
 
       // Create MongoDB connection using parseUri to properly handle mongodb+srv schema
       // This converts mongodb+srv:// to standard mongodb:// with correct configuration
@@ -76,13 +82,33 @@ class MongoDatabase {
     }
   }
 
-  static Future<bool> insertData(Map<String, dynamic> data) async {
+  static Future<bool> insertData(
+    Map<String, dynamic> data, {
+    String? userId,
+    String type = 'contact',
+  }) async {
     if (!isConnected) await connect();
 
     try {
-      var collection = _db!.collection(collectionName);
-      await collection.insertOne(data);
-      print("Document inserted successfully");
+      if (userId == null) {
+        print("Error: No userId provided for insertData");
+        return false;
+      }
+
+      // Ensure starred field exists (default to 0 if not provided)
+      if (!data.containsKey('starred')) {
+        data['starred'] = 0;
+      }
+
+      // Add type field to the document to identify what kind of data it is
+      data['type'] = type;
+
+      // Use the user's specific collection
+      var userCollection = _db!.collection(userId);
+      await userCollection.insertOne(data);
+      print(
+        "Document of type '$type' inserted successfully into user collection $userId",
+      );
       print("Inserted data: $data");
       return true;
     } catch (e) {
@@ -91,14 +117,35 @@ class MongoDatabase {
     }
   }
 
-  static Future<bool> insertMany(List<Map<String, dynamic>> dataList) async {
+  static Future<bool> insertMany(
+    List<Map<String, dynamic>> dataList, {
+    String? userId,
+    String type = 'contact',
+  }) async {
     if (!isConnected) await connect();
 
     try {
-      var collection = _db!.collection(collectionName);
+      if (userId == null) {
+        print("Error: No userId provided for insertMany");
+        return false;
+      }
+
+      // Ensure starred field exists for each item and add type field (default to 0 if not provided)
+      for (var data in dataList) {
+        if (!data.containsKey('starred')) {
+          data['starred'] = 0;
+        }
+        // Add type field to each document
+        data['type'] = type;
+      }
+
+      // Use the user's specific collection
+      var userCollection = _db!.collection(userId);
       // ignore: unused_local_variable
-      var result = await collection.insertMany(dataList);
-      print("${dataList.length} documents inserted successfully");
+      var result = await userCollection.insertMany(dataList);
+      print(
+        "${dataList.length} documents of type '$type' inserted successfully into user collection $userId",
+      );
       print("Inserted data: $dataList");
       return true;
     } catch (e) {
@@ -107,48 +154,92 @@ class MongoDatabase {
     }
   }
 
-  static Future<List<Map<String, dynamic>>> getContacts() async {
+  static Future<List<Map<String, dynamic>>> getContacts({
+    String? userId,
+    String? type,
+  }) async {
     if (!isConnected) await connect();
 
     try {
-      var collection = _db!.collection(collectionName);
-      var docs = await collection.find().toList();
-      print("Retrieved ${docs.length} contacts from MongoDB");
+      if (userId == null) {
+        print(
+          "Warning: No userId provided for getContacts, returning empty list",
+        );
+        return [];
+      }
+
+      // Use the user's specific collection instead of the shared contacts collection
+      var userCollection = _db!.collection(userId);
+
+      // If type is provided, filter documents by type
+      var query = type != null ? where.eq('type', type) : where;
+      var docs = await userCollection.find(query).toList();
+
+      String typeMsg = type != null ? " of type '$type'" : "";
+      print(
+        "Retrieved ${docs.length} documents$typeMsg from user collection $userId",
+      );
       return docs;
     } catch (e) {
-      print("Error retrieving contacts from MongoDB: $e");
+      print("Error retrieving documents from MongoDB: $e");
       return [];
     }
   }
 
-  static Future<bool> updateData(Map<String, dynamic> data) async {
+  static Future<bool> updateData(
+    Map<String, dynamic> data, {
+    String? userId,
+    String? type,
+  }) async {
     if (!isConnected) await connect();
 
     try {
-      var collection = _db!.collection(collectionName);
-      
+      if (userId == null) {
+        print("Error: No userId provided for updateData");
+        return false;
+      }
+
+      // Use the user's specific collection
+      var userCollection = _db!.collection(userId);
+
       // Ensure we have the _id to identify the document to update
       if (!data.containsKey('_id')) {
         print("Error updating document: No _id provided");
         return false;
       }
-      
+
       var id = data['_id'];
-      
+
       // Remove _id from data to update since it's used for the query
       var updateData = Map<String, dynamic>.from(data);
       updateData.remove('_id');
-      
-      // Use updateOne with a filter by _id
-      var result = await collection.updateOne(
-        where.eq('_id', id),
-        {
-          '\$set': updateData
-        },
-      );
-      
+
+      // If type is provided, set it in the update data
+      if (type != null) {
+        updateData['type'] = type;
+      }
+
+      // First, check if the document already has a type field
+      var existingDoc = await userCollection.findOne(where.eq('_id', id));
+
+      // If the document exists and has a type but no type parameter was provided, preserve the existing type
+      if (existingDoc != null &&
+          existingDoc.containsKey('type') &&
+          type == null) {
+        // Don't modify the existing type
+      } else if (type == null) {
+        // If no type exists and none was provided, default to 'contact'
+        updateData['type'] = 'contact';
+      }
+
+      // Build the query with just the _id (no need for userId filter since we're using user-specific collection)
+      var query = where.eq('_id', id);
+
+      // Use updateOne with filters
+      var result = await userCollection.updateOne(query, {'\$set': updateData});
+
       if (result.isSuccess) {
-        print("Document updated successfully");
+        print("Document updated successfully in user collection $userId");
         print("Updated data: $updateData for document with _id: $id");
         return true;
       } else {
@@ -161,17 +252,26 @@ class MongoDatabase {
     }
   }
 
-  static Future<bool> deleteData(ObjectId id) async {
+  static Future<bool> deleteData(ObjectId id, {String? userId}) async {
     if (!isConnected) await connect();
 
     try {
-      var collection = _db!.collection(collectionName);
-      
-      // Use deleteOne with a filter by _id
-      var result = await collection.deleteOne(where.eq('_id', id));
-      
+      if (userId == null) {
+        print("Error: No userId provided for deleteData");
+        return false;
+      }
+
+      // Use the user's specific collection
+      var userCollection = _db!.collection(userId);
+
+      // Build the query with just the _id (no need for userId filter since we're using user-specific collection)
+      var query = where.eq('_id', id);
+
+      // Use deleteOne with filters
+      var result = await userCollection.deleteOne(query);
+
       if (result.isSuccess) {
-        print("Document deleted successfully");
+        print("Document deleted successfully from user collection $userId");
         print("Deleted document with _id: $id");
         return true;
       } else {
@@ -180,6 +280,277 @@ class MongoDatabase {
       }
     } catch (e) {
       print("Error deleting document: $e");
+      return false;
+    }
+  }
+
+  static Future<bool> toggleStarContact(
+    ObjectId id,
+    bool starred, {
+    String? userId,
+  }) async {
+    if (!isConnected) await connect();
+
+    try {
+      if (userId == null) {
+        print("Error: No userId provided for toggleStarContact");
+        return false;
+      }
+
+      // Use the user's specific collection
+      var userCollection = _db!.collection(userId);
+
+      // Build the query with just the _id (no need for userId filter since we're using user-specific collection)
+      var query = where.eq('_id', id);
+
+      // Update the starred status
+      var result = await userCollection.updateOne(query, {
+        '\$set': {'starred': starred ? 1 : 0},
+      });
+
+      if (result.isSuccess) {
+        print(
+          "Contact star status updated successfully in user collection $userId",
+        );
+        print("Updated document with _id: $id to starred: ${starred ? 1 : 0}");
+        return true;
+      } else {
+        print(
+          "Failed to update contact star status. Modified: ${result.nModified}",
+        );
+        return false;
+      }
+    } catch (e) {
+      print("Error updating contact star status: $e");
+      return false;
+    }
+  }
+
+  // Helper method to hash passwords
+  static String _hashPassword(String password) {
+    var bytes = utf8.encode(password); // Convert password to bytes
+    var digest = sha256.convert(bytes); // Hash using SHA-256
+    return digest.toString();
+  }
+
+  // Helper method to get the next user ID sequence (e.g., user_001, user_002)
+  static Future<String> _getNextUserId() async {
+    if (!isConnected) await connect();
+
+    try {
+      // Get the counter collection
+      var counterCollection = _db!.collection(counterCollectionName);
+
+      // Try to find an existing counter document
+      var counterDoc = await counterCollection.findOne({'_id': 'userId'});
+
+      int sequenceValue = 1;
+
+      if (counterDoc != null) {
+        // If counter exists, increment it
+        var result = await counterCollection.findAndModify(
+          query: {'_id': 'userId'},
+          update: {
+            '\$inc': {'seq': 1},
+          },
+          returnNew: true,
+        );
+
+        sequenceValue = result?['seq'] ?? 1;
+      } else {
+        // If no counter exists, create one starting at 1
+        await counterCollection.insertOne({'_id': 'userId', 'seq': 1});
+      }
+
+      // Format the user ID with leading zeros (e.g., user_001)
+      String formattedId = sequenceValue.toString().padLeft(3, '0');
+      return '$userIdPrefix$formattedId';
+    } catch (e) {
+      print("Error generating next user ID: $e");
+      // Fallback to timestamp-based ID to ensure uniqueness
+      return '$userIdPrefix${DateTime.now().millisecondsSinceEpoch}';
+    }
+  }
+
+  // Method to create a user-specific collection
+  static Future<bool> _createUserCollection(String userId) async {
+    if (!isConnected) await connect();
+
+    try {
+      // Create a new collection for the user
+      await _db!.createCollection(userId);
+      print("Created new collection for user: $userId");
+
+      // Add an index on the 'starred' field for faster queries
+      var userCollection = _db!.collection(userId);
+      await userCollection.createIndex(keys: {'starred': 1});
+
+      return true;
+    } catch (e) {
+      print("Error creating user collection: $e");
+      return false;
+    }
+  }
+
+  // Get a user-specific collection
+  static DbCollection? getUserCollection(String userId) {
+    if (!isConnected) return null;
+
+    try {
+      return _db!.collection(userId);
+    } catch (e) {
+      print("Error getting user collection: $e");
+      return null;
+    }
+  }
+
+  // User registration method
+  static Future<Map<String, dynamic>> registerUser(
+    Map<String, dynamic> userData,
+  ) async {
+    if (!isConnected) await connect();
+
+    try {
+      // Check if user already exists (by email or phone number)
+      var usersCollection = _db!.collection(userCollectionName);
+
+      var existingUserByEmail = await usersCollection.findOne(
+        where.eq('email', userData['email']),
+      );
+
+      var existingUserByPhone = await usersCollection.findOne(
+        where.eq('number', userData['number']),
+      );
+
+      if (existingUserByEmail != null) {
+        return {'success': false, 'message': 'Email is already registered'};
+      }
+
+      if (existingUserByPhone != null) {
+        return {
+          'success': false,
+          'message': 'Phone number is already registered',
+        };
+      }
+
+      // Generate a new sequential user ID (e.g., user_001)
+      String userId = await _getNextUserId();
+
+      // Hash password before storing
+      String hashedPassword = _hashPassword(userData['password']);
+
+      // Prepare user data
+      var userToInsert = {
+        '_id': userId,
+        'name': userData['name'],
+        'email': userData['email'],
+        'number': userData['number'],
+        'password': hashedPassword,
+        'created_at': DateTime.now(),
+      };
+
+      // Insert the user
+      await usersCollection.insertOne(userToInsert);
+      print(
+        "User registered successfully: ${userData['email']} with ID: $userId",
+      );
+
+      // Create a user-specific collection for their data
+      await _createUserCollection(userId);
+
+      return {
+        'success': true,
+        'message': 'Registration successful',
+        'user':
+            userToInsert
+              ..remove('password'), // Remove password before returning
+      };
+    } catch (e) {
+      print("Error registering user: $e");
+      return {
+        'success': false,
+        'message': 'Registration failed. Please try again.',
+      };
+    }
+  }
+
+  // User login method
+  static Future<Map<String, dynamic>> loginUser({
+    required String phoneNumber,
+    required String password,
+  }) async {
+    if (!isConnected) await connect();
+
+    try {
+      var usersCollection = _db!.collection(userCollectionName);
+
+      // Hash the password for comparison
+      String hashedPassword = _hashPassword(password);
+
+      // Find user by phone number and password
+      var user = await usersCollection.findOne(
+        where
+            .eq('number', phoneNumber)
+            .and(where.eq('password', hashedPassword)),
+      );
+
+      if (user == null) {
+        return {
+          'success': false,
+          'message': 'Invalid phone number or password',
+        };
+      }
+
+      // Remove sensitive information before returning
+      user.remove('password');
+
+      String userId = user['_id'];
+      // Verify that the user's collection exists, create it if not
+      // This is a safety check in case the collection wasn't created during registration
+      if (userId.startsWith(userIdPrefix)) {
+        try {
+          var collections = await _db!.getCollectionNames();
+          if (!collections.contains(userId)) {
+            await _createUserCollection(userId);
+            print("Created missing collection for user: $userId during login");
+          }
+        } catch (e) {
+          print("Error checking/creating user collection during login: $e");
+        }
+      }
+
+      print("User logged in successfully: ${user['email']} with ID: $userId");
+      return {'success': true, 'message': 'Login successful', 'user': user};
+    } catch (e) {
+      print("Error during login: $e");
+      return {'success': false, 'message': 'Login failed. Please try again.'};
+    }
+  }
+
+  // Verify if user exists by email
+  static Future<bool> userExistsByEmail(String email) async {
+    if (!isConnected) await connect();
+
+    try {
+      var usersCollection = _db!.collection(userCollectionName);
+      var user = await usersCollection.findOne(where.eq('email', email));
+      return user != null;
+    } catch (e) {
+      print("Error checking user by email: $e");
+      return false;
+    }
+  }
+
+  // Verify if user exists by phone number
+  static Future<bool> userExistsByPhone(String phoneNumber) async {
+    if (!isConnected) await connect();
+
+    try {
+      var usersCollection = _db!.collection(userCollectionName);
+      var user = await usersCollection.findOne(where.eq('number', phoneNumber));
+      return user != null;
+    } catch (e) {
+      print("Error checking user by phone: $e");
       return false;
     }
   }
