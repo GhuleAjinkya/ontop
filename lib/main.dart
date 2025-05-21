@@ -43,12 +43,14 @@ standardTile(double borderRadius, {bool isSelected = false}) {
 }
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
   print("!!!!! APPLICATION STARTING !!!!!");
   WidgetsFlutterBinding.ensureInitialized(); // Required for sqflite to work properly
 
   // Load environment variables
   print("Loading environment variables...");
-  await dotenv.load(fileName: ".env");
+  await dotenv.load(fileName: "assets/.env");
 
   // Connect to MongoDB
   print("Connecting to MongoDB...");
@@ -160,45 +162,72 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   IconButton(
                     onPressed: () async {
-                      // Show logout confirmation dialog
-                      bool confirm =
-                          await showDialog(
-                            context: context,
-                            builder:
-                                (context) => AlertDialog(
-                                  title: Text('Logout'),
-                                  content: Text(
-                                    'Are you sure you want to log out?',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed:
-                                          () =>
-                                              Navigator.of(context).pop(false),
-                                      child: Text('Cancel'),
-                                    ),
-                                    TextButton(
-                                      onPressed:
-                                          () => Navigator.of(context).pop(true),
-                                      child: Text('Logout'),
-                                    ),
-                                  ],
-                                  backgroundColor:
-                                      Theme.of(context).colorScheme.primary,
-                                  titleTextStyle: TextStyle(
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  contentTextStyle: TextStyle(
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                    fontSize: 16,
+                      bool confirm = await showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          backgroundColor:
+                              Theme.of(
+                                context,
+                              ).colorScheme.primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              10,
+                            ),
+                            side: BorderSide(
+                              color:
+                                  Theme.of(
+                                    context,
+                                  ).colorScheme.onSecondary,
+                              width: 1.5,
+                            ),
+                          ),
+                          title: Text(
+                            'Logout?',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color:
+                                  Theme.of(
+                                    context,
+                                  ).colorScheme.onPrimary,
+                            ),
+                          ),
+                          content: Text(
+                            "You'll need to log back in to access your stored information.",
+                            style: TextStyle(
+                              color:
+                                  Theme.of(
+                                    context,
+                                  ).colorScheme.onPrimary,
+                            ),
+                          ),
+                          actions: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                IconButton(
+                                  onPressed:
+                                      () =>
+                                          Navigator.of(context).pop(false),
+                                  icon: Icon(
+                                    Icons.close,
+                                    color: Theme.of(context).colorScheme.onPrimary,
+                                    size: 30,
                                   ),
                                 ),
-                          ) ??
-                          false;
+                                IconButton(
+                                  onPressed:
+                                      () => Navigator.of(context).pop(true),
+                                  icon: Icon(
+                                    Icons.check,
+                                    color: Theme.of(context).colorScheme.error,
+                                    size: 30,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],    
+                        ),
+                      ) ?? false;
 
                       if (confirm) {
                         // Clear user session
