@@ -1,17 +1,18 @@
 @echo off
 echo Running flutter clean...
-flutter clean
+call flutter clean
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 echo Running flutter pub get...
-flutter pub get
+call flutter pub get
 if %errorlevel% neq 0 exit /b %errorlevel%
 
 echo Building APK in debug mode...
-flutter build apk --debug
+call flutter build apk --debug
 if %errorlevel% neq 0 exit /b %errorlevel%
 
-echo Opening WhatsApp...
-start "" "C:\Users\%USERNAME%\AppData\Local\WhatsApp\WhatsApp.exe"
+echo Opening .apk folder...
+explorer "%cd%\build\app\outputs\flutter-apk"
 
 echo Done.
+pause

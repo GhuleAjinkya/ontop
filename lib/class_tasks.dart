@@ -688,11 +688,12 @@ class _TasksState extends State<Tasks> {
   void selectAllFromSections() {
     setState(() {
       final targetMap = openCompleted ? completedSections : sections;
-
       for (final sectionKey in selectedTaskIDs.keys.toList()) {
+        if (selectedTaskIDs[sectionKey]?.isNotEmpty ?? false) {
         for (final item in targetMap[sectionKey]!) {
           selectedTaskIDs[sectionKey]!.add(item.id);
         }
+      }
       }
     });
   }
