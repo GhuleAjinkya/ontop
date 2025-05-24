@@ -29,13 +29,19 @@ class _TasksState extends State<Tasks> {
   String? addingItemInSection;
   bool addingSection = false;
   List<String> collapsedSections = [];
-  List<String> collapsedCompletedSections = [];
   final TextEditingController textController = TextEditingController();
   final TextEditingController sectionName = TextEditingController();
   DateTime? selectedDate;
   TimeOfDay? selectedTime;  
   String? selectedSection;
   bool openCompleted = false;
+  bool completedSelected = false;
+  Map<String ,Set<int>> selectedTaskIDs = {};
+  bool allSelectedFromSection = false;
+
+  bool areSelectedTasksEmpty() {
+    return selectedTaskIDs.keys.every((sectionKey) => selectedTaskIDs[sectionKey]?.isEmpty ?? true);
+  }
 
   bool isSameDay(DateTime day1, DateTime day2) {
     return day1.year == day2.year &&
@@ -50,7 +56,12 @@ class _TasksState extends State<Tasks> {
     });
   }
 
-  Widget buildToDoItemTiles(BuildContext context, String sectionTitle, List<ToDoItem> toDoItems) {
+  Widget buildToDoItemTiles(
+    BuildContext context, 
+    String sectionTitle, 
+    List<ToDoItem> toDoItems,
+    bool completed,
+    ) {
     return ListView.builder(
       physics: const BouncingScrollPhysics(),
       shrinkWrap: true,
@@ -58,10 +69,14 @@ class _TasksState extends State<Tasks> {
       itemBuilder: (context,index) {
         final toDoItem = toDoItems[index];
         bool pastDeadline = toDoItem.deadlineDate.isBefore(DateTime.now());
+        if (!selectedTaskIDs.containsKey(sectionTitle)) {
+          selectedTaskIDs[sectionTitle] = {};
+        }
+        final isSelected = (selectedTaskIDs[sectionTitle] ?? {}).contains(toDoItem.id);
         return Padding(
           padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
           child: Container(
-            decoration: standardTile(10),
+            decoration: standardTile(10, isSelected: isSelected),
             margin: const EdgeInsets.symmetric(horizontal: 20),
             child: ListTile(
               minLeadingWidth: 0,
@@ -71,16 +86,24 @@ class _TasksState extends State<Tasks> {
                 margin: EdgeInsets.all(0),
                 child: IconButton(
                   icon: Icon(
-                    Icons.circle_outlined,
-                    color: Theme.of(context).colorScheme.onPrimary,
+                    completed ? Icons.check_circle_outline : Icons.circle_outlined,
+                    color: completed ? Theme.of(context).colorScheme.tertiary : Theme.of(context).colorScheme.onPrimary,
                   ),
                   onPressed: () {
                     setState(() {
-                      if (!completedSections.containsKey(sectionTitle)) {
-                        completedSections[sectionTitle] = [];
+                      if (!completed){ 
+                        sections[sectionTitle]!.remove(toDoItem);
+                        if (!completedSections.containsKey(sectionTitle)){
+                          completedSections[sectionTitle] = [];
+                        }
+                        completedSections[sectionTitle]!.add(toDoItem);
+                      } else {
+                        completedSections[sectionTitle]!.remove(toDoItem);
+                        if (!sections.containsKey(sectionTitle)){
+                          sections[sectionTitle] = [];
+                        }
+                        sections[sectionTitle]!.add(toDoItem);
                       }
-                      completedSections[sectionTitle]!.add(toDoItem);
-                      sections[sectionTitle]!.remove(toDoItem);
                     });
                   },
                 ),
@@ -95,20 +118,44 @@ class _TasksState extends State<Tasks> {
                 ),
               ),
               subtitle: Text(
-                isSameDay(toDoItem.deadlineDate, DateTime.now()) ?
-                "Due Today, ${toDoItem.deadlineDate.hour.toString().padLeft(2,'0')}:${toDoItem.deadlineDate.minute.toString().padLeft(2,'0')}": 
-                "Due ${toDoItem.deadlineDate.day}/${toDoItem.deadlineDate.month}/${toDoItem.deadlineDate.year % 2000}",
+                !completed ?
+                  isSameDay(toDoItem.deadlineDate, DateTime.now()) ?
+                  "Due Today, ${toDoItem.deadlineDate.hour.toString().padLeft(2,'0')}:${toDoItem.deadlineDate.minute.toString().padLeft(2,'0')}": 
+                  "Due ${toDoItem.deadlineDate.day}/${toDoItem.deadlineDate.month}/${toDoItem.deadlineDate.year % 2000}" :
+                "Completed on ${toDoItem.deadlineDate.day}/${toDoItem.deadlineDate.month}/${toDoItem.deadlineDate.year % 2000}",
                 style: TextStyle(
                   fontSize: 10,
                   color: Theme.of(context).colorScheme.tertiary,
                 ),
-              ),
-              
+              ),         
               trailing: Icon(
-                pastDeadline ? 
-                Icons.watch_later_outlined : null,
+                !completed ? 
+                  pastDeadline ? 
+                  Icons.watch_later_outlined : null : 
+                null,
                 color: Theme.of(context).colorScheme.error,
               ),
+              onLongPress: () {
+                setState(() {
+                  if (!isSelected) {
+                    if (!selectedTaskIDs.containsKey(sectionTitle)) {
+                      selectedTaskIDs[sectionTitle] = {};
+                    }
+                    selectedTaskIDs[sectionTitle]!.add(toDoItem.id);
+                  }
+                });
+              },
+              onTap: () {
+                setState(() {
+                  if (!areSelectedTasksEmpty()) {
+                    if (isSelected) {
+                      selectedTaskIDs[sectionTitle]!.remove(toDoItem.id);
+                    } else {
+                      selectedTaskIDs[sectionTitle]!.add(toDoItem.id); 
+                    }
+                  }
+                });
+              },
             ),
           ),
         );
@@ -116,22 +163,27 @@ class _TasksState extends State<Tasks> {
     );
   }
   
-  Widget buildSectionWidget(int i) {
-    String sectionKey = sections.keys.toList()[i];
+  Widget buildSectionWidget(int i, bool completed) {
+    String sectionKey = (completed ? completedSections : sections).keys.toList()[i];
     bool collapseSection = collapsedSections.contains(sectionKey);
+    bool empty = completed ?
+      completedSections[sectionKey]?.isEmpty ?? true :
+      sections[sectionKey]?.isEmpty ?? true;
+    
     return Column(
       children: [
         Container(
           margin: EdgeInsets.symmetric(horizontal: 40, vertical: 5),
-          //height: 20,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               InkWell(
                 onTap: () {
-                  setState(() {
-                    addingItemInSection = sectionKey;
-                  });
+                  if (!completed) {
+                    setState(() {
+                      addingItemInSection = sectionKey;
+                    });
+                  }
                 },
                 onLongPress: () {
                   showDialog(
@@ -195,7 +247,11 @@ class _TasksState extends State<Tasks> {
                               IconButton(
                                 onPressed: () {
                                   setState(() {
-                                    sections.remove(sectionKey);
+                                    if (completed){
+                                      completedSections.remove(sectionKey);
+                                    } else {
+                                      sections.remove(sectionKey);
+                                    }
                                   });
                                   Navigator.pop(context);
                                 },
@@ -217,10 +273,11 @@ class _TasksState extends State<Tasks> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Icon(
+                    !completed ? Icon(
                       Icons.add,
                       color: Theme.of(context).colorScheme.onPrimary,
                       size: 20,
+                    ) : Container(
                     ),
                     Text(
                       sectionKey,
@@ -246,13 +303,99 @@ class _TasksState extends State<Tasks> {
               IconButton(
                 alignment: Alignment.topCenter,
                 onPressed: () {
-                  setState(() {
-                    if (collapseSection) {
-                      collapsedSections.remove(sectionKey);
-                    } else {
-                      collapsedSections.add(sectionKey);
-                    }
-                  });
+                  if (empty) {
+                    showDialog(
+                    context: context,
+                    builder:
+                      (context) => AlertDialog(
+                        backgroundColor:
+                            Theme.of(
+                              context,
+                            ).colorScheme.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            10,
+                          ),
+                          side: BorderSide(
+                            color:
+                                Theme.of(
+                                  context,
+                                ).colorScheme.onSecondary,
+                            width: 1.5,
+                          ),
+                        ),
+                        title: Text(
+                          'Delete Section "$sectionKey"?',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color:
+                                Theme.of(
+                                  context,
+                                ).colorScheme.onPrimary,
+                          ),
+                        ),
+                        content: Text(
+                          'Selected section will be permanently deleted.',
+                          style: TextStyle(
+                            color:
+                                Theme.of(
+                                  context,
+                                ).colorScheme.onPrimary,
+                          ),
+                        ),
+                        actions: [
+                          Row(
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceEvenly,
+                            children: [
+                              IconButton(
+                                onPressed:
+                                    () => Navigator.pop(
+                                      context,
+                                    ),
+                                icon: Icon(
+                                  Icons.close,
+                                  color:
+                                      Theme.of(
+                                        context,
+                                      ).colorScheme.onPrimary,
+                                  size: 30,
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    if (completed){
+                                      completedSections.remove(sectionKey);
+                                    } else {
+                                      sections.remove(sectionKey);
+                                    }
+                                  });
+                                  Navigator.pop(context);
+                                },
+                                icon: Icon(
+                                  Icons.check,
+                                  color:
+                                      Theme.of(
+                                        context,
+                                      ).colorScheme.error,
+                                  size: 30,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                  );
+                  } else {
+                    setState(() {
+                      if (collapseSection) {
+                        collapsedSections.remove(sectionKey);
+                      } else {
+                        collapsedSections.add(sectionKey);
+                      }
+                    });
+                  }
                 },
                 onLongPress: () {
                   showDialog(
@@ -316,7 +459,11 @@ class _TasksState extends State<Tasks> {
                               IconButton(
                                 onPressed: () {
                                   setState(() {
-                                    sections.remove(sectionKey);
+                                    if (completed){
+                                      completedSections.remove(sectionKey);
+                                    } else {
+                                      sections.remove(sectionKey);
+                                    }
                                   });
                                   Navigator.pop(context);
                                 },
@@ -336,7 +483,8 @@ class _TasksState extends State<Tasks> {
                   );
                 },
                 icon: Icon(
-                  collapseSection ? Icons.chevron_left : Icons.expand_more, 
+                  !empty ? 
+                  collapseSection ? Icons.chevron_left : Icons.expand_more : Icons.delete_outline, 
                   size: 20,
                   color: Theme.of(context).colorScheme.onPrimary,
                 ),
@@ -384,8 +532,7 @@ class _TasksState extends State<Tasks> {
               ),
               subtitle: Container(
                 margin: EdgeInsets.only(top: 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                child: Column(
                   children: [
                     TextButton.icon(
                       icon: Icon(Icons.calendar_today, size: 16, color: Theme.of(context).colorScheme.onPrimary),
@@ -448,7 +595,7 @@ class _TasksState extends State<Tasks> {
                     setState(() {
                       sections[sectionKey]!.add(ToDoItem(
                         id: tempID,
-                        text: textController.text.isNotEmpty ? textController.text : "test $tempID",
+                        text: textController.text,
                         deadlineDate: deadline,
                       ));
                       tempID += 1;
@@ -484,262 +631,132 @@ class _TasksState extends State<Tasks> {
           ),
         ],
         if (!collapseSection) ...[
-          buildToDoItemTiles(context, sectionKey, sections[sectionKey]!),
+          buildToDoItemTiles(
+            context, 
+            sectionKey, 
+            (completed ? completedSections : sections)[sectionKey]!,
+            completed
+          ),
         ],
       ],
     );
   }
 
-  Widget buildCompletedSectionWidget(int i) {
-
-    String sectionKey = completedSections.keys.toList()[i];
-    bool collapseSection = collapsedCompletedSections.contains(sectionKey);
-
-    return Column(
-      children: [
-        Container(
-          margin: EdgeInsets.symmetric(horizontal: 40, vertical: 5),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              TextButton(
-                child: Text(
-                  sectionKey,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                onPressed: () {},
-                onLongPress: () {
-                  showDialog(
-                    context: context,
-                    builder:
-                      (context) => AlertDialog(
-                        backgroundColor:
-                            Theme.of(
-                              context,
-                            ).colorScheme.primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            10,
-                          ),
-                          side: BorderSide(
-                            color:
-                                Theme.of(
-                                  context,
-                                ).colorScheme.onSecondary,
-                            width: 1.5,
-                          ),
-                        ),
-                        title: Text(
-                          'Delete Section "$sectionKey"?',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color:
-                                Theme.of(
-                                  context,
-                                ).colorScheme.onPrimary,
-                          ),
-                        ),
-                        content: Text(
-                          'Selected section will be permanently deleted.',
-                          style: TextStyle(
-                            color:
-                                Theme.of(
-                                  context,
-                                ).colorScheme.onPrimary,
-                          ),
-                        ),
-                        actions: [
-                          Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceEvenly,
-                            children: [
-                              IconButton(
-                                onPressed:
-                                    () => Navigator.pop(
-                                      context,
-                                    ),
-                                icon: Icon(
-                                  Icons.close,
-                                  color:
-                                      Theme.of(
-                                        context,
-                                      ).colorScheme.onPrimary,
-                                  size: 30,
-                                ),
-                              ),
-                              IconButton(
-                                onPressed: () {
-                                  setState(() {
-                                    completedSections.remove(sectionKey);
-                                  });
-                                  Navigator.pop(context);
-                                },
-                                icon: Icon(
-                                  Icons.check,
-                                  color:
-                                      Theme.of(
-                                        context,
-                                      ).colorScheme.error,
-                                  size: 30,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                  );
-                },
-              ),
-              Expanded(
-                child: Container(
-                  margin: EdgeInsets.only(left: 10),
-                  height: 1,
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      width: 2,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                    ),
-                  ),
-                ),
-              ),
-              IconButton(
-                alignment: Alignment.topCenter,
-                onPressed: () {
-                  setState(() {
-                    if (collapseSection) {
-                      collapsedCompletedSections.remove(sectionKey);
-                    } else {
-                      collapsedCompletedSections.add(sectionKey);
-                    }
-                  });
-                },
-                onLongPress: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        side: BorderSide(
-                          color: Theme.of(context).colorScheme.onSecondary,
-                          width: 1.5,
-                        ),
-                      ),
-                      title: Text(
-                        'Delete Section "$sectionKey"?',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                      ),
-                      content: Text(
-                        'Selected section will be permanently deleted.',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                      ),
-                      actions: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            IconButton(
-                              onPressed: () => Navigator.pop(context),
-                              icon: Icon(
-                                Icons.close,
-                                color: Theme.of(context).colorScheme.onPrimary,
-                                size: 30,
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () {
-                                setState(() {
-                                  completedSections.remove(sectionKey);
-                                });
-                                Navigator.pop(context);
-                              },
-                              icon: Icon(
-                                Icons.check,
-                                color: Theme.of(context).colorScheme.error,
-                                size: 30,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  );
-                },
-                icon: Icon(
-                  collapseSection ? Icons.chevron_left : Icons.expand_more,
-                  size: 20,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                ),
-              ),
-            ],
-          ),
+  Widget singleFilterChip({
+    required String label,
+    bool isSelected = false,
+    VoidCallback? onTap,
+  }) {
+    return TextButton(
+      onPressed: onTap, 
+      style: TextButton.styleFrom(
+      backgroundColor: isSelected ? Colors.white.withAlpha(100) : Colors.transparent,
+      shape: StadiumBorder(
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.onPrimary.withAlpha(100),
+          width: 2,
         ),
-        if (!collapseSection)
-          ListView.builder(
-            physics: const NeverScrollableScrollPhysics(),
-            shrinkWrap: true,
-            itemCount: completedSections[sectionKey]!.length,
-            itemBuilder: (context, index) {
-              final toDoItem = completedSections[sectionKey]![index];
-              return Padding(
-                padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
-                child: Container(
-                  decoration: standardTile(10),
-                  margin: const EdgeInsets.symmetric(horizontal: 20),
-                  child: ListTile(
-                    minLeadingWidth: 0,
-                    selected: false,
-                    dense: true,
-                    leading: IconButton(
-                      icon: Icon(
-                        Icons.check_circle_outline,
-                        color: Theme.of(context).colorScheme.tertiary,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          if (!sections.containsKey(sectionKey)) {
-                            sections[sectionKey] = [];
-                          }
-                          sections[sectionKey]!.add(toDoItem);
-                          completedSections[sectionKey]!.remove(toDoItem);
-                        });
-                      },
-                    ),
-                    title: Text(
-                      toDoItem.text,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                      ),
-                    ),
-                    subtitle: Text(
-                      "Completed on ${toDoItem.deadlineDate.day}/${toDoItem.deadlineDate.month}/${toDoItem.deadlineDate.year % 2000}",
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Theme.of(context).colorScheme.tertiary,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-      ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          color: Theme.of(context).colorScheme.onPrimary,
+        ),
+      ),
     );
   }
-  
+
+  void deleteSelected() {
+    
+    setState(() {
+      final targetMap = openCompleted ? completedSections : sections;
+
+      for (final sectionKey in selectedTaskIDs.keys.toList()) {
+        targetMap[sectionKey]!.removeWhere((item) => selectedTaskIDs[sectionKey]!.contains(item.id));
+      }
+
+      targetMap.removeWhere((key, value) => value.isEmpty);
+
+      selectedTaskIDs.clear();
+      openCompleted ? completedSections : sections = targetMap;
+    });
+  }
+
+  void selectAllFromSections() {
+    setState(() {
+      final targetMap = openCompleted ? completedSections : sections;
+
+      for (final sectionKey in selectedTaskIDs.keys.toList()) {
+        for (final item in targetMap[sectionKey]!) {
+          selectedTaskIDs[sectionKey]!.add(item.id);
+        }
+      }
+    });
+  }
+
+  bool areAllSelectedFromSection() {
+    final targetMap = openCompleted? completedSections : sections;
+
+    for (final sectionKey in targetMap.keys) {
+      final sectionSelectedIDs = selectedTaskIDs[sectionKey] ?? {};
+      final sectionTaskIDs = targetMap[sectionKey]!.map((item) => item.id).toSet();
+
+      if (sectionSelectedIDs.isNotEmpty) {
+        if (!sectionTaskIDs.every((id) => sectionSelectedIDs.contains(id))) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  void completeOrUncomplete() {
+    setState(() {
+      if (openCompleted) {
+        // Move selected tasks from completedSections to sections (mark as to-do)
+        for (final sectionKey in selectedTaskIDs.keys.toList()) {
+          final idsToMove = selectedTaskIDs[sectionKey] ?? {};
+          if (completedSections.containsKey(sectionKey)) {
+            final itemsToMove = completedSections[sectionKey]!
+                .where((item) => idsToMove.contains(item.id))
+                .toList();
+            // Remove from completed
+            completedSections[sectionKey]!.removeWhere((item) => idsToMove.contains(item.id));
+            // Add to to-do
+            if (itemsToMove.isNotEmpty) {
+              sections.putIfAbsent(sectionKey, () => []);
+              sections[sectionKey]!.addAll(itemsToMove);
+            }
+          }
+        }
+      } else {
+        // Move selected tasks from sections to completedSections (mark as completed)
+        for (final sectionKey in selectedTaskIDs.keys.toList()) {
+          final idsToMove = selectedTaskIDs[sectionKey] ?? {};
+          if (sections.containsKey(sectionKey)) {
+            final itemsToMove = sections[sectionKey]!
+                .where((item) => idsToMove.contains(item.id))
+                .toList();
+            // Remove from to-do
+            sections[sectionKey]!.removeWhere((item) => idsToMove.contains(item.id));
+            // Add to completed
+            if (itemsToMove.isNotEmpty) {
+              completedSections.putIfAbsent(sectionKey, () => []);
+              completedSections[sectionKey]!.addAll(itemsToMove);
+            }
+          }
+        }
+      }
+      selectedTaskIDs.clear();
+    });  
+  }
+
   @override
   Widget build(BuildContext context) {
+    allSelectedFromSection = areAllSelectedFromSection();
     return Scaffold(
       extendBodyBehindAppBar: false,
       backgroundColor: Theme.of(context).colorScheme.primary,
@@ -770,29 +787,153 @@ class _TasksState extends State<Tasks> {
                         margin: EdgeInsets.only(right: 20),
                         child: Row(
                           children: [
-                            IconButton(
-                              icon: Icon(
-                                Icons.add, 
-                                color: Theme.of(context).colorScheme.onPrimary,
-                                size: 30,
+                            if (areSelectedTasksEmpty()) ...[
+                              IconButton(
+                                icon: Icon(
+                                  Icons.add, 
+                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  size: 30,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    addingSection = true;
+                                    openCompleted = false;
+                                    selectedSection = sections.isNotEmpty ? sections.keys.first : null;
+                                  });
+                                }
                               ),
-                              onPressed: () {
-                                setState(() {
-                                  addingSection = true;
-                                  openCompleted = false;
-                                  selectedSection = sections.isNotEmpty ? sections.keys.first : null;
-                                });
-                              }
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                Icons.more_vert, 
-                                color: Theme.of(context).colorScheme.onPrimary,
-                                size: 26,
+                              IconButton(
+                                icon: Icon(
+                                  Icons.more_vert, 
+                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  size: 26,
+                                ),
+                                onPressed: () {
+                                }
                               ),
-                              onPressed: () {
-                              }
-                            ),
+                            ] 
+                            else ...[
+                              IconButton(
+                                icon: Icon(
+                                  // ignore: dead_code
+                                  allSelectedFromSection
+                                      ? Icons.check_circle_outline_rounded
+                                      : Icons.circle_outlined,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                  size: 30,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    if (allSelectedFromSection) {
+                                      selectedTaskIDs.clear();
+                                    } else {
+                                      selectAllFromSections();
+                                    }
+                                  });
+                                },
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  // ignore: dead_code
+                                  Icons.check,
+                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  size: 26,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    completeOrUncomplete();
+                                  });
+                                },
+                              ),
+                              
+                              IconButton(
+                                icon: Icon(
+                                  Icons.delete_outline_rounded,
+                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  size: 28,
+                                ),
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder:
+                                        (context) => AlertDialog(
+                                          backgroundColor:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            side: BorderSide(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                          title: Text(
+                                            'Delete Tasks?',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onPrimary,
+                                            ),
+                                          ),
+                                          content: Text(
+                                            'Selected tasks will be permanently deleted.',
+                                            style: TextStyle(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onPrimary,
+                                            ),
+                                          ),
+                                          actions: [
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.spaceEvenly,
+                                              children: [
+                                                IconButton(
+                                                  onPressed:
+                                                      () => Navigator.pop(
+                                                        context,
+                                                      ),
+                                                  icon: Icon(
+                                                    Icons.close,
+                                                    color:
+                                                        Theme.of(
+                                                          context,
+                                                        ).colorScheme.onPrimary,
+                                                    size: 30,
+                                                  ),
+                                                ),
+                                                IconButton(
+                                                  onPressed: () {
+                                                    deleteSelected();
+                                                    Navigator.pop(context);
+                                                  },
+                                                  icon: Icon(
+                                                    Icons.check,
+                                                    color:
+                                                        Theme.of(
+                                                          context,
+                                                        ).colorScheme.error,
+                                                    size: 30,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                  );
+                                },
+                              ),
+                            ]
                           ],
                         ),
                       ),                  
@@ -803,97 +944,30 @@ class _TasksState extends State<Tasks> {
               Container(
                 margin: EdgeInsets.only(left: 10, right: 10),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    Expanded(
-                      child: Container(
-                        height: 2,
-                        margin: EdgeInsets.only(left: 15),
-                        decoration: BoxDecoration(
-                          border: Border(
-                            top: BorderSide(
-                              color: Theme.of(context).colorScheme.tertiary,
-                              width: 2,
-                            )
-                          )
-                        ),
-                      ),
-                    ),
-                    TextButton(
-                      child: Text(
-                        "To-Do",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: openCompleted ? Theme.of(context).colorScheme.tertiary : Theme.of(context).colorScheme.onPrimary,
-                          fontSize: 20
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      onPressed: () {
+                    singleFilterChip(
+                      label: "To-Do",
+                      isSelected: !openCompleted,
+                      onTap: () {
                         setState(() {
                           openCompleted = false;
+                          selectedTaskIDs.clear();
                         });
-                      },
-                    ),
-                    Expanded(
-                      child: Container(
-                        height: 2,
-                        margin: EdgeInsets.only(right: 5),
-                        decoration: BoxDecoration(
-                          border: Border(
-                            top: BorderSide(
-                              color: Theme.of(context).colorScheme.tertiary,
-                              width: 2,
-                            )
-                          )
-                        ),
-                      ),
+                      }  
                     ),
 
-                    Expanded(
-                      child: Container(
-                        height: 2,
-                        margin: EdgeInsets.only(left: 5),
-                        decoration: BoxDecoration(
-                          border: Border(
-                            top: BorderSide(
-                              color: Theme.of(context).colorScheme.tertiary,
-                              width: 2,
-                            )
-                          )
-                        ),
-                      ),
-                    ),
-                    TextButton(
-                      child: Text(
-                        "Completed",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: openCompleted ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.tertiary,
-                          fontSize: 20
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      onPressed: () {
+                    singleFilterChip(
+                      label: "Completed",
+                      isSelected: openCompleted,
+                      onTap: () {
                         setState(() {
                           openCompleted = true;
+                          selectedTaskIDs.clear();
                         });
-                      },
-                    ),
-                    Expanded(
-                      child: Container(
-                        height: 2,
-                        margin: EdgeInsets.only(right: 15),
-                        decoration: BoxDecoration(
-                          border: Border(
-                            top: BorderSide(
-                              color: Theme.of(context).colorScheme.tertiary,
-                              width: 2,
-                            )
-                          )
-                        ),
-                      ),
-                    ),
+                      }  
+                    )
+                  
                   ],
                 ),
               ),
@@ -992,7 +1066,7 @@ class _TasksState extends State<Tasks> {
                     children: [
                       if (sections.isNotEmpty) ...[
                         for (int i = 0; i < sections.keys.length; i++) ...[
-                          buildSectionWidget(i),
+                          buildSectionWidget(i,false),
                         ],
                       ]
                     ],
@@ -1003,11 +1077,9 @@ class _TasksState extends State<Tasks> {
                   Expanded(
                     child: ListView(
                       children: [
-                        if (completedSections.isNotEmpty) ...[
-                          for (int i = 0; i < completedSections.keys.length; i++) ...[
-                            buildCompletedSectionWidget(i,),
-                          ],
-                        ]
+                        for (int i = 0; i < completedSections.keys.length; i++) ...[
+                            buildSectionWidget(i, true),
+                        ],
                       ],
                     ),
                   ),
