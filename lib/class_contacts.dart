@@ -800,7 +800,7 @@ class _ContactsState extends State<Contacts> {
                                           ],
                                         ),
                                   );
-                                                                  },
+                                },
                               ),
                             ],
                           ),
@@ -1013,7 +1013,7 @@ class _ContactsState extends State<Contacts> {
               Expanded(
                 child: ListView(
                   children: [
-                    if (starred.isNotEmpty) ...[
+                    if (starred.isNotEmpty) ...[ 
                       Container(
                         margin: const EdgeInsets.only(left: 40),
                         child: Row(
