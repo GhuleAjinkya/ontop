@@ -89,15 +89,16 @@ class _ContactsState extends State<Contacts> {
   final TextEditingController organizationController = TextEditingController();
   final TextEditingController positionController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
-
-  // Get current user's ID for MongoDB operations
+  final TextEditingController searchController = TextEditingController();
+  
+  String searchQuery = '';
   String get userId => UserSession().userId ?? '';
   List<Contact> contacts = [];
   List<Contact> starred = [];
-  Set<dynamic> selectedIDs =
-      {}; // Changed from Set<int> to Set<dynamic> to support MongoDB ObjectId
+  Set<dynamic> selectedIDs = {};
   Map<String, List<Contact>> sections = {};
   bool addingContact = false;
+  bool searching = false;
   Contact? openedContact;
 
   // stores data about how individual contacts in the list look like and how they react
@@ -162,6 +163,7 @@ class _ContactsState extends State<Contacts> {
                     // Add the MongoDB ObjectId to selection
                     selectedIDs.add(contact.id);
                   }
+                  searching = false;
                 });
               },
               onTap: () {
@@ -453,7 +455,7 @@ class _ContactsState extends State<Contacts> {
   Widget build(BuildContext context) {
     bool allStarred = allSeletedAreStarred();
     bool allSelected = allAreSelected();
-
+    
     if (openedContact != null) {
       return ContactDetails(
         contact: openedContact!,
@@ -461,7 +463,6 @@ class _ContactsState extends State<Contacts> {
           setState(() {
             openedContact = null;
           });
-
           await begin();
         },
       );
@@ -481,17 +482,61 @@ class _ContactsState extends State<Contacts> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        margin: EdgeInsets.only(left: 40),
-                        child: Text(
-                          'Contacts',
-                          style: TextStyle(
-                            fontSize: 28,
-                            color: Theme.of(context).colorScheme.onPrimary,
-                            fontWeight: FontWeight.w600,
+                      if (!searching) ...[
+                        Container(
+                          margin: EdgeInsets.only(left: 40),
+                          child: Text(
+                            'Contacts',
+                            style: TextStyle(
+                              fontSize: 28,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                      ),
+                      ]
+                      else ...[
+                        Container(
+                          margin: const EdgeInsets.only(
+                            left: 36,
+                            top: 5,
+                            bottom: 5,
+                            right: 5
+                          ),
+                          width: MediaQuery.of(context).size.width * 0.6,
+                          decoration: standardTile(10),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: searchController,
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onPrimary,
+                                  ),
+                                  cursorColor: Theme.of(context).colorScheme.tertiary,
+                                  decoration: InputDecoration(
+                                    hintText: 'Search',
+                                    labelText: 'Search for a Section',
+                                    labelStyle: TextStyle(
+                                      color: Theme.of(context).colorScheme.onSecondary,
+                                    ),
+                                    hintStyle: TextStyle(
+                                      color: Theme.of(context).colorScheme.onSecondary,
+                                    ),
+                                    border: const UnderlineInputBorder(),
+                                  ),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      searchQuery = value.trim().toLowerCase();
+                                    });
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       if (selectedIDs.isEmpty) ...[
                         Container(
                           margin: EdgeInsets.only(right: 20),
@@ -499,110 +544,69 @@ class _ContactsState extends State<Contacts> {
                             children: [
                               IconButton(
                                 icon: Icon(
-                                  Icons.search,
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                  size: 30,
-                                ),
-                                onPressed: () {},
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.add,
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                  size: 26,
+                                  !searching ? 
+                                  Icons.search : Icons.cancel_outlined, 
+                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  size: !searching ? 30 : 25,
                                 ),
                                 onPressed: () {
                                   setState(() {
-                                    addingContact = true;
+                                    searching = !searching;
+                                    searchController.clear();
                                   });
-                                },
+                                }
                               ),
-                              PopupMenuButton<String>(
-                                icon: Icon(
-                                  Icons.more_vert,
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                  size: 28,
+                              if(!searching) ...[
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.add,
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                    size: 26,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      addingContact = true;
+                                    });
+                                  },
                                 ),
-                                onSelected: (value) async {
-                                  if (userId.isEmpty) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Please log in to import/export contacts',
+                                PopupMenuButton<String>(
+                                  icon: Icon(
+                                    Icons.more_vert,
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                    size: 28,
+                                  ),
+                                  onSelected: (value) async {
+                                    if (userId.isEmpty) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Please log in to import/export contacts',
+                                          ),
                                         ),
-                                      ),
-                                    );
-                                    return;
-                                  }
-
-                                  await requestStoragePermission(); // ask for permission first
-
-                                  final jsonPath =
-                                      '/storage/emulated/0/Download/contacts_export.json';
-                                  final jsonFile = File(jsonPath);
-                                  if (value == 'export') {
-                                    try {
-                                      // Get JSON export from adapter (via Node.js API or MongoDB)
-                                      final jsonData =
-                                          await ContactsAdapter.exportContactsAsJson();
-                                      if (jsonData == null) {
-                                        throw Exception(
-                                          'No contacts to export',
-                                        );
-                                      }
-
-                                      // Write to JSON file
-                                      await jsonFile.writeAsString(jsonData);
-
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Exported successfully to Download/contacts_export.json!',
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                    } catch (e) {
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Export failed: $e'),
-                                          ),
-                                        );
-                                      }
+                                      );
+                                      return;
                                     }
-                                  } else if (value == 'import') {
-                                    try {
-                                      if (await jsonFile.exists()) {
-                                        // Read JSON data
-                                        final jsonString =
-                                            await jsonFile.readAsString();
-                                        final List<dynamic> contactsData =
-                                            jsonDecode(jsonString);
 
-                                        // Convert to proper format
-                                        final contactsList =
-                                            contactsData
-                                                .map(
-                                                  (item) =>
-                                                      Map<String, dynamic>.from(
-                                                        item,
-                                                      ),
-                                                )
-                                                .toList(); // Import using our adapter (Node.js API first, then MongoDB fallback)
-                                        await ContactsAdapter.importContacts(
-                                          contactsList,
-                                        );
+                                    await requestStoragePermission(); // ask for permission first
 
-                                        await begin(); // refresh contacts
+                                    final jsonPath =
+                                        '/storage/emulated/0/Download/contacts_export.json';
+                                    final jsonFile = File(jsonPath);
+                                    if (value == 'export') {
+                                      try {
+                                        // Get JSON export from adapter (via Node.js API or MongoDB)
+                                        final jsonData =
+                                            await ContactsAdapter.exportContactsAsJson();
+                                        if (jsonData == null) {
+                                          throw Exception(
+                                            'No contacts to export',
+                                          );
+                                        }
+
+                                        // Write to JSON file
+                                        await jsonFile.writeAsString(jsonData);
 
                                         if (context.mounted) {
                                           ScaffoldMessenger.of(
@@ -610,63 +614,111 @@ class _ContactsState extends State<Contacts> {
                                           ).showSnackBar(
                                             SnackBar(
                                               content: Text(
-                                                'Imported successfully!',
+                                                'Exported successfully to Download/contacts_export.json!',
                                               ),
                                             ),
                                           );
                                         }
-                                      } else {
+                                      } catch (e) {
                                         if (context.mounted) {
                                           ScaffoldMessenger.of(
                                             context,
                                           ).showSnackBar(
                                             SnackBar(
-                                              content: Text(
-                                                'contacts_export.json not found in Downloads',
-                                              ),
+                                              content: Text('Export failed: $e'),
                                             ),
                                           );
                                         }
                                       }
-                                    } catch (e) {
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Import failed: $e'),
-                                          ),
-                                        );
+                                    } else if (value == 'import') {
+                                      try {
+                                        if (await jsonFile.exists()) {
+                                          // Read JSON data
+                                          final jsonString =
+                                              await jsonFile.readAsString();
+                                          final List<dynamic> contactsData =
+                                              jsonDecode(jsonString);
+
+                                          // Convert to proper format
+                                          final contactsList =
+                                              contactsData
+                                                  .map(
+                                                    (item) =>
+                                                        Map<String, dynamic>.from(
+                                                          item,
+                                                        ),
+                                                  )
+                                                  .toList(); // Import using our adapter (Node.js API first, then MongoDB fallback)
+                                          await ContactsAdapter.importContacts(
+                                            contactsList,
+                                          );
+
+                                          await begin(); // refresh contacts
+
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Imported successfully!',
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        } else {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'contacts_export.json not found in Downloads',
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Import failed: $e'),
+                                            ),
+                                          );
+                                        }
                                       }
                                     }
-                                  }
-                                },
-                                itemBuilder:
-                                    (context) => [
-                                      PopupMenuItem(
-                                        value: 'import',
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: const [
-                                            Text('Import'),
-                                            Icon(Icons.file_download_outlined),
-                                          ],
+                                  },
+                                  itemBuilder:
+                                      (context) => [
+                                        PopupMenuItem(
+                                          value: 'import',
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: const [
+                                              Text('Import'),
+                                              Icon(Icons.file_download_outlined),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                      PopupMenuItem(
-                                        value: 'export',
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: const [
-                                            Text('Export'),
-                                            Icon(Icons.file_upload_outlined),
-                                          ],
+                                        PopupMenuItem(
+                                          value: 'export',
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: const [
+                                              Text('Export'),
+                                              Icon(Icons.file_upload_outlined),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                    ],
-                              ),
+                                      ],
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -1050,50 +1102,58 @@ class _ContactsState extends State<Contacts> {
                       ),
                       buildContactTiles(starred, context, starred: true),
                     ],
-                    for (var entry in sections.entries) ...[
-                      if (entry.value.isNotEmpty) ...[
-                        const Divider(height: 1, color: Colors.transparent),
-                        Container(
-                          margin: const EdgeInsets.only(left: 40),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text(
-                                entry.key,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                  //fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Expanded(
-                                child: Container(
-                                  margin: const EdgeInsets.only(
-                                    left: 10,
-                                    right: 40,
+                    for (var entry in sections.entries)
+                      ...(() {
+                        final filteredContacts = entry.value.where((contact) =>
+                          contact.name.toLowerCase().contains(searchQuery)
+                        ).toList();
+                        if (filteredContacts.isNotEmpty) {
+                          return [
+                            const Divider(height: 1, color: Colors.transparent),
+                            Container(
+                              margin: const EdgeInsets.only(left: 40),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    entry.key,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color:
+                                          Theme.of(context).colorScheme.onPrimary,
+                                      //fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                  height: 5,
-                                  decoration: BoxDecoration(
-                                    color: Colors.transparent,
-                                    border: Border(
-                                      bottom: BorderSide(
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.onPrimary,
-                                        width: 0.75,
+                                  Expanded(
+                                    child: Container(
+                                      margin: const EdgeInsets.only(
+                                        left: 10,
+                                        right: 40,
+                                      ),
+                                      height: 5,
+                                      decoration: BoxDecoration(
+                                        color: Colors.transparent,
+                                        border: Border(
+                                          bottom: BorderSide(
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.onPrimary,
+                                            width: 0.75,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
-                        buildContactTiles(entry.value, context),
-                      ],
-                    ],
+                            ),
+                            buildContactTiles(filteredContacts, context),
+                          ];
+                        } else {
+                          return [];
+                        }
+                      })(),
                   ],
                 ),
               ),

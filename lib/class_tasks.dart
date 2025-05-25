@@ -38,6 +38,9 @@ class _TasksState extends State<Tasks> {
   bool completedSelected = false;
   Map<String ,Set<int>> selectedTaskIDs = {};
   bool allSelectedFromSection = false;
+  bool searching = false;
+  final TextEditingController searchController = TextEditingController();
+  String searchQuery = '';
 
   bool areSelectedTasksEmpty() {
     return selectedTaskIDs.keys.every((sectionKey) => selectedTaskIDs[sectionKey]?.isEmpty ?? true);
@@ -143,6 +146,7 @@ class _TasksState extends State<Tasks> {
                     }
                     selectedTaskIDs[sectionTitle]!.add(toDoItem.id);
                   }
+                  searching = false;
                 });
               },
               onTap: () {
@@ -758,6 +762,12 @@ class _TasksState extends State<Tasks> {
   @override
   Widget build(BuildContext context) {
     allSelectedFromSection = areAllSelectedFromSection();
+    final filteredSectionKeys = sections.keys
+                            .where((key) => key.toLowerCase().contains(searchQuery))
+                            .toList();
+    final filteredCompletedSectionKeys = completedSections.keys
+                            .where((key) => key.toLowerCase().contains(searchQuery))
+                            .toList();
     return Scaffold(
       extendBodyBehindAppBar: false,
       backgroundColor: Theme.of(context).colorScheme.primary,
@@ -773,17 +783,61 @@ class _TasksState extends State<Tasks> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        margin: EdgeInsets.only(left: 40),
-                        child: Text(
-                          'Tasks',
-                          style: TextStyle(
-                            fontSize: 28,
-                            color: Theme.of(context).colorScheme.onPrimary,
-                            fontWeight: FontWeight.w600,
+                      if (!searching) ...[
+                        Container(
+                          margin: EdgeInsets.only(left: 40),
+                          child: Text(
+                            'Tasks',
+                            style: TextStyle(
+                              fontSize: 28,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                      ),
+                      ]
+                      else ...[
+                        Container(
+                          margin: const EdgeInsets.only(
+                            left: 36,
+                            top: 5,
+                            bottom: 5,
+                            right: 5
+                          ),
+                          width: MediaQuery.of(context).size.width * 0.6,
+                          decoration: standardTile(10),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: searchController,
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onPrimary,
+                                  ),
+                                  cursorColor: Theme.of(context).colorScheme.tertiary,
+                                  decoration: InputDecoration(
+                                    hintText: 'Search',
+                                    labelText: 'Search for a Section',
+                                    labelStyle: TextStyle(
+                                      color: Theme.of(context).colorScheme.onSecondary,
+                                    ),
+                                    hintStyle: TextStyle(
+                                      color: Theme.of(context).colorScheme.onSecondary,
+                                    ),
+                                    border: const UnderlineInputBorder(),
+                                  ),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      searchQuery = value.trim().toLowerCase();
+                                    });
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       Container(
                         margin: EdgeInsets.only(right: 20),
                         child: Row(
@@ -791,27 +845,43 @@ class _TasksState extends State<Tasks> {
                             if (areSelectedTasksEmpty()) ...[
                               IconButton(
                                 icon: Icon(
-                                  Icons.add, 
+                                  !searching ? 
+                                  Icons.search : Icons.cancel_outlined, 
                                   color: Theme.of(context).colorScheme.onPrimary,
-                                  size: 30,
+                                  size: !searching ? 30 : 25,
                                 ),
                                 onPressed: () {
                                   setState(() {
-                                    addingSection = true;
-                                    openCompleted = false;
-                                    selectedSection = sections.isNotEmpty ? sections.keys.first : null;
+                                    searching = !searching;
+                                    searchController.clear();
                                   });
                                 }
                               ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.more_vert, 
-                                  color: Theme.of(context).colorScheme.onPrimary,
-                                  size: 26,
+                              if (!searching) ...[
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.add, 
+                                    color: Theme.of(context).colorScheme.onPrimary,
+                                    size: 30,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      addingSection = true;
+                                      openCompleted = false;
+                                      selectedSection = sections.isNotEmpty ? sections.keys.first : null;
+                                    });
+                                  }
                                 ),
-                                onPressed: () {
-                                }
-                              ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.more_vert, 
+                                    color: Theme.of(context).colorScheme.onPrimary,
+                                    size: 26,
+                                  ),
+                                  onPressed: () {
+                                  }
+                                ),
+                              ]
                             ] 
                             else ...[
                               IconButton(
@@ -1065,11 +1135,19 @@ class _TasksState extends State<Tasks> {
                 Expanded(
                   child: ListView(
                     children: [
-                      if (sections.isNotEmpty) ...[
-                        for (int i = 0; i < sections.keys.length; i++) ...[
-                          buildSectionWidget(i,false),
-                        ],
-                      ]
+                      if (!searching) ...[
+                        if (sections.isNotEmpty) ...[
+                          for (int i = 0; i < sections.keys.length; i++) ...[
+                            buildSectionWidget(i,false),
+                          ],
+                        ]
+                      ] 
+                      else ...[
+                        for (int i = 0; i < filteredSectionKeys.length; i++) ...[
+                          buildSectionWidget(sections.keys.toList().indexOf(filteredSectionKeys[i]), false),
+                        ]
+                      ],
+
                     ],
                   ),
                 ),
@@ -1078,9 +1156,17 @@ class _TasksState extends State<Tasks> {
                   Expanded(
                     child: ListView(
                       children: [
-                        for (int i = 0; i < completedSections.keys.length; i++) ...[
+                        if (!searching) ...[
+                          for (int i = 0; i < completedSections.keys.length; i++) ...[
                             buildSectionWidget(i, true),
-                        ],
+                          ],
+                        ]
+                        else ...[
+                          for (int i = 0; i < filteredCompletedSectionKeys.length; i++) ...[
+                            buildSectionWidget(completedSections.keys.toList().indexOf(filteredSectionKeys[i]), true),
+                          ]
+                        ]
+
                       ],
                     ),
                   ),
