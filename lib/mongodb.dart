@@ -284,44 +284,89 @@ class MongoDatabase {
     }
   }
 
-  static Future<bool> toggleStarContact(
-    ObjectId id,
-    bool starred, {
+  // Delete data by custom query fields (for tasks)
+  static Future<bool> deleteDataByQuery(
+    Map<String, dynamic> query, {
     String? userId,
   }) async {
     if (!isConnected) await connect();
 
     try {
       if (userId == null) {
-        print("Error: No userId provided for toggleStarContact");
+        print("Error: No userId provided for deleteDataByQuery");
         return false;
       }
 
       // Use the user's specific collection
       var userCollection = _db!.collection(userId);
 
-      // Build the query with just the _id (no need for userId filter since we're using user-specific collection)
-      var query = where.eq('_id', id);
-
-      // Update the starred status
-      var result = await userCollection.updateOne(query, {
-        '\$set': {'starred': starred ? 1 : 0},
+      // Build the MongoDB query
+      var mongoQuery = where;
+      query.forEach((key, value) {
+        mongoQuery = mongoQuery.eq(key, value);
       });
 
+      // Use deleteMany to delete all matching documents
+      var result = await userCollection.deleteMany(mongoQuery);
+
       if (result.isSuccess) {
-        print(
-          "Contact star status updated successfully in user collection $userId",
-        );
-        print("Updated document with _id: $id to starred: ${starred ? 1 : 0}");
+        print("Documents deleted successfully from user collection $userId");
+        print("Deleted ${result.nRemoved} documents matching query: $query");
         return true;
       } else {
-        print(
-          "Failed to update contact star status. Modified: ${result.nModified}",
-        );
+        print("Failed to delete documents. Deleted: ${result.nRemoved}");
         return false;
       }
     } catch (e) {
-      print("Error updating contact star status: $e");
+      print("Error deleting documents by query: $e");
+      return false;
+    }
+  }
+
+  // Update data by custom query fields (for tasks)
+  static Future<bool> updateDataByQuery(
+    Map<String, dynamic> query,
+    Map<String, dynamic> updateData, {
+    String? userId,
+    String? type,
+  }) async {
+    if (!isConnected) await connect();
+
+    try {
+      if (userId == null) {
+        print("Error: No userId provided for updateDataByQuery");
+        return false;
+      }
+
+      // Use the user's specific collection
+      var userCollection = _db!.collection(userId);
+
+      // If type is provided, set it in the update data
+      if (type != null) {
+        updateData['type'] = type;
+      }
+
+      // Build the mongo query
+      var mongoQuery = where;
+      for (var entry in query.entries) {
+        mongoQuery = mongoQuery.eq(entry.key, entry.value);
+      }
+
+      // Use updateOne with filters
+      var result = await userCollection.updateOne(mongoQuery, {
+        '\$set': updateData,
+      });
+
+      if (result.isSuccess) {
+        print("Document updated successfully in user collection $userId");
+        print("Updated data: $updateData with query: $query");
+        return true;
+      } else {
+        print("Failed to update document. Modified: ${result.nModified}");
+        return false;
+      }
+    } catch (e) {
+      print("Error updating document by query: $e");
       return false;
     }
   }
@@ -551,6 +596,48 @@ class MongoDatabase {
       return user != null;
     } catch (e) {
       print("Error checking user by phone: $e");
+      return false;
+    }
+  }
+
+  // Toggle contact star status
+  static Future<bool> toggleStarContact(
+    dynamic contactId,
+    bool starred, {
+    String? userId,
+  }) async {
+    if (!isConnected) await connect();
+
+    try {
+      if (userId == null) {
+        print("Error: No userId provided for toggleStarContact");
+        return false;
+      }
+
+      // Use the user's specific collection
+      var userCollection = _db!.collection(userId);
+
+      // Build query to find the contact by ID
+      var query = where.eq('_id', contactId);
+
+      // Update the starred field
+      var updateData = {'starred': starred ? 1 : 0};
+
+      var result = await userCollection.updateOne(query, {'\$set': updateData});
+
+      if (result.isSuccess && result.nModified > 0) {
+        print(
+          "Contact star status updated successfully in user collection $userId",
+        );
+        return true;
+      } else {
+        print(
+          "Failed to update contact star status. Modified: ${result.nModified}",
+        );
+        return false;
+      }
+    } catch (e) {
+      print("Error updating contact star status: $e");
       return false;
     }
   }

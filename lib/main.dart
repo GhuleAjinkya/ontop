@@ -44,7 +44,7 @@ standardTile(double borderRadius, {bool isSelected = false}) {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   print("!!!!! APPLICATION STARTING !!!!!");
   WidgetsFlutterBinding.ensureInitialized(); // Required for sqflite to work properly
 
@@ -162,72 +162,81 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   IconButton(
                     onPressed: () async {
-                      bool confirm = await showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          backgroundColor:
-                              Theme.of(
-                                context,
-                              ).colorScheme.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              10,
-                            ),
-                            side: BorderSide(
-                              color:
-                                  Theme.of(
-                                    context,
-                                  ).colorScheme.onSecondary,
-                              width: 1.5,
-                            ),
-                          ),
-                          title: Text(
-                            'Logout?',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color:
-                                  Theme.of(
-                                    context,
-                                  ).colorScheme.onPrimary,
-                            ),
-                          ),
-                          content: Text(
-                            "You'll need to log back in to access your stored information.",
-                            style: TextStyle(
-                              color:
-                                  Theme.of(
-                                    context,
-                                  ).colorScheme.onPrimary,
-                            ),
-                          ),
-                          actions: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                IconButton(
-                                  onPressed:
-                                      () =>
-                                          Navigator.of(context).pop(false),
-                                  icon: Icon(
-                                    Icons.close,
-                                    color: Theme.of(context).colorScheme.onPrimary,
-                                    size: 30,
+                      bool confirm =
+                          await showDialog(
+                            context: context,
+                            builder:
+                                (context) => AlertDialog(
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.primary,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    side: BorderSide(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onSecondary,
+                                      width: 1.5,
+                                    ),
                                   ),
-                                ),
-                                IconButton(
-                                  onPressed:
-                                      () => Navigator.of(context).pop(true),
-                                  icon: Icon(
-                                    Icons.check,
-                                    color: Theme.of(context).colorScheme.error,
-                                    size: 30,
+                                  title: Text(
+                                    'Logout?',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                    ),
                                   ),
+                                  content: Text(
+                                    "You'll need to log back in to access your stored information.",
+                                    style: TextStyle(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                    ),
+                                  ),
+                                  actions: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceAround,
+                                      children: [
+                                        IconButton(
+                                          onPressed:
+                                              () => Navigator.of(
+                                                context,
+                                              ).pop(false),
+                                          icon: Icon(
+                                            Icons.close,
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.onPrimary,
+                                            size: 30,
+                                          ),
+                                        ),
+                                        IconButton(
+                                          onPressed:
+                                              () => Navigator.of(
+                                                context,
+                                              ).pop(true),
+                                          icon: Icon(
+                                            Icons.check,
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.error,
+                                            size: 30,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ],    
-                        ),
-                      ) ?? false;
+                          ) ??
+                          false;
 
                       if (confirm) {
                         // Clear user session

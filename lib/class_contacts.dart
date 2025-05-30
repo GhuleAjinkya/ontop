@@ -90,7 +90,7 @@ class _ContactsState extends State<Contacts> {
   final TextEditingController positionController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController searchController = TextEditingController();
-  
+
   String searchQuery = '';
   String get userId => UserSession().userId ?? '';
   List<Contact> contacts = [];
@@ -455,7 +455,7 @@ class _ContactsState extends State<Contacts> {
   Widget build(BuildContext context) {
     bool allStarred = allSeletedAreStarred();
     bool allSelected = allAreSelected();
-    
+
     if (openedContact != null) {
       return ContactDetails(
         contact: openedContact!,
@@ -494,35 +494,45 @@ class _ContactsState extends State<Contacts> {
                             ),
                           ),
                         ),
-                      ]
-                      else ...[
+                      ] else ...[
                         Container(
                           margin: const EdgeInsets.only(
                             left: 36,
                             top: 5,
                             bottom: 5,
-                            right: 5
+                            right: 5,
                           ),
                           width: MediaQuery.of(context).size.width * 0.6,
                           decoration: standardTile(10),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 2,
+                          ),
                           child: Row(
                             children: [
                               Expanded(
                                 child: TextField(
                                   controller: searchController,
                                   style: TextStyle(
-                                    color: Theme.of(context).colorScheme.onPrimary,
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
                                   ),
-                                  cursorColor: Theme.of(context).colorScheme.tertiary,
+                                  cursorColor:
+                                      Theme.of(context).colorScheme.tertiary,
                                   decoration: InputDecoration(
                                     hintText: 'Search',
                                     labelText: 'Search for a Section',
                                     labelStyle: TextStyle(
-                                      color: Theme.of(context).colorScheme.onSecondary,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onSecondary,
                                     ),
                                     hintStyle: TextStyle(
-                                      color: Theme.of(context).colorScheme.onSecondary,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onSecondary,
                                     ),
                                     border: const UnderlineInputBorder(),
                                   ),
@@ -544,9 +554,11 @@ class _ContactsState extends State<Contacts> {
                             children: [
                               IconButton(
                                 icon: Icon(
-                                  !searching ? 
-                                  Icons.search : Icons.cancel_outlined, 
-                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  !searching
+                                      ? Icons.search
+                                      : Icons.cancel_outlined,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
                                   size: !searching ? 30 : 25,
                                 ),
                                 onPressed: () {
@@ -554,9 +566,9 @@ class _ContactsState extends State<Contacts> {
                                     searching = !searching;
                                     searchController.clear();
                                   });
-                                }
+                                },
                               ),
-                              if(!searching) ...[
+                              if (!searching) ...[
                                 IconButton(
                                   icon: Icon(
                                     Icons.add,
@@ -579,7 +591,9 @@ class _ContactsState extends State<Contacts> {
                                   ),
                                   onSelected: (value) async {
                                     if (userId.isEmpty) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
                                         SnackBar(
                                           content: Text(
                                             'Please log in to import/export contacts',
@@ -625,7 +639,9 @@ class _ContactsState extends State<Contacts> {
                                             context,
                                           ).showSnackBar(
                                             SnackBar(
-                                              content: Text('Export failed: $e'),
+                                              content: Text(
+                                                'Export failed: $e',
+                                              ),
                                             ),
                                           );
                                         }
@@ -643,10 +659,10 @@ class _ContactsState extends State<Contacts> {
                                           final contactsList =
                                               contactsData
                                                   .map(
-                                                    (item) =>
-                                                        Map<String, dynamic>.from(
-                                                          item,
-                                                        ),
+                                                    (item) => Map<
+                                                      String,
+                                                      dynamic
+                                                    >.from(item),
                                                   )
                                                   .toList(); // Import using our adapter (Node.js API first, then MongoDB fallback)
                                           await ContactsAdapter.importContacts(
@@ -685,7 +701,9 @@ class _ContactsState extends State<Contacts> {
                                             context,
                                           ).showSnackBar(
                                             SnackBar(
-                                              content: Text('Import failed: $e'),
+                                              content: Text(
+                                                'Import failed: $e',
+                                              ),
                                             ),
                                           );
                                         }
@@ -701,7 +719,9 @@ class _ContactsState extends State<Contacts> {
                                                 MainAxisAlignment.spaceBetween,
                                             children: const [
                                               Text('Import'),
-                                              Icon(Icons.file_download_outlined),
+                                              Icon(
+                                                Icons.file_download_outlined,
+                                              ),
                                             ],
                                           ),
                                         ),
@@ -1065,7 +1085,7 @@ class _ContactsState extends State<Contacts> {
               Expanded(
                 child: ListView(
                   children: [
-                    if (starred.isNotEmpty) ...[ 
+                    if (starred.isNotEmpty) ...[
                       Container(
                         margin: const EdgeInsets.only(left: 40),
                         child: Row(
@@ -1104,9 +1124,14 @@ class _ContactsState extends State<Contacts> {
                     ],
                     for (var entry in sections.entries)
                       ...(() {
-                        final filteredContacts = entry.value.where((contact) =>
-                          contact.name.toLowerCase().contains(searchQuery)
-                        ).toList();
+                        final filteredContacts =
+                            entry.value
+                                .where(
+                                  (contact) => contact.name
+                                      .toLowerCase()
+                                      .contains(searchQuery),
+                                )
+                                .toList();
                         if (filteredContacts.isNotEmpty) {
                           return [
                             const Divider(height: 1, color: Colors.transparent),
@@ -1120,7 +1145,9 @@ class _ContactsState extends State<Contacts> {
                                     style: TextStyle(
                                       fontSize: 16,
                                       color:
-                                          Theme.of(context).colorScheme.onPrimary,
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
                                       //fontWeight: FontWeight.bold,
                                     ),
                                   ),
