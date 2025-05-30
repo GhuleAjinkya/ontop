@@ -320,11 +320,13 @@ class _TasksState extends State<Tasks> {
                                       // Reload data
                                       await _loadTasksFromDatabase();
 
-                                      Navigator.pop(context);
+                                      if (mounted) {
+                                        Navigator.pop(context);
+                                      }
                                     } catch (e) {
                                       print('Error deleting section: $e');
-                                      Navigator.pop(context);
                                       if (mounted) {
+                                        Navigator.pop(context);
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
@@ -454,11 +456,13 @@ class _TasksState extends State<Tasks> {
                                         // Reload data
                                         await _loadTasksFromDatabase();
 
-                                        Navigator.pop(context);
+                                        if (mounted) {
+                                          Navigator.pop(context);
+                                        }
                                       } catch (e) {
                                         print('Error deleting section: $e');
-                                        Navigator.pop(context);
                                         if (mounted) {
+                                          Navigator.pop(context);
                                           ScaffoldMessenger.of(
                                             context,
                                           ).showSnackBar(
@@ -560,11 +564,13 @@ class _TasksState extends State<Tasks> {
                                       // Reload data
                                       await _loadTasksFromDatabase();
 
-                                      Navigator.pop(context);
+                                      if (mounted) {
+                                        Navigator.pop(context);
+                                      }
                                     } catch (e) {
                                       print('Error deleting section: $e');
-                                      Navigator.pop(context);
                                       if (mounted) {
+                                        Navigator.pop(context);
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(

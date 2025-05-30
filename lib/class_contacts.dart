@@ -1,14 +1,11 @@
 // dependencies
 import 'dart:io';
 import 'dart:convert'; // For JSON encoding/decoding
-import 'mongodb.dart';
-import 'package:mongo_dart/mongo_dart.dart' as mongo;
 import 'user_session.dart';
 import 'services/contacts_adapter.dart'; // Add our new adapter
 
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as path;
 import 'main.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -209,7 +206,7 @@ class _ContactsState extends State<Contacts> {
       print("Error loading contacts: $e");
       contacts = [];
 
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to load contacts: $e'),
@@ -310,11 +307,10 @@ class _ContactsState extends State<Contacts> {
           print("Failed to star contact");
         }
       }
-
       await begin(); // Reload contacts
     } catch (e) {
       print("Error starring contacts: $e");
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error starring contacts: $e')));
@@ -345,11 +341,10 @@ class _ContactsState extends State<Contacts> {
           print("Failed to unstar contact");
         }
       }
-
       await begin(); // Reload contacts
     } catch (e) {
       print("Error unstarring contacts: $e");
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error unstarring contacts: $e')),
         );
@@ -379,10 +374,8 @@ class _ContactsState extends State<Contacts> {
       }
 
       selectedIDs.clear();
-      await begin();
-
-      // Show success message
-      if (context.mounted) {
+      await begin(); // Show success message
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Contacts deleted successfully'),
@@ -392,7 +385,7 @@ class _ContactsState extends State<Contacts> {
       }
     } catch (e) {
       print("Error deleting contacts: $e");
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Error deleting contacts'),
@@ -1047,27 +1040,35 @@ class _ContactsState extends State<Contacts> {
                           'created_at':
                               DateTime.now(), // Store as Date type in MongoDB
                         };
+                        clearForm(); // Clear the form first for better UX
 
-                        clearForm(); // Clear the form first for better UX                        // Insert using our adapter (Node.js API first, then MongoDB fallback)
+                        // Store messenger reference before async operation
+                        final messenger = ScaffoldMessenger.of(context);
+
+                        // Insert using our adapter (Node.js API first, then MongoDB fallback)
                         bool success = await ContactsAdapter.addContact(
                           contactData,
                         );
 
                         if (success) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Contact added successfully!'),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
+                          if (mounted) {
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text('Contact added successfully!'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
                           print("Contact successfully added to MongoDB!");
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Failed to add contact'),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
+                          if (mounted) {
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text('Failed to add contact'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
                           print("Failed to add contact to MongoDB");
                         }
 
@@ -1476,6 +1477,10 @@ class _ContactDetailsState extends State<ContactDetails> {
                                 );
                                 return;
                               }
+
+                              // Store messenger reference before async operations
+                              final messenger = ScaffoldMessenger.of(context);
+
                               setState(() {
                                 localContact = Contact(
                                   id: localContact.id,
@@ -1488,9 +1493,10 @@ class _ContactDetailsState extends State<ContactDetails> {
                                 );
                                 editingContact = false;
                               });
+
                               try {
                                 if (userId.isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
+                                  messenger.showSnackBar(
                                     const SnackBar(
                                       content: Text(
                                         'Please log in to update contacts',
@@ -1499,7 +1505,9 @@ class _ContactDetailsState extends State<ContactDetails> {
                                     ),
                                   );
                                   return;
-                                } // Update contact using our adapter (Node.js API first, then MongoDB fallback)
+                                }
+
+                                // Update contact using our adapter (Node.js API first, then MongoDB fallback)
                                 bool
                                 success = await ContactsAdapter.updateContact({
                                   '_id': localContact.id, // Original ObjectId
@@ -1512,33 +1520,43 @@ class _ContactDetailsState extends State<ContactDetails> {
                                 });
 
                                 if (success) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Contact updated successfully!',
+                                  if (mounted) {
+                                    messenger.showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Contact updated successfully!',
+                                        ),
+                                        duration: Duration(seconds: 2),
                                       ),
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
+                                    );
+                                  }
                                   print(
                                     "Contact updated in MongoDB successfully!",
                                   );
                                 } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Failed to update contact'),
+                                  if (mounted) {
+                                    messenger.showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Failed to update contact',
+                                        ),
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                }
+                              } catch (e) {
+                                print("Error updating contact: $e");
+                                if (mounted) {
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Error updating contact: $e',
+                                      ),
                                       duration: Duration(seconds: 2),
                                     ),
                                   );
                                 }
-                              } catch (e) {
-                                print("Error updating contact: $e");
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Error updating contact: $e'),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
                               }
                             },
 
@@ -1697,6 +1715,9 @@ class _ContactDetailsState extends State<ContactDetails> {
                         return;
                       }
 
+                      // Store messenger reference before async operation
+                      final messenger = ScaffoldMessenger.of(context);
+
                       setState(() {
                         starred = !starred;
                         localContact = Contact(
@@ -1721,19 +1742,23 @@ class _ContactDetailsState extends State<ContactDetails> {
                           );
                         } else {
                           print("Failed to update star status in MongoDB");
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Failed to update star status'),
-                            ),
-                          );
+                          if (mounted) {
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to update star status'),
+                              ),
+                            );
+                          }
                         }
                       } catch (e) {
                         print("Error updating contact star status: $e");
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error updating star status: $e'),
-                          ),
-                        );
+                        if (mounted) {
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text('Error updating star status: $e'),
+                            ),
+                          );
+                        }
                       }
                     },
                     icon: Icon(

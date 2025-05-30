@@ -1,5 +1,3 @@
-import '../mongodb.dart';
-import '../user_session.dart';
 import 'contacts_adapter.dart';
 
 // Helper method to update a contact via adapter

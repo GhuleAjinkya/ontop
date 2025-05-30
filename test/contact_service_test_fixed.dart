@@ -1,7 +1,7 @@
 // File: test/contact_service_test_fixed.dart
 import 'package:flutter_test/flutter_test.dart';
-import '../lib/models/contact.dart';
-import '../lib/services/contact_service.dart';
+import 'package:asep_app/models/contact.dart';
+import 'package:asep_app/services/contact_service.dart';
 
 // This test file tests the fallback functionality of ContactService
 // It ensures that even when the API is unavailable, the service falls back to SQLite storage

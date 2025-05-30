@@ -237,16 +237,19 @@ class _HomePageState extends State<HomePage> {
                                 ),
                           ) ??
                           false;
-
                       if (confirm) {
                         // Clear user session
                         await userSession.clearSession();
 
                         // Navigate to login page
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(builder: (context) => LoginPage()),
-                          (route) => false, // Clear all routes in stack
-                        );
+                        if (mounted) {
+                          Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute(
+                              builder: (context) => LoginPage(),
+                            ),
+                            (route) => false, // Clear all routes in stack
+                          );
+                        }
                       }
                     },
                     icon: Icon(
