@@ -101,7 +101,7 @@ class _ContactsState extends State<Contacts> {
   // stores data about how individual contacts in the list look like and how they react
   Widget buildContactTiles(
     List<Contact> contacts,
-    BuildContext context, {
+    {
     bool starred = false,
   }) {
     Icon contactIcon;
@@ -1121,7 +1121,7 @@ class _ContactsState extends State<Contacts> {
                           ],
                         ),
                       ),
-                      buildContactTiles(starred, context, starred: true),
+                      buildContactTiles(starred, starred: true),
                     ],
                     for (var entry in sections.entries)
                       ...(() {
@@ -1176,7 +1176,7 @@ class _ContactsState extends State<Contacts> {
                                 ],
                               ),
                             ),
-                            buildContactTiles(filteredContacts, context),
+                            buildContactTiles(filteredContacts),
                           ];
                         } else {
                           return [];
