@@ -642,7 +642,8 @@ class _LoginPageState extends State<LoginPage> {
                     // Toggle between Login and Signup
                     Container(
                       margin: EdgeInsets.only(top: 20, bottom: 20),
-                      child: TextButton(                        onPressed: () {
+                      child: TextButton(
+                        onPressed: () {
                           if (isLoading) {
                             return; // Prevent switching while loading
                           }
