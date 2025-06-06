@@ -17,60 +17,89 @@ class MongoDatabase {
         return false;
       }
 
-      // Create MongoDB connection using parseUri to properly handle mongodb+srv schema
-      // This converts mongodb+srv:// to standard mongodb:// with correct configuration
-      _db = await Db.create(mongoURL);
-      await _db!.open();
+      print("Original MongoDB URL: $mongoURL");
 
-      print(
-        "MongoDB connection status: ${isConnected ? 'Connected' : 'Failed'}",
-      );
-      if (isConnected) {
-        inspect(_db);
-        print(
-          "Documents: ${await _db!.collection(collectionName).find().toList()}",
-        );
-        return true;
-      }
-      return false;
-    } catch (e) {
-      print("MongoDB error: $e");
-
-      // Try alternative connection approach if mongodb+srv scheme is not supported
+      // Try to connect using the original URL first
       try {
-        print("Trying alternative connection method...");
-        // Extract host and credentials from the connection string
-        final uri = Uri.parse(
-          mongoURL.replaceFirst('mongodb+srv://', 'https://'),
-        );
-        final host = uri.host;
-        final userInfo = uri.userInfo.split(':');
-        final username = userInfo[0];
-        final password = userInfo.length > 1 ? userInfo[1] : '';
-        final database = uri.path.replaceAll('/', '');
-
-        // Create a direct connection to MongoDB Atlas using standard mongodb:// protocol
-        final directUrl =
-            "mongodb://$username:$password@$host:27017/$database?retryWrites=true&w=majority";
-        print("Connecting with: $directUrl");
-
-        _db = await Db.create(directUrl);
+        _db = await Db.create(mongoURL);
         await _db!.open();
 
         print(
-          "Alternative connection status: ${isConnected ? 'Connected' : 'Failed'}",
+          "MongoDB connection status: ${isConnected ? 'Connected' : 'Failed'}",
         );
         if (isConnected) {
-          inspect(_db);
+          print("Successfully connected to MongoDB using original URL");
           print(
             "Documents: ${await _db!.collection(collectionName).find().toList()}",
           );
           return true;
         }
-      } catch (innerError) {
-        print("Alternative connection also failed: $innerError");
+      } catch (originalError) {
+        print("Original connection failed: $originalError");
+
+        // Close any partially opened connection
+        try {
+          await _db?.close();
+        } catch (e) {
+          // Ignore close errors
+        }
+        _db = null;
       }
 
+      // Try alternative connection approach for mongodb+srv scheme
+      print("Trying alternative connection method...");
+
+      // Parse the mongodb+srv URL manually
+      final uri = Uri.parse(mongoURL);
+      final host = uri.host;
+      final userInfo = uri.userInfo.split(':');
+      final username = userInfo[0];
+      final password = userInfo.length > 1 ? userInfo[1] : '';
+      final database = uri.path.replaceFirst('/', '');
+      final queryParams = uri.query;
+
+      // Create alternative connection strings to try
+      final List<String> alternativeUrls = [
+        // Try with cluster0-shard-00-00 (typical MongoDB Atlas shard)
+        "mongodb://$username:$password@cluster0-shard-00-00.weacgri.mongodb.net:27017/$database?ssl=true&replicaSet=atlas-12ocqf-shard-0&authSource=admin&retryWrites=true&w=majority",
+
+        // Try with the original host but different protocol
+        "mongodb://$username:$password@$host:27017/$database?ssl=true&authSource=admin&retryWrites=true&w=majority",
+
+        // Try without SSL for testing
+        "mongodb://$username:$password@$host:27017/$database?authSource=admin&retryWrites=true&w=majority",
+      ];
+
+      for (String altUrl in alternativeUrls) {
+        try {
+          print(
+            "Trying connection with: ${altUrl.replaceAll(password, '***')}",
+          );
+          _db = await Db.create(altUrl);
+          await _db!.open();
+
+          if (isConnected) {
+            print("Successfully connected using alternative URL");
+            print(
+              "Documents: ${await _db!.collection(collectionName).find().toList()}",
+            );
+            return true;
+          }
+        } catch (altError) {
+          print("Alternative connection failed: $altError");
+          try {
+            await _db?.close();
+          } catch (e) {
+            // Ignore close errors
+          }
+          _db = null;
+        }
+      }
+
+      print("All connection attempts failed");
+      return false;
+    } catch (e) {
+      print("Unexpected error in MongoDB connection: $e");
       return false;
     }
   }
@@ -95,8 +124,8 @@ class MongoDatabase {
         return false;
       }
 
-      // Ensure starred field exists (default to 0 if not provided)
-      if (!data.containsKey('starred')) {
+      // Only add starred field for contacts (default to 0 if not provided)
+      if (type == 'contact' && !data.containsKey('starred')) {
         data['starred'] = 0;
       }
 
@@ -130,9 +159,10 @@ class MongoDatabase {
         return false;
       }
 
-      // Ensure starred field exists for each item and add type field (default to 0 if not provided)
+      // Only add starred field for contacts and add type field for each item
       for (var data in dataList) {
-        if (!data.containsKey('starred')) {
+        // Only add starred field for contacts (default to 0 if not provided)
+        if (type == 'contact' && !data.containsKey('starred')) {
           data['starred'] = 0;
         }
         // Add type field to each document
@@ -426,9 +456,13 @@ class MongoDatabase {
       await _db!.createCollection(userId);
       print("Created new collection for user: $userId");
 
-      // Add an index on the 'starred' field for faster queries
+      // Add an index on the 'starred' field for faster contact queries
+      // This index will only be useful for contact documents, but won't hurt other document types
       var userCollection = _db!.collection(userId);
       await userCollection.createIndex(keys: {'starred': 1});
+
+      // Add an index on the 'type' field for faster filtering by document type
+      await userCollection.createIndex(keys: {'type': 1});
 
       return true;
     } catch (e) {
