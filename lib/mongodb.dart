@@ -1,6 +1,6 @@
 import 'package:mongo_dart/mongo_dart.dart';
 import 'constants.dart';
-import 'dart:developer';
+// import 'dart:developer';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 
@@ -56,7 +56,7 @@ class MongoDatabase {
       final username = userInfo[0];
       final password = userInfo.length > 1 ? userInfo[1] : '';
       final database = uri.path.replaceFirst('/', '');
-      final queryParams = uri.query;
+      // final queryParams = uri.query;
 
       // Create alternative connection strings to try
       final List<String> alternativeUrls = [

@@ -271,20 +271,25 @@ class _EventsState extends State<Events> {
       body: SafeArea(
         child: Container(
           color: Theme.of(context).colorScheme.primary,
-          child: Column(
+          child: Stack(
             children: [
-              _buildHeader(),
-              _buildFilterChips(),
-              _buildTabSelector(),
-              Expanded(
-                child:
-                    isLoading
-                        ? Center(
-                          child: CircularProgressIndicator(
-                            color: Theme.of(context).colorScheme.secondary,
-                          ),
-                        )
-                        : _buildEventsList(),
+              // Main content
+              Column(
+                children: [
+                  _buildHeader(),
+                  _buildFilterChips(),
+                  _buildTabSelector(), // Add tab selector here
+                  Expanded(
+                    child:
+                        isLoading
+                            ? Center(
+                              child: CircularProgressIndicator(
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                            )
+                            : _buildEventsList(),
+                  ),
+                ],
               ),
             ],
           ),
@@ -346,8 +351,7 @@ class _EventsState extends State<Events> {
 
   Widget _buildFilterChips() {
     final filters = ['All Events', 'This Month', 'This Week'];
-
-    return Container(
+    return SizedBox(
       height: 50,
       child: Center(
         child: Row(
@@ -444,7 +448,9 @@ class _EventsState extends State<Events> {
             color:
                 isSelected
                     ? Colors.grey[700]!
-                    : Theme.of(context).colorScheme.tertiary.withOpacity(0.3),
+                    : Theme.of(
+                      context,
+                    ).colorScheme.tertiary.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -509,7 +515,9 @@ class _EventsState extends State<Events> {
               "Tap the + button to add your first event",
               style: TextStyle(
                 fontSize: 14,
-                color: Theme.of(context).colorScheme.tertiary.withOpacity(0.7),
+                color: Theme.of(
+                  context,
+                ).colorScheme.tertiary.withValues(alpha: 0.7),
                 fontFamily: 'Poppins',
               ),
               textAlign: TextAlign.center,
@@ -542,10 +550,14 @@ class _EventsState extends State<Events> {
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
           child: Container(
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.1),
+              color: Theme.of(
+                context,
+              ).colorScheme.onPrimary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(15),
               border: Border.all(
-                color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.2),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onPrimary.withValues(alpha: 0.2),
                 width: 1,
               ),
             ),
@@ -559,10 +571,10 @@ class _EventsState extends State<Events> {
                       isCompleted
                           ? Theme.of(
                             context,
-                          ).colorScheme.tertiary.withOpacity(0.3)
+                          ).colorScheme.tertiary.withValues(alpha: 0.3)
                           : Theme.of(
                             context,
-                          ).colorScheme.secondary.withOpacity(0.3),
+                          ).colorScheme.secondary.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
@@ -618,7 +630,7 @@ class _EventsState extends State<Events> {
                         fontSize: 14,
                         color: Theme.of(
                           context,
-                        ).colorScheme.onPrimary.withOpacity(0.8),
+                        ).colorScheme.onPrimary.withValues(alpha: 0.8),
                         fontFamily: 'Poppins',
                       ),
                       maxLines: 2,
@@ -678,7 +690,7 @@ class _EventsState extends State<Events> {
                     side: BorderSide(
                       color: Theme.of(
                         context,
-                      ).colorScheme.onPrimary.withOpacity(0.3),
+                      ).colorScheme.onPrimary.withValues(alpha: 0.3),
                       width: 1,
                     ),
                   ),
@@ -783,13 +795,15 @@ class _EventsState extends State<Events> {
           fontFamily: 'Poppins',
         ),
         hintStyle: TextStyle(
-          color: Theme.of(context).colorScheme.tertiary.withOpacity(0.7),
+          color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.7),
           fontFamily: 'Poppins',
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: Theme.of(context).colorScheme.tertiary.withOpacity(0.3),
+            color: Theme.of(
+              context,
+            ).colorScheme.tertiary.withValues(alpha: 0.3),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -834,7 +848,7 @@ class _EventsState extends State<Events> {
                   side: BorderSide(
                     color: Theme.of(
                       context,
-                    ).colorScheme.tertiary.withOpacity(0.3),
+                    ).colorScheme.tertiary.withValues(alpha: 0.3),
                   ),
                 ),
               ),
@@ -859,7 +873,7 @@ class _EventsState extends State<Events> {
                   side: BorderSide(
                     color: Theme.of(
                       context,
-                    ).colorScheme.tertiary.withOpacity(0.3),
+                    ).colorScheme.tertiary.withValues(alpha: 0.3),
                   ),
                 ),
               ),
@@ -899,6 +913,7 @@ class _EventsState extends State<Events> {
     } else {
       success = await _createEvent(newEvent);
     }
+    if (!mounted) return;
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -924,13 +939,6 @@ class _EventsState extends State<Events> {
       builder:
           (context) => AlertDialog(
             backgroundColor: Theme.of(context).colorScheme.primary,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(
-                color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.3),
-                width: 1,
-              ),
-            ),
             title: Text(
               'Delete Event',
               style: TextStyle(
@@ -975,6 +983,8 @@ class _EventsState extends State<Events> {
 
     if (event.id != null) {
       final success = await _deleteEvent(event.id!);
+
+      if (!mounted) return;
 
       if (success) {
         ScaffoldMessenger.of(
@@ -1032,7 +1042,9 @@ class _EventsState extends State<Events> {
           Expanded(
             child: Container(
               height: 1,
-              color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.3),
+              color: Theme.of(
+                context,
+              ).colorScheme.onPrimary.withValues(alpha: 0.3),
             ),
           ),
         ],

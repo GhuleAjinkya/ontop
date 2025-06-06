@@ -156,6 +156,7 @@ class _TasksWithMongoDBState extends State<TasksWithMongoDB> {
       final success = await TasksAdapter.createSection(sectionName);
       if (success) {
         await _loadTasksFromDatabase(); // Refresh data
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Section "$sectionName" created successfully'),
@@ -166,6 +167,7 @@ class _TasksWithMongoDBState extends State<TasksWithMongoDB> {
         throw Exception('Failed to create section');
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to create section: $e'),
@@ -183,10 +185,10 @@ class _TasksWithMongoDBState extends State<TasksWithMongoDB> {
         (s) => s.name == sectionName,
         orElse: () => throw Exception('Section not found'),
       );
-
       final success = await TasksAdapter.deleteSection(section.id);
       if (success) {
         await _loadTasksFromDatabase(); // Refresh data
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Section "$sectionName" deleted successfully'),
@@ -197,6 +199,7 @@ class _TasksWithMongoDBState extends State<TasksWithMongoDB> {
         throw Exception('Failed to delete section');
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to delete section: $e'),
@@ -218,10 +221,10 @@ class _TasksWithMongoDBState extends State<TasksWithMongoDB> {
         (s) => s.name == sectionName,
         orElse: () => throw Exception('Section not found'),
       );
-
       final success = await TasksAdapter.createTask(section.id, text, deadline);
       if (success) {
         await _loadTasksFromDatabase(); // Refresh data
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Task "$text" created successfully'),
@@ -232,6 +235,7 @@ class _TasksWithMongoDBState extends State<TasksWithMongoDB> {
         throw Exception('Failed to create task');
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to create task: $e'),
@@ -254,6 +258,7 @@ class _TasksWithMongoDBState extends State<TasksWithMongoDB> {
         throw Exception('Failed to update task');
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to update task: $e'),
@@ -280,6 +285,7 @@ class _TasksWithMongoDBState extends State<TasksWithMongoDB> {
           setState(() {
             selectedTaskIDs.clear();
           });
+          if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -293,6 +299,7 @@ class _TasksWithMongoDBState extends State<TasksWithMongoDB> {
         }
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to delete tasks: $e'),
