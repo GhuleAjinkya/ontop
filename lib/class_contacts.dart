@@ -73,6 +73,8 @@ class Contact {
   }
 }
 
+List<Contact> globalContacts = [];
+
 class Contacts extends StatefulWidget {
   const Contacts({super.key});
 
@@ -200,6 +202,7 @@ class _ContactsState extends State<Contacts> {
 
       // Convert documents to Contact objects
       contacts = fetchedContacts.map((doc) => Contact.fromMongo(doc)).toList();
+      globalContacts = contacts;
 
       print("Successfully loaded ${contacts.length} contacts for user $userId");
     } catch (e) {
@@ -1631,7 +1634,7 @@ class _ContactDetailsState extends State<ContactDetails> {
                       "Notes",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onPrimary,
+                        color: Theme.of(context).colorScheme.onPrimary, 
                       ),
                     ),
                     subtitle: Text(

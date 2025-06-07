@@ -700,7 +700,7 @@ class _TasksState extends State<Tasks> {
                         final picked = await showTimePicker(
                           context: context,
                           initialTime: selectedTime ?? TimeOfDay.now(),
-                          initialEntryMode: TimePickerEntryMode.inputOnly,
+                          initialEntryMode: TimePickerEntryMode.dial,
                         );
                         if (picked != null) {
                           setState(() {

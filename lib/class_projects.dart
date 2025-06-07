@@ -1,6 +1,9 @@
+import 'package:asep_app/models/contact.dart' as model_contact;
 import 'package:flutter/material.dart';
 import 'models/project.dart';
+import 'models/to_do_item.dart';
 import 'main.dart';
+import 'class_contacts.dart' as local_contact;
 
 class Projects extends StatefulWidget {
   const Projects({super.key});
@@ -100,7 +103,16 @@ class _ProjectsState extends State<Projects> {
           setState(() {
             openedProject = null;            
           });
-        }  
+        },
+        onUpdate: (updatedProject) {
+          setState(() {
+            final idx = projects.indexWhere((p) => p.id == updatedProject.id);
+            if (idx != -1) {
+              projects[idx] = updatedProject;
+              openedProject = updatedProject;
+            }
+          });
+        },
       );
     }
     return Scaffold(
@@ -256,9 +268,10 @@ class _ProjectsState extends State<Projects> {
 }
 
 class ProjectDetails extends StatefulWidget {
-  const ProjectDetails({super.key, required this.project, required this.onBack});
+  const ProjectDetails({super.key, required this.project, required this.onBack, required this.onUpdate});
   final Project project;
   final VoidCallback onBack;
+  final ValueChanged<Project> onUpdate;
   @override
   State<ProjectDetails> createState() => _ProjectDetailsState();
 }
@@ -271,6 +284,53 @@ class _ProjectDetailsState extends State<ProjectDetails> {
   bool editingCollaborators = false;
   bool expandToDo = true;
   bool editingToDo = false;
+  bool openCompletedTasks = false;
+  List<int> completedTasks = [];
+  TextEditingController descriptionController = TextEditingController();
+  TextEditingController textController = TextEditingController();
+  DateTime? selectedDate;
+  TimeOfDay? selectedTime;
+
+  int id = 0;
+  @override
+  void initState() {
+    super.initState();
+    descriptionController = TextEditingController(text: project.description);
+  }
+
+  @override
+  void dispose() {
+    descriptionController.dispose();
+    super.dispose();
+  }
+
+  Widget singleFilterChip({
+    required String label,
+    bool isSelected = false,
+    VoidCallback? onTap,
+  }) {
+    return TextButton(
+      onPressed: onTap,
+      style: TextButton.styleFrom(
+        backgroundColor:
+            isSelected ? Colors.white.withAlpha(100) : Colors.transparent,
+        shape: StadiumBorder(
+          side: BorderSide(
+            color: Theme.of(context).colorScheme.onPrimary.withAlpha(100),
+            width: 2,
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          color: Theme.of(context).colorScheme.onPrimary,
+        ),
+      ),
+    );
+  }
 
   Widget divLine() {
     return Container(
@@ -326,18 +386,460 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                   ),
                 ],
               ),
-              Container(
+
+              Container( // Description, To-Do, Collaborators
                 decoration: standardTile(20),
                 margin: EdgeInsets.symmetric(horizontal: 10,  vertical: 12),
                 child: Container(
                   margin: EdgeInsets.all(5),
                   child: Column(
                     children: [
-                      
+                      ListTile( // Description
+                        title: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Description",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                              ),
+                            ),
+                            if(editingDescription) ...[
+                              Row(
+                                children: [
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.close,
+                                      color:
+                                          Theme.of(context).colorScheme.onPrimary,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        descriptionController.text = project.description;
+                                        editingDescription = false;
+                                      });
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.check,
+                                      color: Theme.of(context).colorScheme.onPrimary,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        descriptionController.text = descriptionController.text.trim();
+                                        project = Project(
+                                          id: project.id,
+                                          title: project.title,
+                                          description: descriptionController.text,
+                                          collaborators: project.collaborators,
+                                          toDoItems: project.toDoItems,
+                                        );
+                                        editingDescription = false;
+                                      });
+                                      widget.onUpdate(project);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ] 
+                            else ...[
+                              IconButton(
+                                icon: Icon(
+                                  Icons.edit,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    editingDescription = true;
+                                  });
+                                },
+                              ),
+                            ],
+                          ],
+                        ),
+                        subtitle: TextField(
+                          controller: descriptionController,
+                          maxLines: 5,
+                          minLines: 1, 
+                          readOnly: !editingDescription,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: "Write a description...",
+                            hintStyle: TextStyle(
+                              color: Theme.of(context).colorScheme.onSecondary,
+                            ),
+                            border: editingDescription ?
+                              OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(6),
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).colorScheme.onSecondary,
+                                  width: 1.2,
+                                ),
+                              ) : InputBorder.none,
+                            enabledBorder: editingDescription ? 
+                              OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(6),
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).colorScheme.onSecondary,
+                                  width: 1.2,
+                                ),
+                              ) : InputBorder.none,
+                            focusedBorder: editingDescription ?
+                              OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(6),
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).colorScheme.onSecondary,
+                                  width: 1.2,
+                                ),
+                              ) : InputBorder.none,
+                          ),
+                        ),
+                      ),
+                      divLine(),
+                      ListTile( // To-Do
+                        title: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "To-do",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.add,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  openCompletedTasks = false;
+                                  editingToDo = true;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (editingToDo) ...[
+                              Container(
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 5,
+                                ),
+                                decoration: standardTile(10),
+                                child: ListTile(
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 2,
+                                  ),
+                                  title: SizedBox(
+                                    child: Container(
+                                      margin: EdgeInsets.symmetric(horizontal: 5),
+                                      child: TextField(
+                                        controller: textController,
+                                        style: TextStyle(
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.onPrimary,
+                                        ),
+                                        cursorColor:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.tertiary,
+                                        decoration: InputDecoration(
+                                          hintText: 'Details',
+                                          labelText: 'Details*',
+                                          labelStyle: TextStyle(
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.onSecondary,
+                                          ),
+                                          hintStyle: TextStyle(
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.onSecondary,
+                                          ),
+                                          border: const UnderlineInputBorder(),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  subtitle: Container(
+                                    margin: EdgeInsets.only(top: 10),
+                                    child: Column(
+                                      children: [
+                                        TextButton.icon(
+                                          icon: Icon(
+                                            Icons.calendar_today,
+                                            size: 16,
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.onPrimary,
+                                          ),
+                                          label: Text(
+                                            selectedDate != null
+                                                ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
+                                                : "Pick date",
+                                            style: TextStyle(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onPrimary,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          onPressed: () async {
+                                            final now = DateTime.now();
+                                            final picked = await showDatePicker(
+                                              context: context,
+                                              initialDate: selectedDate ?? now,
+                                              firstDate: now,
+                                              lastDate: DateTime(now.year + 5),
+                                            );
+                                            if (picked != null) {
+                                              setState(() {
+                                                selectedDate = picked;
+                                              });
+                                            }
+                                          },
+                                        ),
+                                        TextButton.icon(
+                                          icon: Icon(
+                                            Icons.access_time,
+                                            size: 16,
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.onPrimary,
+                                          ),
+                                          label: Text(
+                                            selectedTime != null
+                                                ? "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}"
+                                                : "Pick time",
+                                            style: TextStyle(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onPrimary,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          onPressed: () async {
+                                            final picked = await showTimePicker(
+                                              context: context,
+                                              initialTime:
+                                                  selectedTime ??
+                                                  TimeOfDay.now(),
+                                              initialEntryMode:
+                                                  TimePickerEntryMode.dial,
+                                            );
+                                            if (picked != null) {
+                                              setState(() {
+                                                selectedTime = picked;
+                                              });
+                                            }
+                                          },
+                                        ),
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                          children: [
+                                            IconButton(
+                                              alignment: Alignment.centerLeft,
+                                              onPressed: () {
+                                                setState(() {
+                                                  textController.clear();
+                                                  editingToDo = false;
+                                                });
+                                              },
+                                              icon: Icon(
+                                                Icons.close,
+                                                color:
+                                                    Theme.of(
+                                                      context,
+                                                    ).colorScheme.onPrimary,
+                                                size: 20,
+                                              ),
+                                            ),
+                                            IconButton(
+                                              alignment: Alignment.centerRight,
+                                              onPressed: () {
+                                                if (textController.text.trim().isEmpty || selectedDate == null ||selectedTime == null) return;
+                                                setState(() {
+                                                  project.toDoItems.add(
+                                                    ToDoItem(
+                                                      text: textController.text.trim(),
+                                                      id: id,
+                                                      deadlineDate: DateTime(
+                                                        selectedDate!.year,
+                                                        selectedDate!.month,
+                                                        selectedDate!.day,
+                                                        selectedTime!.hour,
+                                                        selectedTime!.minute,
+                                                      ),
+                                                    ),
+                                                  );
+                                                  widget.onUpdate(project);
+                                                  textController.clear();
+                                                  selectedDate = null;
+                                                  selectedTime = null;
+                                                  editingToDo = false;
+                                                  id += 1;
+                                                });
+                                              },
+                                              icon: Icon(
+                                                Icons.check,
+                                                color:
+                                                    Theme.of(
+                                                      context,
+                                                    ).colorScheme.onPrimary,
+                                                size: 20,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                            if (project.toDoItems.isEmpty)
+                              Container(
+                                margin: EdgeInsets.symmetric(vertical: 10),
+                                child: Text(
+                                  "No tasks yet.",
+                                  style: TextStyle(
+                                    color:
+                                        Theme.of(context).colorScheme.onSecondary,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              )
+                            else
+                              ...project.toDoItems.map<Widget>((item) {
+                                return Row(
+                                  children: [
+                                    Checkbox(
+                                      value: completedTasks.contains(item.id),
+                                      onChanged: (bool? changed) {
+                                        setState(() {
+                                          if (!completedTasks.contains(item.id)) {
+                                            completedTasks.add(item.id);
+                                          }
+                                          else {
+                                            completedTasks.remove(item.id);
+                                          }
+                                        });
+                                      },
+                                      activeColor:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.tertiary,
+                                      checkColor:
+                                          Theme.of(context).colorScheme.primary,
+                                      side: BorderSide(
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimary,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        item.text,
+                                        style: TextStyle(
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.onPrimary,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }),
+                          ],
+                        ),
+                      ),
+                      divLine(),
+                      ListTile(
+                        title: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Collaborators",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.add,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                              ),
+                              onPressed: () {
+
+                              },
+                            ),
+                          ],                         
+                        ),
+                        subtitle: project.collaborators.isEmpty ? 
+                          Container(
+                            margin: EdgeInsets.symmetric(vertical: 10),
+                            child: Text(
+                              "No collaborators",
+                              style: TextStyle(
+                                color:
+                                    Theme.of(context).colorScheme.onSecondary,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ) : 
+                          Wrap(
+                                  spacing: 8,
+                                  children:
+                                      project.collaborators.map((contact) {
+                                        return ActionChip(
+                                          label: Text(
+                                            contact.name,
+                                            style: TextStyle(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onPrimary,
+                                            ),
+                                          ),
+                                          backgroundColor: Theme.of(context)
+                                              .colorScheme
+                                              .secondary
+                                              ,
+                                          onPressed: () {
+                                            // Optionally navigate to contact details
+                                          },
+                                        );
+                                      }).toList(),
+                                )
+                      ),
                     ],
                   ),
                 ),
               )
+              
             ]
           ),
         ),
@@ -345,3 +847,5 @@ class _ProjectDetailsState extends State<ProjectDetails> {
     );
   }
 }
+
+
