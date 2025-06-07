@@ -3,8 +3,9 @@ import 'models/project.dart';
 import 'models/to_do_item.dart';
 import 'main.dart';
 import 'class_contacts.dart';
-import 'mongodb.dart';
 import 'user_session.dart';
+import 'services/projects_adapter.dart';
+import 'services/contacts_adapter.dart';
 
 class Projects extends StatefulWidget {
   const Projects({super.key});
@@ -17,10 +18,47 @@ class _ProjectsState extends State<Projects> {
   List<Project> projects = [];
   bool addingProject = false;
   TextEditingController projectTitle = TextEditingController();
-  int tempID = 0;
   Project? openedProject;
+  String get userId => UserSession().userId ?? '';
 
-  Widget buildProjectTiles (List<Project> projects, {bool completed = false}){
+  @override
+  void initState() {
+    super.initState();
+    loadProjects();
+  }
+
+  Future<void> loadProjects() async {
+    if (userId.isEmpty) {
+      print("No user ID available. Cannot load projects.");
+      projects = [];
+      return;
+    }
+
+    try {
+      List<Map<String, dynamic>> fetchedProjects =
+          await ProjectsAdapter.getProjects();
+
+      // Convert documents to Project objects
+      projects = fetchedProjects.map((doc) => Project.fromMongo(doc)).toList();
+
+      print("Successfully loaded ${projects.length} projects for user $userId");
+      setState(() {});
+    } catch (e) {
+      print("Error loading projects: $e");
+      projects = [];
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load projects: $e'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Widget buildProjectTiles(List<Project> projects, {bool completed = false}) {
     return ListView.builder(
       //shrinkWrap: true,
       physics: const BouncingScrollPhysics(),
@@ -42,45 +80,191 @@ class _ProjectsState extends State<Projects> {
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    project.title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 25,
-                      color: Theme.of(context).colorScheme.onPrimary,
+                  Expanded(
+                    child: Text(
+                      project.title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 25,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
                     ),
                   ),
-                  IconButton(
-                    onPressed: () {
-                      // transfer to completed projects
-                    }, 
-                    icon: Icon(
-                      completed ? Icons.check_box_outlined :
-                      Icons.check_box_outline_blank,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                    )
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        onPressed: () async {
+                          // Show confirmation dialog for project deletion
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder:
+                                (context) => AlertDialog(
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.primary,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    side: BorderSide(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onSecondary,
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  title: Text(
+                                    'Delete Project?',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                    ),
+                                  ),
+                                  content: Text(
+                                    'Project "${project.title}" will be permanently deleted.',
+                                    style: TextStyle(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                    ),
+                                  ),
+                                  actions: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceEvenly,
+                                      children: [
+                                        IconButton(
+                                          onPressed:
+                                              () =>
+                                                  Navigator.pop(context, false),
+                                          icon: Icon(
+                                            Icons.close,
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.onPrimary,
+                                            size: 30,
+                                          ),
+                                        ),
+                                        IconButton(
+                                          onPressed:
+                                              () =>
+                                                  Navigator.pop(context, true),
+                                          icon: Icon(
+                                            Icons.check,
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.error,
+                                            size: 30,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                          );
+
+                          if (confirmed == true) {
+                            try {
+                              // Delete project from database
+                              bool success =
+                                  await ProjectsAdapter.deleteProject(
+                                    project.id!,
+                                  );
+                              if (success) {
+                                // Remove from local list
+                                setState(() {
+                                  projects.removeWhere(
+                                    (p) => p.id == project.id,
+                                  );
+                                });
+                                if (mounted) {
+                                  final messenger = ScaffoldMessenger.of(
+                                    context,
+                                  );
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Project "${project.title}" deleted successfully',
+                                      ),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                              } else {
+                                if (mounted) {
+                                  final messenger = ScaffoldMessenger.of(
+                                    context,
+                                  );
+                                  messenger.showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Failed to delete project'),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                              }
+                            } catch (e) {
+                              print('Error deleting project: $e');
+                              if (mounted) {
+                                final messenger = ScaffoldMessenger.of(context);
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error deleting project: $e'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        },
+                        icon: Icon(
+                          Icons.delete_outline,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onPrimary.withValues(alpha: 0.7),
+                          size: 22,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () {
+                          // transfer to completed projects
+                        },
+                        icon: Icon(
+                          completed
+                              ? Icons.check_box_outlined
+                              : Icons.check_box_outline_blank,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  project.description.isNotEmpty ? 
-                    Text(
-                      "Description: ${project.description}",
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 17,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                      ),    
-                    ) : Container(),
+                  project.description.isNotEmpty
+                      ? Text(
+                        "Description: ${project.description}",
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 17,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      )
+                      : Container(),
                 ],
               ),
             ),
           ),
         );
-      } 
+      },
     );
   }
 
@@ -91,7 +275,7 @@ class _ProjectsState extends State<Projects> {
         project: openedProject!,
         onBack: () async {
           setState(() {
-            openedProject = null;            
+            openedProject = null;
           });
         },
         onUpdate: (updatedProject) {
@@ -113,7 +297,8 @@ class _ProjectsState extends State<Projects> {
           color: Theme.of(context).colorScheme.primary,
           child: Column(
             children: [
-              Container( // Tab Actions
+              Container(
+                // Tab Actions
                 color: Theme.of(context).colorScheme.primary,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
@@ -132,9 +317,7 @@ class _ProjectsState extends State<Projects> {
                         ),
                       ),
                       Container(
-                        margin: EdgeInsets.only(
-                          right: 20
-                        ),
+                        margin: EdgeInsets.only(right: 20),
                         child: Row(
                           children: [
                             IconButton(
@@ -144,7 +327,7 @@ class _ProjectsState extends State<Projects> {
                                 size: 30,
                               ),
                               onPressed: () {
-                                setState((){
+                                setState(() {
                                   addingProject = true;
                                 });
                               },
@@ -155,9 +338,7 @@ class _ProjectsState extends State<Projects> {
                                 color: Theme.of(context).colorScheme.onPrimary,
                               ),
                               onPressed: () {
-                                setState((){
-
-                                });
+                                setState(() {});
                               },
                             ),
                             IconButton(
@@ -166,12 +347,10 @@ class _ProjectsState extends State<Projects> {
                                 color: Theme.of(context).colorScheme.onPrimary,
                               ),
                               onPressed: () {
-                                setState((){
-
-                                });
+                                setState(() {});
                               },
                             ),
-                          ]
+                          ],
                         ),
                       ),
                     ],
@@ -221,21 +400,73 @@ class _ProjectsState extends State<Projects> {
                     ),
                     trailing: IconButton(
                       alignment: Alignment.centerRight,
-                      onPressed: () {
+                      onPressed: () async {
+                        if (projectTitle.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Project title is required'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                          return;
+                        }
+
+                        if (userId.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Please log in to create projects'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                          return;
+                        }
+
+                        // Create project data
+                        final projectData = {
+                          'title': projectTitle.text.trim(),
+                          'description': '',
+                          'collaborators':
+                              [], // Empty array of Contact ObjectIds
+                          'project_tasks': [],
+                          'type': 'project',
+                          'created_at': DateTime.now().toIso8601String(),
+                        };
+
                         setState(() {
                           addingProject = false;
-                          tempID += 1;
-                          projects.add(
-                            Project(
-                              id: tempID,
-                              title: projectTitle.text,
-                              description: "",
-                              collaborators: [], // List<String>
-                              toDoItems: [],
-                            )
-                          );
-                          projectTitle.clear();
                         });
+                        projectTitle.clear();
+
+                        // Store messenger reference before async operation
+                        final messenger = ScaffoldMessenger.of(context);
+
+                        // Insert using our adapter (Node.js API first, then MongoDB fallback)
+                        bool success = await ProjectsAdapter.addProject(
+                          projectData,
+                        );
+
+                        if (success) {
+                          if (mounted) {
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text('Project created successfully!'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                          print("Project successfully added to MongoDB!");
+                          await loadProjects(); // Reload projects
+                        } else {
+                          if (mounted) {
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text('Failed to create project'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                          print("Failed to add project to MongoDB");
+                        }
                       },
                       icon: Icon(
                         Icons.check,
@@ -246,9 +477,7 @@ class _ProjectsState extends State<Projects> {
                   ),
                 ),
               ],
-              Expanded(
-                child: buildProjectTiles(projects)
-              ),
+              Expanded(child: buildProjectTiles(projects)),
             ],
           ),
         ),
@@ -258,7 +487,12 @@ class _ProjectsState extends State<Projects> {
 }
 
 class ProjectDetails extends StatefulWidget {
-  const ProjectDetails({super.key, required this.project, required this.onBack, required this.onUpdate});
+  const ProjectDetails({
+    super.key,
+    required this.project,
+    required this.onBack,
+    required this.onUpdate,
+  });
   final Project project;
   final VoidCallback onBack;
   final ValueChanged<Project> onUpdate;
@@ -275,26 +509,36 @@ class _ProjectDetailsState extends State<ProjectDetails> {
   bool expandToDo = true;
   bool editingToDo = false;
   bool openCompletedTasks = false;
-  List<int> completedTasks = [];
+  List<String> completedTasks = [];
   TextEditingController descriptionController = TextEditingController();
   TextEditingController textController = TextEditingController();
   DateTime? selectedDate;
   TimeOfDay? selectedTime;
-  int id = 0;
   List<Contact> globalContacts = [];
-
+  Contact? openedContact;
   Future<void> loadContactsFromMongo() async {
     String userId = UserSession().userId ?? '';
-    List<Map<String, dynamic>> mongoContacts = await MongoDatabase.getContacts(userId: userId, type: 'contact');
-    globalContacts = mongoContacts.map((doc) => Contact(
-      id: doc['id'],
-      name: doc['name'],
-      organization: doc['organization'],
-      phoneNumber: doc['phoneNumber'],
-      position: doc['position'],
-      starred: doc['starred'] ?? 0,
-    )).toList();
-    setState(() {});
+    if (userId.isEmpty) {
+      print("No user ID available. Cannot load contacts.");
+      globalContacts = [];
+      return;
+    }
+
+    try {
+      // Use ContactsAdapter instead of direct MongoDB access
+      List<Map<String, dynamic>> fetchedContacts =
+          await ContactsAdapter.getContacts();
+      globalContacts =
+          fetchedContacts.map((doc) => Contact.fromMongo(doc)).toList();
+      print(
+        "Successfully loaded ${globalContacts.length} contacts for project collaborators",
+      );
+      setState(() {});
+    } catch (e) {
+      print("Error loading contacts for project: $e");
+      globalContacts = [];
+      setState(() {});
+    }
   }
 
   @override
@@ -302,6 +546,10 @@ class _ProjectDetailsState extends State<ProjectDetails> {
     super.initState();
     descriptionController = TextEditingController(text: project.description);
     loadContactsFromMongo();
+    // Initialize completed tasks from the project data
+    if (project.completedTasks != null) {
+      completedTasks = List<String>.from(project.completedTasks!);
+    }
   }
 
   @override
@@ -340,7 +588,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
 
   Widget divLine() {
     return Container(
-      margin: EdgeInsets.symmetric(vertical: 8,horizontal: 10),
+      margin: EdgeInsets.symmetric(vertical: 8, horizontal: 10),
       height: 3,
       decoration: BoxDecoration(
         border: Border(
@@ -355,6 +603,18 @@ class _ProjectDetailsState extends State<ProjectDetails> {
 
   @override
   Widget build(BuildContext context) {
+    // If a contact is opened, show ContactDetails inline
+    if (openedContact != null) {
+      return ContactDetails(
+        contact: openedContact!,
+        onBack: () {
+          setState(() {
+            openedContact = null;
+          });
+        },
+      );
+    }
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.primary,
       body: SingleChildScrollView(
@@ -362,13 +622,14 @@ class _ProjectDetailsState extends State<ProjectDetails> {
           margin: EdgeInsets.symmetric(horizontal: 20),
           child: Column(
             children: [
-              Row( // Title and Back Button
+              Row(
+                // Title and Back Button
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
                     margin: EdgeInsets.only(left: 10),
                     child: IconButton(
-                      onPressed: widget.onBack, 
+                      onPressed: widget.onBack,
                       icon: Icon(
                         Icons.arrow_back,
                         color: Theme.of(context).colorScheme.onPrimary,
@@ -377,7 +638,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                     ),
                   ),
                   Container(
-                    margin: EdgeInsets.only(left: 10,right: 20),
+                    margin: EdgeInsets.only(left: 10, right: 20),
                     child: Text(
                       project.title,
                       textAlign: TextAlign.right,
@@ -386,21 +647,23 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                       style: TextStyle(
                         fontSize: 30,
                         fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onPrimary
+                        color: Theme.of(context).colorScheme.onPrimary,
                       ),
                     ),
                   ),
                 ],
               ),
 
-              Container( // Description, To-Do, Collaborators
+              Container(
+                // Description, To-Do, Collaborators
                 decoration: standardTile(20),
-                margin: EdgeInsets.symmetric(horizontal: 10,  vertical: 12),
+                margin: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                 child: Container(
                   margin: EdgeInsets.all(5),
                   child: Column(
                     children: [
-                      ListTile( // Description
+                      ListTile(
+                        // Description
                         title: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -411,18 +674,21 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                 color: Theme.of(context).colorScheme.onPrimary,
                               ),
                             ),
-                            if(editingDescription) ...[
+                            if (editingDescription) ...[
                               Row(
                                 children: [
                                   IconButton(
                                     icon: Icon(
                                       Icons.close,
                                       color:
-                                          Theme.of(context).colorScheme.onPrimary,
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
                                     ),
                                     onPressed: () {
                                       setState(() {
-                                        descriptionController.text = project.description;
+                                        descriptionController.text =
+                                            project.description;
                                         editingDescription = false;
                                       });
                                     },
@@ -430,27 +696,85 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                   IconButton(
                                     icon: Icon(
                                       Icons.check,
-                                      color: Theme.of(context).colorScheme.onPrimary,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
                                     ),
-                                    onPressed: () {
-                                      setState(() {
-                                        descriptionController.text = descriptionController.text.trim();
-                                        project = Project(
-                                          id: project.id,
-                                          title: project.title,
-                                          description: descriptionController.text,
-                                          collaborators: project.collaborators,
-                                          toDoItems: project.toDoItems,
+                                    onPressed: () async {
+                                      try {
+                                        final updatedDescription =
+                                            descriptionController.text.trim();
+                                        final updatedProject = project.copyWith(
+                                          description: updatedDescription,
                                         );
-                                        editingDescription = false;
-                                      });
-                                      widget.onUpdate(project);
+
+                                        // Update in database - convert to Map for the adapter
+                                        final projectData =
+                                            updatedProject.toMap();
+                                        projectData['_id'] =
+                                            updatedProject
+                                                .id; // Ensure the ID is included
+                                        bool success =
+                                            await ProjectsAdapter.updateProject(
+                                              projectData,
+                                            );
+
+                                        if (success) {
+                                          setState(() {
+                                            project = updatedProject;
+                                            editingDescription = false;
+                                          });
+                                          widget.onUpdate(project);
+
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Description updated successfully',
+                                                ),
+                                                duration: Duration(seconds: 2),
+                                              ),
+                                            );
+                                          }
+                                        } else {
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Failed to update description',
+                                                ),
+                                                duration: Duration(seconds: 2),
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      } catch (e) {
+                                        print(
+                                          "Error updating project description: $e",
+                                        );
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Error updating description: $e',
+                                              ),
+                                              duration: Duration(seconds: 2),
+                                            ),
+                                          );
+                                        }
+                                      }
                                     },
                                   ),
                                 ],
                               ),
-                            ] 
-                            else ...[
+                            ] else ...[
                               IconButton(
                                 icon: Icon(
                                   Icons.edit,
@@ -469,7 +793,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                         subtitle: TextField(
                           controller: descriptionController,
                           maxLines: 5,
-                          minLines: 1, 
+                          minLines: 1,
                           readOnly: !editingDescription,
                           style: TextStyle(
                             color: Theme.of(context).colorScheme.onPrimary,
@@ -479,35 +803,51 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                             hintStyle: TextStyle(
                               color: Theme.of(context).colorScheme.onSecondary,
                             ),
-                            border: editingDescription ?
-                              OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(6),
-                                borderSide: BorderSide(
-                                  color: Theme.of(context).colorScheme.onSecondary,
-                                  width: 1.2,
-                                ),
-                              ) : InputBorder.none,
-                            enabledBorder: editingDescription ? 
-                              OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(6),
-                                borderSide: BorderSide(
-                                  color: Theme.of(context).colorScheme.onSecondary,
-                                  width: 1.2,
-                                ),
-                              ) : InputBorder.none,
-                            focusedBorder: editingDescription ?
-                              OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(6),
-                                borderSide: BorderSide(
-                                  color: Theme.of(context).colorScheme.onSecondary,
-                                  width: 1.2,
-                                ),
-                              ) : InputBorder.none,
+                            border:
+                                editingDescription
+                                    ? OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: BorderSide(
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onSecondary,
+                                        width: 1.2,
+                                      ),
+                                    )
+                                    : InputBorder.none,
+                            enabledBorder:
+                                editingDescription
+                                    ? OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: BorderSide(
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onSecondary,
+                                        width: 1.2,
+                                      ),
+                                    )
+                                    : InputBorder.none,
+                            focusedBorder:
+                                editingDescription
+                                    ? OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: BorderSide(
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onSecondary,
+                                        width: 1.2,
+                                      ),
+                                    )
+                                    : InputBorder.none,
                           ),
                         ),
                       ),
                       divLine(),
-                      ListTile( // To-Do
+                      ListTile(
+                        // To-Do
                         title: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -548,7 +888,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                   ),
                                   title: SizedBox(
                                     child: Container(
-                                      margin: EdgeInsets.symmetric(horizontal: 5),
+                                      margin: EdgeInsets.symmetric(
+                                        horizontal: 5,
+                                      ),
                                       child: TextField(
                                         controller: textController,
                                         style: TextStyle(
@@ -659,7 +1001,8 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                           },
                                         ),
                                         Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceAround,
                                           children: [
                                             IconButton(
                                               alignment: Alignment.centerLeft,
@@ -680,29 +1023,122 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                             ),
                                             IconButton(
                                               alignment: Alignment.centerRight,
-                                              onPressed: () {
-                                                if (textController.text.trim().isEmpty || selectedDate == null ||selectedTime == null) return;
+                                              onPressed: () async {
+                                                if (textController.text
+                                                        .trim()
+                                                        .isEmpty ||
+                                                    selectedDate == null ||
+                                                    selectedTime == null) {
+                                                  return;
+                                                }
+
+                                                final newTask = ToDoItem(
+                                                  text:
+                                                      textController.text
+                                                          .trim(),
+                                                  id:
+                                                      DateTime.now()
+                                                          .millisecondsSinceEpoch
+                                                          .toString(),
+                                                  deadlineDate: DateTime(
+                                                    selectedDate!.year,
+                                                    selectedDate!.month,
+                                                    selectedDate!.day,
+                                                    selectedTime!.hour,
+                                                    selectedTime!.minute,
+                                                  ),
+                                                );
+
                                                 setState(() {
-                                                  project.toDoItems.add(
-                                                    ToDoItem(
-                                                      text: textController.text.trim(),
-                                                      id: id,
-                                                      deadlineDate: DateTime(
-                                                        selectedDate!.year,
-                                                        selectedDate!.month,
-                                                        selectedDate!.day,
-                                                        selectedTime!.hour,
-                                                        selectedTime!.minute,
-                                                      ),
-                                                    ),
+                                                  project.projectTasks.add(
+                                                    newTask,
                                                   );
-                                                  widget.onUpdate(project);
                                                   textController.clear();
                                                   selectedDate = null;
                                                   selectedTime = null;
                                                   editingToDo = false;
-                                                  id += 1;
                                                 });
+
+                                                // Update project in database
+                                                try {
+                                                  final updatedProject = project
+                                                      .copyWith(
+                                                        projectTasks:
+                                                            project
+                                                                .projectTasks,
+                                                      );
+                                                  final projectData =
+                                                      updatedProject.toMap();
+                                                  projectData['_id'] =
+                                                      updatedProject.id;
+
+                                                  bool success =
+                                                      await ProjectsAdapter.updateProject(
+                                                        projectData,
+                                                      );
+                                                  if (success) {
+                                                    widget.onUpdate(
+                                                      updatedProject,
+                                                    );
+                                                    if (mounted) {
+                                                      ScaffoldMessenger.of(
+                                                        context,
+                                                      ).showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text(
+                                                            'Task added successfully!',
+                                                          ),
+                                                          duration: Duration(
+                                                            seconds: 2,
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }
+                                                  } else {
+                                                    // Revert the local change if database update failed
+                                                    setState(() {
+                                                      project.projectTasks
+                                                          .removeLast();
+                                                    });
+                                                    if (mounted) {
+                                                      ScaffoldMessenger.of(
+                                                        context,
+                                                      ).showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text(
+                                                            'Failed to add task',
+                                                          ),
+                                                          duration: Duration(
+                                                            seconds: 2,
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }
+                                                  }
+                                                } catch (e) {
+                                                  print(
+                                                    'Error updating project tasks: $e',
+                                                  );
+                                                  // Revert the local change if database update failed
+                                                  setState(() {
+                                                    project.projectTasks
+                                                        .removeLast();
+                                                  });
+                                                  if (mounted) {
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                          'Error adding task: $e',
+                                                        ),
+                                                        duration: Duration(
+                                                          seconds: 2,
+                                                        ),
+                                                      ),
+                                                    );
+                                                  }
+                                                }
                                               },
                                               icon: Icon(
                                                 Icons.check,
@@ -721,33 +1157,96 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                 ),
                               ),
                             ],
-                            if (project.toDoItems.isEmpty)
+                            if (project.projectTasks.isEmpty)
                               Container(
                                 margin: EdgeInsets.symmetric(vertical: 10),
                                 child: Text(
                                   "No tasks yet.",
                                   style: TextStyle(
                                     color:
-                                        Theme.of(context).colorScheme.onSecondary,
+                                        Theme.of(
+                                          context,
+                                        ).colorScheme.onSecondary,
                                     fontSize: 14,
                                   ),
                                 ),
                               )
                             else
-                              ...project.toDoItems.map<Widget>((item) {
+                              ...project.projectTasks.map<Widget>((item) {
                                 return Row(
                                   children: [
                                     Checkbox(
                                       value: completedTasks.contains(item.id),
-                                      onChanged: (bool? changed) {
+                                      onChanged: (bool? changed) async {
                                         setState(() {
-                                          if (!completedTasks.contains(item.id)) {
+                                          if (!completedTasks.contains(
+                                            item.id,
+                                          )) {
                                             completedTasks.add(item.id);
-                                          }
-                                          else {
+                                          } else {
                                             completedTasks.remove(item.id);
                                           }
                                         });
+
+                                        // Update project in database with completed tasks
+                                        try {
+                                          final updatedProject = project
+                                              .copyWith(
+                                                projectTasks:
+                                                    project.projectTasks,
+                                              );
+                                          final projectData =
+                                              updatedProject.toMap();
+                                          projectData['_id'] =
+                                              updatedProject.id;
+                                          projectData['completed_tasks'] =
+                                              completedTasks; // Add completed tasks tracking
+
+                                          bool success =
+                                              await ProjectsAdapter.updateProject(
+                                                projectData,
+                                              );
+                                          if (!success) {
+                                            // Revert the local change if database update failed
+                                            setState(() {
+                                              if (completedTasks.contains(
+                                                item.id,
+                                              )) {
+                                                completedTasks.remove(item.id);
+                                              } else {
+                                                completedTasks.add(item.id);
+                                              }
+                                            });
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'Failed to update task status',
+                                                  ),
+                                                  duration: Duration(
+                                                    seconds: 2,
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          }
+                                        } catch (e) {
+                                          print(
+                                            'Error updating task completion status: $e',
+                                          );
+                                          // Revert the local change
+                                          setState(() {
+                                            if (completedTasks.contains(
+                                              item.id,
+                                            )) {
+                                              completedTasks.remove(item.id);
+                                            } else {
+                                              completedTasks.add(item.id);
+                                            }
+                                          });
+                                        }
                                       },
                                       activeColor:
                                           Theme.of(
@@ -774,6 +1273,213 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                           fontSize: 15,
                                         ),
                                       ),
+                                    ),
+                                    // Add delete button for each task
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.delete_outline,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onPrimary
+                                            .withValues(alpha: 0.7),
+                                        size: 20,
+                                      ),
+                                      onPressed: () async {
+                                        // Show confirmation dialog
+                                        final confirmed = await showDialog<
+                                          bool
+                                        >(
+                                          context: context,
+                                          builder:
+                                              (context) => AlertDialog(
+                                                backgroundColor:
+                                                    Theme.of(
+                                                      context,
+                                                    ).colorScheme.primary,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                  side: BorderSide(
+                                                    color:
+                                                        Theme.of(context)
+                                                            .colorScheme
+                                                            .onSecondary,
+                                                    width: 1.5,
+                                                  ),
+                                                ),
+                                                title: Text(
+                                                  'Delete Task?',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color:
+                                                        Theme.of(
+                                                          context,
+                                                        ).colorScheme.onPrimary,
+                                                  ),
+                                                ),
+                                                content: Text(
+                                                  'This task will be permanently deleted.',
+                                                  style: TextStyle(
+                                                    color:
+                                                        Theme.of(
+                                                          context,
+                                                        ).colorScheme.onPrimary,
+                                                  ),
+                                                ),
+                                                actions: [
+                                                  Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .spaceEvenly,
+                                                    children: [
+                                                      IconButton(
+                                                        onPressed:
+                                                            () => Navigator.pop(
+                                                              context,
+                                                              false,
+                                                            ),
+                                                        icon: Icon(
+                                                          Icons.close,
+                                                          color:
+                                                              Theme.of(context)
+                                                                  .colorScheme
+                                                                  .onPrimary,
+                                                          size: 30,
+                                                        ),
+                                                      ),
+                                                      IconButton(
+                                                        onPressed:
+                                                            () => Navigator.pop(
+                                                              context,
+                                                              true,
+                                                            ),
+                                                        icon: Icon(
+                                                          Icons.check,
+                                                          color:
+                                                              Theme.of(context)
+                                                                  .colorScheme
+                                                                  .error,
+                                                          size: 30,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                        );
+
+                                        if (confirmed == true) {
+                                          // Store original state for rollback
+                                          final originalTasks =
+                                              List<ToDoItem>.from(
+                                                project.projectTasks,
+                                              );
+                                          final originalCompletedTasks =
+                                              List<String>.from(completedTasks);
+
+                                          // Remove task from local state
+                                          setState(() {
+                                            project.projectTasks.removeWhere(
+                                              (task) => task.id == item.id,
+                                            );
+                                            completedTasks.remove(
+                                              item.id,
+                                            ); // Also remove from completed tasks if present
+                                          });
+
+                                          // Update project in database
+                                          try {
+                                            final updatedProject = project
+                                                .copyWith(
+                                                  projectTasks:
+                                                      project.projectTasks,
+                                                );
+                                            final projectData =
+                                                updatedProject.toMap();
+                                            projectData['_id'] =
+                                                updatedProject.id;
+                                            projectData['completed_tasks'] =
+                                                completedTasks;
+
+                                            bool success =
+                                                await ProjectsAdapter.updateProject(
+                                                  projectData,
+                                                );
+                                            if (success) {
+                                              widget.onUpdate(updatedProject);
+                                              if (mounted) {
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      'Task deleted successfully',
+                                                    ),
+                                                    duration: Duration(
+                                                      seconds: 2,
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                            } else {
+                                              // Revert the local change if database update failed
+                                              setState(() {
+                                                project.projectTasks.clear();
+                                                project.projectTasks.addAll(
+                                                  originalTasks,
+                                                );
+                                                completedTasks.clear();
+                                                completedTasks.addAll(
+                                                  originalCompletedTasks,
+                                                );
+                                              });
+                                              if (mounted) {
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      'Failed to delete task',
+                                                    ),
+                                                    duration: Duration(
+                                                      seconds: 2,
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                            }
+                                          } catch (e) {
+                                            print(
+                                              'Error deleting project task: $e',
+                                            );
+                                            // Revert the local change if database update failed
+                                            setState(() {
+                                              project.projectTasks.clear();
+                                              project.projectTasks.addAll(
+                                                originalTasks,
+                                              );
+                                              completedTasks.clear();
+                                              completedTasks.addAll(
+                                                originalCompletedTasks,
+                                              );
+                                            });
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    'Error deleting task: $e',
+                                                  ),
+                                                  duration: Duration(
+                                                    seconds: 2,
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          }
+                                        }
+                                      },
                                     ),
                                   ],
                                 );
@@ -804,27 +1510,109 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                   builder: (context) {
                                     String search = '';
                                     List<Contact> filtered = globalContacts;
-                                    TextEditingController searchController = TextEditingController();
+                                    TextEditingController searchController =
+                                        TextEditingController();
                                     return StatefulBuilder(
                                       builder: (context, setDialogState) {
-                                        filtered = globalContacts
-                                            .where((c) =>
-                                                c.name.toLowerCase().contains(search.toLowerCase()) ||
-                                                c.phoneNumber.toLowerCase().contains(search.toLowerCase()))
-                                            .toList();
+                                        // Filter contacts by search query with improved ordering
+                                        filtered =
+                                            globalContacts
+                                                .where(
+                                                  (c) =>
+                                                      c.name
+                                                          .toLowerCase()
+                                                          .contains(
+                                                            search
+                                                                .toLowerCase(),
+                                                          ) ||
+                                                      c.phoneNumber
+                                                          .toLowerCase()
+                                                          .contains(
+                                                            search
+                                                                .toLowerCase(),
+                                                          ),
+                                                )
+                                                .toList();
+
+                                        // Sort filtered contacts: starts with query first, then contains query
+                                        if (search.isNotEmpty) {
+                                          filtered.sort((a, b) {
+                                            final aNameStartsWith = a.name
+                                                .toLowerCase()
+                                                .startsWith(
+                                                  search.toLowerCase(),
+                                                );
+                                            final bNameStartsWith = b.name
+                                                .toLowerCase()
+                                                .startsWith(
+                                                  search.toLowerCase(),
+                                                );
+                                            final aPhoneStartsWith = a
+                                                .phoneNumber
+                                                .toLowerCase()
+                                                .startsWith(
+                                                  search.toLowerCase(),
+                                                );
+                                            final bPhoneStartsWith = b
+                                                .phoneNumber
+                                                .toLowerCase()
+                                                .startsWith(
+                                                  search.toLowerCase(),
+                                                );
+
+                                            final aStartsWith =
+                                                aNameStartsWith ||
+                                                aPhoneStartsWith;
+                                            final bStartsWith =
+                                                bNameStartsWith ||
+                                                bPhoneStartsWith;
+
+                                            if (aStartsWith && !bStartsWith) {
+                                              return -1;
+                                            }
+                                            if (!aStartsWith && bStartsWith) {
+                                              return 1;
+                                            }
+
+                                            // If both start with query, prioritize name matches over phone matches
+                                            if (aStartsWith && bStartsWith) {
+                                              if (aNameStartsWith &&
+                                                  !bNameStartsWith) {
+                                                return -1;
+                                              }
+                                              if (!aNameStartsWith &&
+                                                  bNameStartsWith) {
+                                                return 1;
+                                              }
+                                            }
+
+                                            return a.name.compareTo(b.name);
+                                          });
+                                        }
                                         return AlertDialog(
-                                          backgroundColor: Theme.of(context).colorScheme.primary,
+                                          backgroundColor:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(16),
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
                                             side: BorderSide(
-                                              color: Theme.of(context).colorScheme.onPrimary,
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onPrimary,
                                               width: 1,
                                             ),
                                           ),
                                           title: Text(
                                             'Add Collaborator',
                                             style: TextStyle(
-                                              color: Theme.of(context).colorScheme.onPrimary,
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onPrimary,
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
@@ -838,92 +1626,168 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                   controller: searchController,
                                                   maxLines: 1,
                                                   style: TextStyle(
-                                                    color: Theme.of(context).colorScheme.onPrimary,
+                                                    color:
+                                                        Theme.of(
+                                                          context,
+                                                        ).colorScheme.onPrimary,
                                                   ),
                                                   decoration: InputDecoration(
-                                                    labelText: "Search in Contacts",
+                                                    labelText:
+                                                        "Search in Contacts",
                                                     labelStyle: TextStyle(
-                                                      color: Theme.of(context).colorScheme.tertiary,
+                                                      color:
+                                                          Theme.of(context)
+                                                              .colorScheme
+                                                              .tertiary,
                                                     ),
                                                     hintStyle: TextStyle(
-                                                      color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.7),
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .tertiary
+                                                          .withValues(
+                                                            alpha: 0.7,
+                                                          ),
                                                     ),
-                                                    enabledBorder: OutlineInputBorder(
-                                                      borderRadius: BorderRadius.circular(12),
-                                                      borderSide: BorderSide(
-                                                        color: Theme.of(
-                                                          context,
-                                                        ).colorScheme.tertiary.withValues(alpha: 0.3),
-                                                      ),
-                                                    ),
-                                                    focusedBorder: OutlineInputBorder(
-                                                      borderRadius: BorderRadius.circular(12),
-                                                      borderSide: BorderSide(
-                                                        color: Theme.of(context).colorScheme.secondary,
-                                                        width: 2,
-                                                      ),
-                                                    ),
+                                                    enabledBorder:
+                                                        OutlineInputBorder(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                12,
+                                                              ),
+                                                          borderSide:
+                                                              BorderSide(
+                                                                color: Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .tertiary
+                                                                    .withValues(
+                                                                      alpha:
+                                                                          0.3,
+                                                                    ),
+                                                              ),
+                                                        ),
+                                                    focusedBorder:
+                                                        OutlineInputBorder(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                12,
+                                                              ),
+                                                          borderSide: BorderSide(
+                                                            color:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .secondary,
+                                                            width: 2,
+                                                          ),
+                                                        ),
                                                   ),
                                                   onChanged: (val) {
                                                     setDialogState(() {
-                                                      search = val; 
+                                                      search = val;
                                                     });
                                                   },
                                                 ),
                                                 Expanded(
-                                                  child: filtered.isEmpty
-                                                      ? Container(
-                                                        margin: EdgeInsets.only(top: 75),
-                                                          child: Text(
+                                                  child:
+                                                      filtered.isEmpty
+                                                          ? Container(
+                                                            margin:
+                                                                EdgeInsets.only(
+                                                                  top: 75,
+                                                                ),
+                                                            child: Text(
                                                               "No contacts found.",
                                                               style: TextStyle(
-                                                                color: Theme.of(context).colorScheme.tertiary,
+                                                                color:
+                                                                    Theme.of(
+                                                                          context,
+                                                                        )
+                                                                        .colorScheme
+                                                                        .tertiary,
                                                               ),
                                                             ),
-                                                        )
-                                                      : ListView.builder(
-                                                          itemCount: filtered.length,
-                                                          itemBuilder: (context, index) {
-                                                            final contact = filtered[index];
-                                                            final alreadyAdded = project.collaborators.any(
-                                                              (c) => c == contact.phoneNumber,
-                                                            );
-                                                            return ListTile(
-                                                              title: Text(
-                                                                contact.name,
-                                                                style: TextStyle(
-                                                                  color: Theme.of(context).colorScheme.onPrimary,
+                                                          )
+                                                          : ListView.builder(
+                                                            itemCount:
+                                                                filtered.length,
+                                                            itemBuilder: (
+                                                              context,
+                                                              index,
+                                                            ) {
+                                                              final contact =
+                                                                  filtered[index];
+                                                              final alreadyAdded = project
+                                                                  .collaborators
+                                                                  .any(
+                                                                    (c) =>
+                                                                        c ==
+                                                                        contact
+                                                                            .phoneNumber,
+                                                                  );
+                                                              return ListTile(
+                                                                title: Text(
+                                                                  contact.name,
+                                                                  style: TextStyle(
+                                                                    color:
+                                                                        Theme.of(
+                                                                          context,
+                                                                        ).colorScheme.onPrimary,
+                                                                  ),
                                                                 ),
-                                                              ),
-                                                              subtitle: Text(
-                                                                contact.phoneNumber,
-                                                                style: TextStyle(
-                                                                  color: Theme.of(context).colorScheme.onSecondary,
+                                                                subtitle: Text(
+                                                                  contact
+                                                                      .phoneNumber,
+                                                                  style: TextStyle(
+                                                                    color:
+                                                                        Theme.of(
+                                                                          context,
+                                                                        ).colorScheme.onSecondary,
+                                                                  ),
                                                                 ),
-                                                              ),
-                                                              trailing: alreadyAdded
-                                                                  ? Icon(Icons.check, color: Theme.of(context).colorScheme.secondary)
-                                                                  : null,
-                                                              enabled: !alreadyAdded,
-                                                              onTap: alreadyAdded
-                                                                  ? null
-                                                                  : () {
-                                                                      Navigator.of(context).pop(contact);
-                                                                    },
-                                                            );
-                                                          },
-                                                        ),
+                                                                trailing:
+                                                                    alreadyAdded
+                                                                        ? Icon(
+                                                                          Icons
+                                                                              .check,
+                                                                          color:
+                                                                              Theme.of(
+                                                                                context,
+                                                                              ).colorScheme.secondary,
+                                                                        )
+                                                                        : null,
+                                                                enabled:
+                                                                    !alreadyAdded,
+                                                                onTap:
+                                                                    alreadyAdded
+                                                                        ? null
+                                                                        : () {
+                                                                          Navigator.of(
+                                                                            context,
+                                                                          ).pop(
+                                                                            contact,
+                                                                          );
+                                                                        },
+                                                              );
+                                                            },
+                                                          ),
                                                 ),
                                               ],
                                             ),
                                           ),
                                           actions: [
                                             TextButton(
-                                              onPressed: () => Navigator.pop(context),
+                                              onPressed:
+                                                  () => Navigator.pop(context),
                                               child: Text(
                                                 'Cancel',
                                                 style: TextStyle(
-                                                  color: Theme.of(context).colorScheme.tertiary,
+                                                  color:
+                                                      Theme.of(
+                                                        context,
+                                                      ).colorScheme.tertiary,
                                                 ),
                                               ),
                                             ),
@@ -937,160 +1801,373 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                     !project.collaborators.contains(
                                       selected.phoneNumber,
                                     )) {
+                                  // Store original state for rollback
+                                  final originalCollaborators =
+                                      List<dynamic>.from(project.collaborators);
+
                                   setState(() {
                                     project.collaborators.add(
                                       selected.phoneNumber,
                                     ); // Add phone number string, not Contact
                                   });
-                                  widget.onUpdate(project);
+
+                                  // Update project in database
+                                  try {
+                                    final updatedProject = project.copyWith(
+                                      collaborators: project.collaborators,
+                                    );
+                                    final projectData = updatedProject.toMap();
+                                    projectData['_id'] = updatedProject.id;
+
+                                    bool success =
+                                        await ProjectsAdapter.updateProject(
+                                          projectData,
+                                        );
+                                    if (success) {
+                                      widget.onUpdate(updatedProject);
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Collaborator "${selected.name}" added successfully',
+                                            ),
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
+                                    } else {
+                                      // Revert the local change if database update failed
+                                      setState(() {
+                                        project.collaborators.clear();
+                                        project.collaborators.addAll(
+                                          originalCollaborators,
+                                        );
+                                      });
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Failed to add collaborator',
+                                            ),
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  } catch (e) {
+                                    print('Error adding collaborator: $e');
+                                    // Revert the local change if database update failed
+                                    setState(() {
+                                      project.collaborators.clear();
+                                      project.collaborators.addAll(
+                                        originalCollaborators,
+                                      );
+                                    });
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Error adding collaborator: $e',
+                                          ),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+                                  }
                                 }
                               },
                             ),
-                          ],                         
+                          ],
                         ),
-                        subtitle: project.collaborators.isEmpty ? 
-                          Container(
-                            margin: EdgeInsets.symmetric(vertical: 10),
-                            child: Text(
-                              "No collaborators",
-                              style: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSecondary,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ) : 
-                          Wrap(
-                            spacing: 8,
-                            children:
-                              project.collaborators.map((phoneNumber) {
-                                // Map over phone numbers
-                                final contact = globalContacts
-                                    .firstWhere(
-                                      (c) =>
-                                          c.phoneNumber == phoneNumber,
-                                      orElse:
-                                          () => Contact(
-                                            id: 0,
-                                            name: "Unknown",
-                                            organization: "",
-                                            phoneNumber: phoneNumber,
-                                            position: "",
-                                            starred: 0,
-                                          ),
-                                    );
-                                return singleFilterChip(
-                                          label: contact.name,
-                                          onTap: () {
-                                            Navigator.of(context).push(
-                                              MaterialPageRoute(
-                                                fullscreenDialog:
-                                                    true, // This preserves the app bar
-                                                builder:
-                                                    (context) => Scaffold(
-                                                      appBar: AppBar(
-                                                        // most of the following is to avoid the body showing up behing the appbar and affecting the background colours
-                                                        elevation: 0,
-                                                        surfaceTintColor:
-                                                            Colors.transparent,
-                                                        scrolledUnderElevation:
-                                                            0,
-                                                        foregroundColor:
-                                                            Theme.of(context)
-                                                                .colorScheme
-                                                                .onPrimary,
-                                                        toolbarHeight:
-                                                            MediaQuery.of(
-                                                              context,
-                                                            ).size.height *
-                                                            0.15,
-                                                        automaticallyImplyLeading:
-                                                            false,
-                                                        backgroundColor:
-                                                            Theme.of(context)
-                                                                .colorScheme
-                                                                .primary,
-                                                        iconTheme: IconThemeData(
-                                                          color:
+                        subtitle:
+                            project.collaborators.isEmpty
+                                ? Container(
+                                  margin: EdgeInsets.symmetric(vertical: 10),
+                                  child: Text(
+                                    "No collaborators",
+                                    style: TextStyle(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onSecondary,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                )
+                                : Container(
+                                  margin: EdgeInsets.symmetric(vertical: 8),
+                                  child: Wrap(
+                                    spacing: 8,
+                                    runSpacing: 4,
+                                    children:
+                                        project.collaborators.map((
+                                          phoneNumber,
+                                        ) {
+                                          // Map over phone numbers
+                                          final contact = globalContacts
+                                              .firstWhere(
+                                                (c) =>
+                                                    c.phoneNumber ==
+                                                    phoneNumber,
+                                                orElse:
+                                                    () => Contact(
+                                                      id: 0,
+                                                      name: "Unknown",
+                                                      organization: "",
+                                                      phoneNumber: phoneNumber,
+                                                      position: "",
+                                                      starred: 0,
+                                                    ),
+                                              );
+                                          return GestureDetector(
+                                            onTap: () {
+                                              // Show contact profile inline
+                                              setState(() {
+                                                openedContact = contact;
+                                              });
+                                            },
+                                            child: Tooltip(
+                                              message:
+                                                  'Tap to view ${contact.name}\'s profile',
+                                              child: Chip(
+                                                backgroundColor: Theme.of(
+                                                      context,
+                                                    ).colorScheme.tertiary
+                                                    .withValues(alpha: 0.8),
+                                                side: BorderSide(
+                                                  color:
+                                                      Theme.of(
+                                                        context,
+                                                      ).colorScheme.secondary,
+                                                  width: 1,
+                                                ),
+                                                label: Text(
+                                                  contact.name,
+                                                  style: TextStyle(
+                                                    color:
+                                                        Theme.of(
+                                                          context,
+                                                        ).colorScheme.primary,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                                deleteIcon: Icon(
+                                                  Icons.close,
+                                                  color:
+                                                      Theme.of(
+                                                        context,
+                                                      ).colorScheme.primary,
+                                                  size: 16,
+                                                ),
+                                                onDeleted: () async {
+                                                  // Show confirmation dialog
+                                                  final confirmed = await showDialog<
+                                                    bool
+                                                  >(
+                                                    context: context,
+                                                    builder:
+                                                        (
+                                                          context,
+                                                        ) => AlertDialog(
+                                                          backgroundColor:
                                                               Theme.of(context)
                                                                   .colorScheme
-                                                                  .onPrimary,
-                                                        ),
-                                                        actions: [Container()],
-                                                        title: Container(
-                                                          padding:
-                                                              const EdgeInsets.symmetric(
-                                                                vertical: 10,
-                                                              ),
-                                                          margin:
-                                                              const EdgeInsets.symmetric(
-                                                                horizontal: 20,
-                                                              ),
-                                                          decoration: BoxDecoration(
-                                                            color:
-                                                                Colors
-                                                                    .transparent,
-                                                            border: Border(
-                                                              bottom: BorderSide(
-                                                                color:
-                                                                    Theme.of(
-                                                                          context,
-                                                                        )
-                                                                        .colorScheme
-                                                                        .onPrimary,
-                                                                width: 2.0,
-                                                              ),
+                                                                  .primary,
+                                                          shape: RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  16,
+                                                                ),
+                                                            side: BorderSide(
+                                                              color:
+                                                                  Theme.of(
+                                                                        context,
+                                                                      )
+                                                                      .colorScheme
+                                                                      .onPrimary,
+                                                              width: 1,
                                                             ),
                                                           ),
-                                                          child: Row(
-                                                            mainAxisAlignment:
-                                                                MainAxisAlignment
-                                                                    .spaceBetween,
-                                                            crossAxisAlignment:
-                                                                CrossAxisAlignment
-                                                                    .start,
-                                                            children: [
-                                                              Text(
-                                                                "onTop.",
-                                                                style: TextStyle(
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                  fontSize: 40,
-                                                                ),
-                                                              ),
-                                                            ],
+                                                          title: Text(
+                                                            'Remove Collaborator',
+                                                            style: TextStyle(
+                                                              color:
+                                                                  Theme.of(
+                                                                        context,
+                                                                      )
+                                                                      .colorScheme
+                                                                      .onPrimary,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                            ),
                                                           ),
+                                                          content: Text(
+                                                            'Remove ${contact.name} from this project?',
+                                                            style: TextStyle(
+                                                              color:
+                                                                  Theme.of(
+                                                                        context,
+                                                                      )
+                                                                      .colorScheme
+                                                                      .onPrimary,
+                                                            ),
+                                                          ),
+                                                          actions: [
+                                                            Row(
+                                                              mainAxisAlignment:
+                                                                  MainAxisAlignment
+                                                                      .spaceEvenly,
+                                                              children: [
+                                                                IconButton(
+                                                                  onPressed:
+                                                                      () => Navigator.pop(
+                                                                        context,
+                                                                        false,
+                                                                      ),
+                                                                  icon: Icon(
+                                                                    Icons.close,
+                                                                    color:
+                                                                        Theme.of(
+                                                                          context,
+                                                                        ).colorScheme.onPrimary,
+                                                                    size: 30,
+                                                                  ),
+                                                                ),
+                                                                IconButton(
+                                                                  onPressed:
+                                                                      () => Navigator.pop(
+                                                                        context,
+                                                                        true,
+                                                                      ),
+                                                                  icon: Icon(
+                                                                    Icons.check,
+                                                                    color:
+                                                                        Theme.of(
+                                                                          context,
+                                                                        ).colorScheme.error,
+                                                                    size: 30,
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ],
                                                         ),
-                                                      ),
-                                                      body: ContactDetails(
-                                                        contact: contact,
-                                                        onBack:
-                                                            () =>
-                                                                Navigator.of(
-                                                                  context,
-                                                                ).pop(),
-                                                      ),
-                                                      
-                                                    ),
+                                                  );
+
+                                                  if (confirmed == true) {
+                                                    // Remove collaborator from local state
+                                                    setState(() {
+                                                      project.collaborators
+                                                          .remove(phoneNumber);
+                                                    });
+
+                                                    // Update project in database
+                                                    try {
+                                                      final updatedProject =
+                                                          project.copyWith(
+                                                            collaborators:
+                                                                project
+                                                                    .collaborators,
+                                                          );
+                                                      final projectData =
+                                                          updatedProject
+                                                              .toMap();
+                                                      projectData['_id'] =
+                                                          updatedProject.id;
+
+                                                      bool success =
+                                                          await ProjectsAdapter.updateProject(
+                                                            projectData,
+                                                          );
+                                                      if (success) {
+                                                        widget.onUpdate(
+                                                          updatedProject,
+                                                        );
+                                                        if (mounted) {
+                                                          ScaffoldMessenger.of(
+                                                            context,
+                                                          ).showSnackBar(
+                                                            SnackBar(
+                                                              content: Text(
+                                                                '${contact.name} removed from project',
+                                                              ),
+                                                              duration:
+                                                                  Duration(
+                                                                    seconds: 2,
+                                                                  ),
+                                                            ),
+                                                          );
+                                                        }
+                                                      } else {
+                                                        // Revert the local change if database update failed
+                                                        setState(() {
+                                                          project.collaborators
+                                                              .add(phoneNumber);
+                                                        });
+                                                        if (mounted) {
+                                                          ScaffoldMessenger.of(
+                                                            context,
+                                                          ).showSnackBar(
+                                                            const SnackBar(
+                                                              content: Text(
+                                                                'Failed to remove collaborator',
+                                                              ),
+                                                              duration:
+                                                                  Duration(
+                                                                    seconds: 2,
+                                                                  ),
+                                                            ),
+                                                          );
+                                                        }
+                                                      }
+                                                    } catch (e) {
+                                                      print(
+                                                        'Error removing collaborator: $e',
+                                                      );
+                                                      // Revert the local change if database update failed
+                                                      setState(() {
+                                                        project.collaborators
+                                                            .add(phoneNumber);
+                                                      });
+                                                      if (mounted) {
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          SnackBar(
+                                                            content: Text(
+                                                              'Error removing collaborator: $e',
+                                                            ),
+                                                            duration: Duration(
+                                                              seconds: 2,
+                                                            ),
+                                                          ),
+                                                        );
+                                                      }
+                                                    }
+                                                  }
+                                                },
                                               ),
-                                            );
-                                          },
-                                        );
-                                }).toList(),
-                              )
-                        ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                  ),
+                                ),
+                      ),
                     ],
                   ),
                 ),
-              )
-              
-            ]
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 }
-
-

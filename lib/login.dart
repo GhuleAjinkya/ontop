@@ -178,456 +178,530 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.primary,
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            child: Center(
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      height: MediaQuery.sizeOf(context).height * 0.15,
-                      child: Container(
-                        alignment: Alignment.center,
-                        child: Text(
-                          "ontop.",
-                          style: TextStyle(
-                            fontSize: 45,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onPrimary,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight:
+                      MediaQuery.of(context).size.height -
+                      MediaQuery.of(context).padding.top -
+                      MediaQuery.of(context).padding.bottom,
+                ),
+                child: IntrinsicHeight(
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Spacer(flex: 1),
+                        Container(
+                          alignment: Alignment.center,
+                          child: Text(
+                            "ontop.",
+                            style: TextStyle(
+                              fontSize: 45,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          textAlign: TextAlign.center,
                         ),
-                      ),
-                    ),
+                        SizedBox(height: 20),
 
-                    // Display error message if any
-                    if (errorMessage.isNotEmpty)
-                      Container(
-                        width: double.infinity,
-                        margin: EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
-                        ),
-                        padding: EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color:
-                              errorMessage.contains('successful')
-                                  ? Colors.green.withValues(alpha: 0.2)
-                                  : Colors.red.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color:
-                                errorMessage.contains('successful')
-                                    ? Colors.green
-                                    : Colors.red,
-                            width: 1,
+                        // Display error message if any
+                        if (errorMessage.isNotEmpty)
+                          Container(
+                            width: double.infinity,
+                            margin: EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 10,
+                            ),
+                            padding: EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color:
+                                  errorMessage.contains('successful')
+                                      ? Colors.green.withValues(alpha: 0.2)
+                                      : Colors.red.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color:
+                                    errorMessage.contains('successful')
+                                        ? Colors.green
+                                        : Colors.red,
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              errorMessage,
+                              style: TextStyle(
+                                color:
+                                    errorMessage.contains('successful')
+                                        ? Colors.green[200]
+                                        : Colors.red[200],
+                                fontWeight: FontWeight.w500,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
-                        ),
-                        child: Text(
-                          errorMessage,
-                          style: TextStyle(
-                            color:
-                                errorMessage.contains('successful')
-                                    ? Colors.green[200]
-                                    : Colors.red[200],
-                            fontWeight: FontWeight.w500,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
 
-                    SizedBox(
-                      height: loggingIn ? 200 : 340,
-                      child: Container(
-                        margin: EdgeInsets.symmetric(horizontal: 20),
-                        child:
-                            loggingIn
-                                ?
-                                // Login Form
-                                Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    TextField(
-                                      controller: phoneNumber,
-                                      keyboardType:
-                                          TextInputType.numberWithOptions(
-                                            signed: false,
-                                            decimal: false,
+                        SizedBox(
+                          height: loggingIn ? 200 : 340,
+                          child: Container(
+                            margin: EdgeInsets.symmetric(horizontal: 20),
+                            child:
+                                loggingIn
+                                    ?
+                                    // Login Form
+                                    Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        TextField(
+                                          controller: phoneNumber,
+                                          keyboardType:
+                                              TextInputType.numberWithOptions(
+                                                signed: false,
+                                                decimal: false,
+                                              ),
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter
+                                                .digitsOnly,
+                                          ],
+                                          style: TextStyle(
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.onPrimary,
                                           ),
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly,
+                                          cursorColor:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.tertiary,
+                                          decoration: InputDecoration(
+                                            hintText: 'Phone Number',
+                                            labelText: 'Phone Number',
+                                            prefixIcon: Icon(
+                                              Icons.phone_android,
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            labelStyle: TextStyle(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            hintStyle: TextStyle(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            border:
+                                                const UnderlineInputBorder(),
+                                          ),
+                                        ),
+                                        SizedBox(height: 15),
+                                        TextField(
+                                          controller: password,
+                                          obscureText: !showPassword,
+                                          style: TextStyle(
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.onPrimary,
+                                          ),
+                                          cursorColor:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.tertiary,
+                                          decoration: InputDecoration(
+                                            hintText: 'Password',
+                                            labelText: 'Password',
+                                            prefixIcon: Icon(
+                                              Icons.lock_outline,
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            suffixIcon: IconButton(
+                                              icon: Icon(
+                                                showPassword
+                                                    ? Icons.visibility_off
+                                                    : Icons.visibility,
+                                                color:
+                                                    Theme.of(
+                                                      context,
+                                                    ).colorScheme.onSecondary,
+                                              ),
+                                              onPressed: () {
+                                                setState(
+                                                  () =>
+                                                      showPassword =
+                                                          !showPassword,
+                                                );
+                                              },
+                                            ),
+                                            labelStyle: TextStyle(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            hintStyle: TextStyle(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            border:
+                                                const UnderlineInputBorder(),
+                                          ),
+                                        ),
                                       ],
-                                      style: TextStyle(
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.onPrimary,
-                                      ),
-                                      cursorColor:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.tertiary,
-                                      decoration: InputDecoration(
-                                        hintText: 'Phone Number',
-                                        labelText: 'Phone Number',
-                                        prefixIcon: Icon(
-                                          Icons.phone_android,
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSecondary,
-                                        ),
-                                        labelStyle: TextStyle(
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSecondary,
-                                        ),
-                                        hintStyle: TextStyle(
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSecondary,
-                                        ),
-                                        border: const UnderlineInputBorder(),
-                                      ),
-                                    ),
-                                    SizedBox(height: 15),
-                                    TextField(
-                                      controller: password,
-                                      obscureText: !showPassword,
-                                      style: TextStyle(
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.onPrimary,
-                                      ),
-                                      cursorColor:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.tertiary,
-                                      decoration: InputDecoration(
-                                        hintText: 'Password',
-                                        labelText: 'Password',
-                                        prefixIcon: Icon(
-                                          Icons.lock_outline,
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSecondary,
-                                        ),
-                                        suffixIcon: IconButton(
-                                          icon: Icon(
-                                            showPassword
-                                                ? Icons.visibility_off
-                                                : Icons.visibility,
+                                    )
+                                    :
+                                    // Registration/Signup Form
+                                    ListView(
+                                      padding: EdgeInsets.zero,
+                                      children: [
+                                        TextField(
+                                          controller: name,
+                                          style: TextStyle(
                                             color:
                                                 Theme.of(
                                                   context,
-                                                ).colorScheme.onSecondary,
+                                                ).colorScheme.onPrimary,
                                           ),
-                                          onPressed: () {
-                                            setState(
-                                              () =>
-                                                  showPassword = !showPassword,
-                                            );
-                                          },
-                                        ),
-                                        labelStyle: TextStyle(
-                                          color:
+                                          cursorColor:
                                               Theme.of(
                                                 context,
-                                              ).colorScheme.onSecondary,
-                                        ),
-                                        hintStyle: TextStyle(
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSecondary,
-                                        ),
-                                        border: const UnderlineInputBorder(),
-                                      ),
-                                    ),
-                                  ],
-                                )
-                                :
-                                // Registration/Signup Form
-                                ListView(
-                                  padding: EdgeInsets.zero,
-                                  children: [
-                                    TextField(
-                                      controller: name,
-                                      style: TextStyle(
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.onPrimary,
-                                      ),
-                                      cursorColor:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.tertiary,
-                                      decoration: InputDecoration(
-                                        hintText: 'Full Name',
-                                        labelText: 'Full Name',
-                                        prefixIcon: Icon(
-                                          Icons.person_outline,
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSecondary,
-                                        ),
-                                        labelStyle: TextStyle(
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSecondary,
-                                        ),
-                                        hintStyle: TextStyle(
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSecondary,
-                                        ),
-                                        border: const UnderlineInputBorder(),
-                                      ),
-                                    ),
-                                    SizedBox(height: 15),
-                                    TextField(
-                                      controller: phoneNumber,
-                                      keyboardType:
-                                          TextInputType.numberWithOptions(
-                                            signed: false,
-                                            decimal: false,
+                                              ).colorScheme.tertiary,
+                                          decoration: InputDecoration(
+                                            hintText: 'Full Name',
+                                            labelText: 'Full Name',
+                                            prefixIcon: Icon(
+                                              Icons.person_outline,
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            labelStyle: TextStyle(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            hintStyle: TextStyle(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            border:
+                                                const UnderlineInputBorder(),
                                           ),
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly,
+                                        ),
+                                        SizedBox(height: 15),
+                                        TextField(
+                                          controller: phoneNumber,
+                                          keyboardType:
+                                              TextInputType.numberWithOptions(
+                                                signed: false,
+                                                decimal: false,
+                                              ),
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter
+                                                .digitsOnly,
+                                          ],
+                                          style: TextStyle(
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.onPrimary,
+                                          ),
+                                          cursorColor:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.tertiary,
+                                          decoration: InputDecoration(
+                                            hintText: 'Phone Number',
+                                            labelText: 'Phone Number',
+                                            prefixIcon: Icon(
+                                              Icons.phone_android,
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            labelStyle: TextStyle(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            hintStyle: TextStyle(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            border:
+                                                const UnderlineInputBorder(),
+                                          ),
+                                        ),
+                                        SizedBox(height: 15),
+                                        TextField(
+                                          controller: email,
+                                          keyboardType:
+                                              TextInputType.emailAddress,
+                                          style: TextStyle(
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.onPrimary,
+                                          ),
+                                          cursorColor:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.tertiary,
+                                          decoration: InputDecoration(
+                                            hintText: 'E-mail ID',
+                                            labelText: 'E-mail ID',
+                                            prefixIcon: Icon(
+                                              Icons.email_outlined,
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            labelStyle: TextStyle(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            hintStyle: TextStyle(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            border:
+                                                const UnderlineInputBorder(),
+                                          ),
+                                        ),
+                                        SizedBox(height: 15),
+                                        TextField(
+                                          controller: password,
+                                          obscureText: !showPassword,
+                                          style: TextStyle(
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.onPrimary,
+                                          ),
+                                          cursorColor:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.tertiary,
+                                          decoration: InputDecoration(
+                                            hintText: 'Password',
+                                            labelText: 'Password',
+                                            prefixIcon: Icon(
+                                              Icons.lock_outline,
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            suffixIcon: IconButton(
+                                              icon: Icon(
+                                                showPassword
+                                                    ? Icons.visibility_off
+                                                    : Icons.visibility,
+                                                color:
+                                                    Theme.of(
+                                                      context,
+                                                    ).colorScheme.onSecondary,
+                                              ),
+                                              onPressed: () {
+                                                setState(
+                                                  () =>
+                                                      showPassword =
+                                                          !showPassword,
+                                                );
+                                              },
+                                            ),
+                                            labelStyle: TextStyle(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            hintStyle: TextStyle(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            border:
+                                                const UnderlineInputBorder(),
+                                          ),
+                                        ),
+                                        SizedBox(height: 15),
+                                        TextField(
+                                          controller: confirmPassword,
+                                          obscureText: !showConfirmPassword,
+                                          style: TextStyle(
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.onPrimary,
+                                          ),
+                                          cursorColor:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.tertiary,
+                                          decoration: InputDecoration(
+                                            hintText: 'Confirm Password',
+                                            labelText: 'Confirm Password',
+                                            prefixIcon: Icon(
+                                              Icons.lock_outline,
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            suffixIcon: IconButton(
+                                              icon: Icon(
+                                                showConfirmPassword
+                                                    ? Icons.visibility_off
+                                                    : Icons.visibility,
+                                                color:
+                                                    Theme.of(
+                                                      context,
+                                                    ).colorScheme.onSecondary,
+                                              ),
+                                              onPressed: () {
+                                                setState(
+                                                  () =>
+                                                      showConfirmPassword =
+                                                          !showConfirmPassword,
+                                                );
+                                              },
+                                            ),
+                                            labelStyle: TextStyle(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            hintStyle: TextStyle(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSecondary,
+                                            ),
+                                            border:
+                                                const UnderlineInputBorder(),
+                                          ),
+                                        ),
                                       ],
-                                      style: TextStyle(
+                                    ),
+                          ),
+                        ), // Login/Signup Button
+                        Container(
+                          margin: EdgeInsets.only(top: 20),
+                          decoration: standardTile(20),
+                          child: Container(
+                            margin: EdgeInsets.all(3),
+                            width: MediaQuery.of(context).size.width * 0.8,
+                            height: 50,
+                            child:
+                                isLoading
+                                    ? Center(
+                                      child: CircularProgressIndicator(
                                         color:
                                             Theme.of(
                                               context,
                                             ).colorScheme.onPrimary,
+                                        strokeWidth: 3,
                                       ),
-                                      cursorColor:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.tertiary,
-                                      decoration: InputDecoration(
-                                        hintText: 'Phone Number',
-                                        labelText: 'Phone Number',
-                                        prefixIcon: Icon(
-                                          Icons.phone_android,
+                                    )
+                                    : TextButton(
+                                      onPressed: () {
+                                        // Hide keyboard when button is pressed
+                                        FocusScope.of(context).unfocus();
+
+                                        if (loggingIn) {
+                                          _handleLogin();
+                                        } else {
+                                          _handleSignup();
+                                        }
+                                      },
+                                      child: Text(
+                                        loggingIn ? "Log In" : "Sign Up",
+                                        style: TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
                                           color:
                                               Theme.of(
                                                 context,
-                                              ).colorScheme.onSecondary,
+                                              ).colorScheme.onPrimary,
                                         ),
-                                        labelStyle: TextStyle(
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSecondary,
-                                        ),
-                                        hintStyle: TextStyle(
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSecondary,
-                                        ),
-                                        border: const UnderlineInputBorder(),
                                       ),
                                     ),
-                                    SizedBox(height: 15),
-                                    TextField(
-                                      controller: email,
-                                      keyboardType: TextInputType.emailAddress,
-                                      style: TextStyle(
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.onPrimary,
-                                      ),
-                                      cursorColor:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.tertiary,
-                                      decoration: InputDecoration(
-                                        hintText: 'E-mail ID',
-                                        labelText: 'E-mail ID',
-                                        prefixIcon: Icon(
-                                          Icons.email_outlined,
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSecondary,
-                                        ),
-                                        labelStyle: TextStyle(
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSecondary,
-                                        ),
-                                        hintStyle: TextStyle(
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSecondary,
-                                        ),
-                                        border: const UnderlineInputBorder(),
-                                      ),
-                                    ),
-                                    SizedBox(height: 15),
-                                    TextField(
-                                      controller: password,
-                                      obscureText: !showPassword,
-                                      style: TextStyle(
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.onPrimary,
-                                      ),
-                                      cursorColor:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.tertiary,
-                                      decoration: InputDecoration(
-                                        hintText: 'Password',
-                                        labelText: 'Password',
-                                        prefixIcon: Icon(
-                                          Icons.lock_outline,
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSecondary,
-                                        ),
-                                        suffixIcon: IconButton(
-                                          icon: Icon(
-                                            showPassword
-                                                ? Icons.visibility_off
-                                                : Icons.visibility,
-                                            color:
-                                                Theme.of(
-                                                  context,
-                                                ).colorScheme.onSecondary,
-                                          ),
-                                          onPressed: () {
-                                            setState(
-                                              () =>
-                                                  showPassword = !showPassword,
-                                            );
-                                          },
-                                        ),
-                                        labelStyle: TextStyle(
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSecondary,
-                                        ),
-                                        hintStyle: TextStyle(
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSecondary,
-                                        ),
-                                        border: const UnderlineInputBorder(),
-                                      ),
-                                    ),
-                                    SizedBox(height: 15),
-                                    TextField(
-                                      controller: confirmPassword,
-                                      obscureText: !showConfirmPassword,
-                                      style: TextStyle(
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.onPrimary,
-                                      ),
-                                      cursorColor:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.tertiary,
-                                      decoration: InputDecoration(
-                                        hintText: 'Confirm Password',
-                                        labelText: 'Confirm Password',
-                                        prefixIcon: Icon(
-                                          Icons.lock_outline,
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSecondary,
-                                        ),
-                                        suffixIcon: IconButton(
-                                          icon: Icon(
-                                            showConfirmPassword
-                                                ? Icons.visibility_off
-                                                : Icons.visibility,
-                                            color:
-                                                Theme.of(
-                                                  context,
-                                                ).colorScheme.onSecondary,
-                                          ),
-                                          onPressed: () {
-                                            setState(
-                                              () =>
-                                                  showConfirmPassword =
-                                                      !showConfirmPassword,
-                                            );
-                                          },
-                                        ),
-                                        labelStyle: TextStyle(
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSecondary,
-                                        ),
-                                        hintStyle: TextStyle(
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onSecondary,
-                                        ),
-                                        border: const UnderlineInputBorder(),
-                                      ),
-                                    ),
-                                  ],
+                          ),
+                        ),
+
+                        // Toggle between Login and Signup
+                        Container(
+                          margin: EdgeInsets.only(top: 20, bottom: 20),
+                          child: TextButton(
+                            onPressed: () {
+                              if (isLoading) {
+                                return; // Prevent switching while loading
+                              }
+
+                              setState(() {
+                                loggingIn = !loggingIn;
+                                errorMessage = ''; // Clear any error messages
+                              });
+
+                              // Clear fields when switching forms
+                              if (loggingIn) {
+                                phoneNumber.clear();
+                                password.clear();
+                              } else {
+                                name.clear();
+                                phoneNumber.clear();
+                                email.clear();
+                                password.clear();
+                                confirmPassword.clear();
+                              }
+                            },
+                            child: Text.rich(
+                              TextSpan(
+                                text:
+                                    loggingIn
+                                        ? "Don't have an account? "
+                                        : "Already have an account? ",
+                                style: TextStyle(
+                                  color:
+                                      Theme.of(context).colorScheme.onSecondary,
+                                  fontWeight: FontWeight.normal,
                                 ),
-                      ),
-                    ), // Login/Signup Button
-                    Container(
-                      margin: EdgeInsets.only(top: 20),
-                      decoration: standardTile(20),
-                      child: Container(
-                        margin: EdgeInsets.all(3),
-                        width: MediaQuery.of(context).size.width * 0.8,
-                        height: 50,
-                        child:
-                            isLoading
-                                ? Center(
-                                  child: CircularProgressIndicator(
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                    strokeWidth: 3,
-                                  ),
-                                )
-                                : TextButton(
-                                  onPressed: () {
-                                    // Hide keyboard when button is pressed
-                                    FocusScope.of(context).unfocus();
-
-                                    if (loggingIn) {
-                                      _handleLogin();
-                                    } else {
-                                      _handleSignup();
-                                    }
-                                  },
-                                  child: Text(
-                                    loggingIn ? "Log In" : "Sign Up",
+                                children: [
+                                  TextSpan(
+                                    text: loggingIn ? "Sign Up" : "Log In",
                                     style: TextStyle(
-                                      fontSize: 20,
                                       fontWeight: FontWeight.bold,
                                       color:
                                           Theme.of(
@@ -635,66 +709,20 @@ class _LoginPageState extends State<LoginPage> {
                                           ).colorScheme.onPrimary,
                                     ),
                                   ),
-                                ),
-                      ),
-                    ),
-
-                    // Toggle between Login and Signup
-                    Container(
-                      margin: EdgeInsets.only(top: 20, bottom: 20),
-                      child: TextButton(
-                        onPressed: () {
-                          if (isLoading) {
-                            return; // Prevent switching while loading
-                          }
-
-                          setState(() {
-                            loggingIn = !loggingIn;
-                            errorMessage = ''; // Clear any error messages
-                          });
-
-                          // Clear fields when switching forms
-                          if (loggingIn) {
-                            phoneNumber.clear();
-                            password.clear();
-                          } else {
-                            name.clear();
-                            phoneNumber.clear();
-                            email.clear();
-                            password.clear();
-                            confirmPassword.clear();
-                          }
-                        },
-                        child: Text.rich(
-                          TextSpan(
-                            text:
-                                loggingIn
-                                    ? "Don't have an account? "
-                                    : "Already have an account? ",
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onSecondary,
-                              fontWeight: FontWeight.normal,
-                            ),
-                            children: [
-                              TextSpan(
-                                text: loggingIn ? "Sign Up" : "Log In",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
+                        Spacer(flex: 1),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -73,7 +73,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'onTop',
+      title: 'ontop.',
       // Theme stores details like the font and colours used
       theme: ThemeData(
         fontFamily: 'Poppins',
@@ -155,7 +155,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             Positioned(
-              top: 20,
+              top: 35,
               right: 20,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -283,7 +283,7 @@ class _HomePageState extends State<HomePage> {
               // Appbar with name and greeting
               SizedBox(height: 5),
               Text(
-                "onTop.",
+                "ontop.",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 40),
               ),
               Column(
@@ -434,7 +434,7 @@ class _TabsState extends State<Tabs> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "onTop.",
+                "ontop.",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 40),
               ),
               Builder(

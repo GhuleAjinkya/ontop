@@ -40,10 +40,9 @@ android {
         }
     }
 
-    applicationVariants.all {
-        outputs.forEach { output ->
+    applicationVariants.all {        outputs.forEach { output ->
             val outputImpl = output as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            outputImpl.outputFileName = "onTop-${name}.apk"
+            outputImpl.outputFileName = "ontop.-${name}.apk"
         }
     }
 }

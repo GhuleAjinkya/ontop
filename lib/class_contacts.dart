@@ -74,7 +74,7 @@ class Contact {
 }
 
 class Contacts extends StatefulWidget {
-  const Contacts({super.key, this.contactToOpen,});
+  const Contacts({super.key, this.contactToOpen});
 
   final Contact? contactToOpen;
   @override
@@ -100,11 +100,7 @@ class _ContactsState extends State<Contacts> {
   Contact? openedContact;
 
   // stores data about how individual contacts in the list look like and how they react
-  Widget buildContactTiles(
-    List<Contact> contacts,
-    {
-    bool starred = false,
-  }) {
+  Widget buildContactTiles(List<Contact> contacts, {bool starred = false}) {
     Icon contactIcon;
     if (starred) {
       contactIcon = Icon(Icons.star_rounded);
@@ -515,10 +511,9 @@ class _ContactsState extends State<Contacts> {
                                         Theme.of(context).colorScheme.onPrimary,
                                   ),
                                   cursorColor:
-                                      Theme.of(context).colorScheme.tertiary,
-                                  decoration: InputDecoration(
+                                      Theme.of(context).colorScheme.tertiary,                                  decoration: InputDecoration(
                                     hintText: 'Search',
-                                    labelText: 'Search for a Section',
+                                    labelText: 'Search contacts',
                                     labelStyle: TextStyle(
                                       color:
                                           Theme.of(
@@ -1086,75 +1081,25 @@ class _ContactsState extends State<Contacts> {
                     ),
                   ),
                 ),
-              ],
-              Expanded(
+              ],              Expanded(
                 child: ListView(
                   children: [
-                    if (starred.isNotEmpty) ...[
-                      Container(
-                        margin: const EdgeInsets.only(left: 40),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.star_rounded,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                              size: 20,
-                            ),
-                            Expanded(
-                              child: Container(
-                                margin: const EdgeInsets.only(
-                                  left: 10,
-                                  right: 40,
-                                ),
-                                height: 5,
-                                decoration: BoxDecoration(
-                                  color: Colors.transparent,
-                                  border: Border(
-                                    bottom: BorderSide(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimary,
-                                      width: 0.75,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      buildContactTiles(starred, starred: true),
-                    ],
-                    for (var entry in sections.entries)
+                    // Show different layouts based on search state
+                    if (searchQuery.isEmpty) ...[
+                      // Normal view with sections when not searching
                       ...(() {
-                        final filteredContacts =
-                            entry.value
-                                .where(
-                                  (contact) => contact.name
-                                      .toLowerCase()
-                                      .contains(searchQuery),
-                                )
-                                .toList();
-                        if (filteredContacts.isNotEmpty) {
+                        if (starred.isNotEmpty) {
                           return [
-                            const Divider(height: 1, color: Colors.transparent),
                             Container(
                               margin: const EdgeInsets.only(left: 40),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  Text(
-                                    entry.key,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimary,
-                                      //fontWeight: FontWeight.bold,
-                                    ),
+                                  Icon(
+                                    Icons.star_rounded,
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                    size: 20,
                                   ),
                                   Expanded(
                                     child: Container(
@@ -1180,12 +1125,147 @@ class _ContactsState extends State<Contacts> {
                                 ],
                               ),
                             ),
-                            buildContactTiles(filteredContacts),
+                            buildContactTiles(starred, starred: true),
                           ];
+                        }
+                        return <Widget>[];
+                      })(),
+                      // Show alphabetical sections
+                      for (var entry in sections.entries)
+                        ...(() {
+                          if (entry.value.isNotEmpty) {
+                            return [
+                              const Divider(height: 1, color: Colors.transparent),
+                              Container(
+                                margin: const EdgeInsets.only(left: 40),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      entry.key,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimary,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Container(
+                                        margin: const EdgeInsets.only(
+                                          left: 10,
+                                          right: 40,
+                                        ),
+                                        height: 5,
+                                        decoration: BoxDecoration(
+                                          color: Colors.transparent,
+                                          border: Border(
+                                            bottom: BorderSide(
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onPrimary,
+                                              width: 0.75,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              buildContactTiles(entry.value),
+                            ];
+                          } else {
+                            return <Widget>[];
+                          }
+                        })(),
+                    ] else ...[
+                      // Search view - flat list without sections
+                      ...(() {
+                        List<Contact> allFilteredContacts = [];
+                        
+                        // Filter starred contacts by search query
+                        final filteredStarredContacts = starred
+                            .where(
+                              (contact) => contact.name
+                                  .toLowerCase()
+                                  .contains(searchQuery.toLowerCase()) ||
+                                  contact.phoneNumber
+                                  .toLowerCase()
+                                  .contains(searchQuery.toLowerCase()),
+                            )
+                            .toList();
+                        
+                        // Filter all other contacts by search query
+                        final filteredRegularContacts = contacts
+                            .where((contact) => 
+                                contact.starred == 0 && 
+                                (contact.name
+                                    .toLowerCase()
+                                    .contains(searchQuery.toLowerCase()) ||
+                                contact.phoneNumber
+                                    .toLowerCase()
+                                    .contains(searchQuery.toLowerCase()))
+                            )
+                            .toList();
+                        
+                        // Combine all filtered contacts
+                        allFilteredContacts.addAll(filteredStarredContacts);
+                        allFilteredContacts.addAll(filteredRegularContacts);
+                        
+                        // Sort all contacts: starts with query first, then contains query
+                        allFilteredContacts.sort((a, b) {
+                          final aNameStartsWith = a.name.toLowerCase().startsWith(
+                            searchQuery.toLowerCase(),
+                          );
+                          final bNameStartsWith = b.name.toLowerCase().startsWith(
+                            searchQuery.toLowerCase(),
+                          );
+                          final aPhoneStartsWith = a.phoneNumber.toLowerCase().startsWith(
+                            searchQuery.toLowerCase(),
+                          );
+                          final bPhoneStartsWith = b.phoneNumber.toLowerCase().startsWith(
+                            searchQuery.toLowerCase(),
+                          );
+                          
+                          final aStartsWith = aNameStartsWith || aPhoneStartsWith;
+                          final bStartsWith = bNameStartsWith || bPhoneStartsWith;
+                          
+                          if (aStartsWith && !bStartsWith) return -1;
+                          if (!aStartsWith && bStartsWith) return 1;
+                          
+                          // If both start with query, prioritize name matches over phone matches
+                          if (aStartsWith && bStartsWith) {
+                            if (aNameStartsWith && !bNameStartsWith) return -1;
+                            if (!aNameStartsWith && bNameStartsWith) return 1;
+                          }
+                          
+                          // Finally sort by name
+                          return a.name.compareTo(b.name);
+                        });
+                        
+                        if (allFilteredContacts.isNotEmpty) {
+                          return [buildContactTiles(allFilteredContacts)];
                         } else {
-                          return [];
+                          return [
+                            Container(
+                              margin: EdgeInsets.only(top: 50),
+                              child: Center(
+                                child: Text(
+                                  'No contacts found',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.tertiary,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ];
                         }
                       })(),
+                    ],
                   ],
                 ),
               ),
@@ -1635,7 +1715,7 @@ class _ContactDetailsState extends State<ContactDetails> {
                       "Notes",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onPrimary, 
+                        color: Theme.of(context).colorScheme.onPrimary,
                       ),
                     ),
                     subtitle: Text(
