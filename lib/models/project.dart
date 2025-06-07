@@ -1,11 +1,10 @@
-import 'contact.dart';
 import 'to_do_item.dart';
 
 class Project {
   final int id;
   String title;
   String description;
-  List<Contact> collaborators;
+  List<String> collaborators;
   List<ToDoItem> toDoItems;
 
   Project({

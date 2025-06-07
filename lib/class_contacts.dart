@@ -73,11 +73,10 @@ class Contact {
   }
 }
 
-List<Contact> globalContacts = [];
-
 class Contacts extends StatefulWidget {
-  const Contacts({super.key});
+  const Contacts({super.key, this.contactToOpen,});
 
+  final Contact? contactToOpen;
   @override
   State<Contacts> createState() => _ContactsState();
 }
@@ -202,7 +201,6 @@ class _ContactsState extends State<Contacts> {
 
       // Convert documents to Contact objects
       contacts = fetchedContacts.map((doc) => Contact.fromMongo(doc)).toList();
-      globalContacts = contacts;
 
       print("Successfully loaded ${contacts.length} contacts for user $userId");
     } catch (e) {
@@ -445,6 +443,9 @@ class _ContactsState extends State<Contacts> {
   void initState() {
     super.initState();
     begin();
+    if (widget.contactToOpen != null) {
+      openedContact = widget.contactToOpen;
+    }
   }
 
   @override

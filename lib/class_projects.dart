@@ -1,9 +1,10 @@
-import 'package:asep_app/models/contact.dart' as model_contact;
 import 'package:flutter/material.dart';
 import 'models/project.dart';
 import 'models/to_do_item.dart';
 import 'main.dart';
-import 'class_contacts.dart' as local_contact;
+import 'class_contacts.dart';
+import 'mongodb.dart';
+import 'user_session.dart';
 
 class Projects extends StatefulWidget {
   const Projects({super.key});
@@ -64,20 +65,9 @@ class _ProjectsState extends State<Projects> {
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  project.collaborators.isNotEmpty ? 
-                    Text(
-                      "Collaborators: ${project.collaborators}",
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 17,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                      ),  
-                    ) : Container(),
                   project.description.isNotEmpty ? 
                     Text(
-                      project.description.isNotEmpty ?
-                      "Description: ${project.description}" : "",
+                      "Description: ${project.description}",
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -239,9 +229,9 @@ class _ProjectsState extends State<Projects> {
                             Project(
                               id: tempID,
                               title: projectTitle.text,
-                              description: "", 
-                              collaborators: [], 
-                              toDoItems: []
+                              description: "",
+                              collaborators: [], // List<String>
+                              toDoItems: [],
                             )
                           );
                           projectTitle.clear();
@@ -290,12 +280,28 @@ class _ProjectDetailsState extends State<ProjectDetails> {
   TextEditingController textController = TextEditingController();
   DateTime? selectedDate;
   TimeOfDay? selectedTime;
-
   int id = 0;
+  List<Contact> globalContacts = [];
+
+  Future<void> loadContactsFromMongo() async {
+    String userId = UserSession().userId ?? '';
+    List<Map<String, dynamic>> mongoContacts = await MongoDatabase.getContacts(userId: userId, type: 'contact');
+    globalContacts = mongoContacts.map((doc) => Contact(
+      id: doc['id'],
+      name: doc['name'],
+      organization: doc['organization'],
+      phoneNumber: doc['phoneNumber'],
+      position: doc['position'],
+      starred: doc['starred'] ?? 0,
+    )).toList();
+    setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
     descriptionController = TextEditingController(text: project.description);
+    loadContactsFromMongo();
   }
 
   @override
@@ -792,8 +798,152 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                 Icons.add,
                                 color: Theme.of(context).colorScheme.onPrimary,
                               ),
-                              onPressed: () {
-
+                              onPressed: () async {
+                                final selected = await showDialog<Contact>(
+                                  context: context,
+                                  builder: (context) {
+                                    String search = '';
+                                    List<Contact> filtered = globalContacts;
+                                    TextEditingController searchController = TextEditingController();
+                                    return StatefulBuilder(
+                                      builder: (context, setDialogState) {
+                                        filtered = globalContacts
+                                            .where((c) =>
+                                                c.name.toLowerCase().contains(search.toLowerCase()) ||
+                                                c.phoneNumber.toLowerCase().contains(search.toLowerCase()))
+                                            .toList();
+                                        return AlertDialog(
+                                          backgroundColor: Theme.of(context).colorScheme.primary,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(16),
+                                            side: BorderSide(
+                                              color: Theme.of(context).colorScheme.onPrimary,
+                                              width: 1,
+                                            ),
+                                          ),
+                                          title: Text(
+                                            'Add Collaborator',
+                                            style: TextStyle(
+                                              color: Theme.of(context).colorScheme.onPrimary,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          content: SizedBox(
+                                            width: 200,
+                                            height: 200,
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                TextField(
+                                                  controller: searchController,
+                                                  maxLines: 1,
+                                                  style: TextStyle(
+                                                    color: Theme.of(context).colorScheme.onPrimary,
+                                                  ),
+                                                  decoration: InputDecoration(
+                                                    labelText: "Search in Contacts",
+                                                    labelStyle: TextStyle(
+                                                      color: Theme.of(context).colorScheme.tertiary,
+                                                    ),
+                                                    hintStyle: TextStyle(
+                                                      color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.7),
+                                                    ),
+                                                    enabledBorder: OutlineInputBorder(
+                                                      borderRadius: BorderRadius.circular(12),
+                                                      borderSide: BorderSide(
+                                                        color: Theme.of(
+                                                          context,
+                                                        ).colorScheme.tertiary.withValues(alpha: 0.3),
+                                                      ),
+                                                    ),
+                                                    focusedBorder: OutlineInputBorder(
+                                                      borderRadius: BorderRadius.circular(12),
+                                                      borderSide: BorderSide(
+                                                        color: Theme.of(context).colorScheme.secondary,
+                                                        width: 2,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  onChanged: (val) {
+                                                    setDialogState(() {
+                                                      search = val; 
+                                                    });
+                                                  },
+                                                ),
+                                                Expanded(
+                                                  child: filtered.isEmpty
+                                                      ? Container(
+                                                        margin: EdgeInsets.only(top: 75),
+                                                          child: Text(
+                                                              "No contacts found.",
+                                                              style: TextStyle(
+                                                                color: Theme.of(context).colorScheme.tertiary,
+                                                              ),
+                                                            ),
+                                                        )
+                                                      : ListView.builder(
+                                                          itemCount: filtered.length,
+                                                          itemBuilder: (context, index) {
+                                                            final contact = filtered[index];
+                                                            final alreadyAdded = project.collaborators.any(
+                                                              (c) => c == contact.phoneNumber,
+                                                            );
+                                                            return ListTile(
+                                                              title: Text(
+                                                                contact.name,
+                                                                style: TextStyle(
+                                                                  color: Theme.of(context).colorScheme.onPrimary,
+                                                                ),
+                                                              ),
+                                                              subtitle: Text(
+                                                                contact.phoneNumber,
+                                                                style: TextStyle(
+                                                                  color: Theme.of(context).colorScheme.onSecondary,
+                                                                ),
+                                                              ),
+                                                              trailing: alreadyAdded
+                                                                  ? Icon(Icons.check, color: Theme.of(context).colorScheme.secondary)
+                                                                  : null,
+                                                              enabled: !alreadyAdded,
+                                                              onTap: alreadyAdded
+                                                                  ? null
+                                                                  : () {
+                                                                      Navigator.of(context).pop(contact);
+                                                                    },
+                                                            );
+                                                          },
+                                                        ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(context),
+                                              child: Text(
+                                                'Cancel',
+                                                style: TextStyle(
+                                                  color: Theme.of(context).colorScheme.tertiary,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+                                  },
+                                );
+                                if (selected != null &&
+                                    !project.collaborators.contains(
+                                      selected.phoneNumber,
+                                    )) {
+                                  setState(() {
+                                    project.collaborators.add(
+                                      selected.phoneNumber,
+                                    ); // Add phone number string, not Contact
+                                  });
+                                  widget.onUpdate(project);
+                                }
                               },
                             ),
                           ],                         
@@ -811,30 +961,125 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                             ),
                           ) : 
                           Wrap(
-                                  spacing: 8,
-                                  children:
-                                      project.collaborators.map((contact) {
-                                        return ActionChip(
-                                          label: Text(
-                                            contact.name,
-                                            style: TextStyle(
-                                              color:
-                                                  Theme.of(
-                                                    context,
-                                                  ).colorScheme.onPrimary,
-                                            ),
+                            spacing: 8,
+                            children:
+                              project.collaborators.map((phoneNumber) {
+                                // Map over phone numbers
+                                final contact = globalContacts
+                                    .firstWhere(
+                                      (c) =>
+                                          c.phoneNumber == phoneNumber,
+                                      orElse:
+                                          () => Contact(
+                                            id: 0,
+                                            name: "Unknown",
+                                            organization: "",
+                                            phoneNumber: phoneNumber,
+                                            position: "",
+                                            starred: 0,
                                           ),
-                                          backgroundColor: Theme.of(context)
-                                              .colorScheme
-                                              .secondary
-                                              ,
-                                          onPressed: () {
-                                            // Optionally navigate to contact details
+                                    );
+                                return singleFilterChip(
+                                          label: contact.name,
+                                          onTap: () {
+                                            Navigator.of(context).push(
+                                              MaterialPageRoute(
+                                                fullscreenDialog:
+                                                    true, // This preserves the app bar
+                                                builder:
+                                                    (context) => Scaffold(
+                                                      appBar: AppBar(
+                                                        // most of the following is to avoid the body showing up behing the appbar and affecting the background colours
+                                                        elevation: 0,
+                                                        surfaceTintColor:
+                                                            Colors.transparent,
+                                                        scrolledUnderElevation:
+                                                            0,
+                                                        foregroundColor:
+                                                            Theme.of(context)
+                                                                .colorScheme
+                                                                .onPrimary,
+                                                        toolbarHeight:
+                                                            MediaQuery.of(
+                                                              context,
+                                                            ).size.height *
+                                                            0.15,
+                                                        automaticallyImplyLeading:
+                                                            false,
+                                                        backgroundColor:
+                                                            Theme.of(context)
+                                                                .colorScheme
+                                                                .primary,
+                                                        iconTheme: IconThemeData(
+                                                          color:
+                                                              Theme.of(context)
+                                                                  .colorScheme
+                                                                  .onPrimary,
+                                                        ),
+                                                        actions: [Container()],
+                                                        title: Container(
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                vertical: 10,
+                                                              ),
+                                                          margin:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 20,
+                                                              ),
+                                                          decoration: BoxDecoration(
+                                                            color:
+                                                                Colors
+                                                                    .transparent,
+                                                            border: Border(
+                                                              bottom: BorderSide(
+                                                                color:
+                                                                    Theme.of(
+                                                                          context,
+                                                                        )
+                                                                        .colorScheme
+                                                                        .onPrimary,
+                                                                width: 2.0,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          child: Row(
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .spaceBetween,
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .start,
+                                                            children: [
+                                                              Text(
+                                                                "onTop.",
+                                                                style: TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                  fontSize: 40,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      body: ContactDetails(
+                                                        contact: contact,
+                                                        onBack:
+                                                            () =>
+                                                                Navigator.of(
+                                                                  context,
+                                                                ).pop(),
+                                                      ),
+                                                      
+                                                    ),
+                                              ),
+                                            );
                                           },
                                         );
-                                      }).toList(),
-                                )
-                      ),
+                                }).toList(),
+                              )
+                        ),
                     ],
                   ),
                 ),

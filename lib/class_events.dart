@@ -1,4 +1,61 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'dart:ui';
+import 'package:mongo_dart/mongo_dart.dart' show ObjectId;
+import 'mongodb.dart';
+import 'user_session.dart';
+
+class Event {
+  final ObjectId? id;
+  final String title;
+  final String description;
+  final DateTime dateTime;
+  final String userId;
+  final DateTime createdAt;
+
+  Event({
+    this.id,
+    required this.title,
+    required this.description,
+    required this.dateTime,
+    required this.userId,
+    DateTime? createdAt,
+  }) : createdAt = createdAt ?? DateTime.now();
+
+  Map<String, dynamic> toMap() {
+    return {
+      '_id': id,
+      'title': title,
+      'description': description,
+      'dateTime': dateTime.toIso8601String(),
+      'userId': userId,
+      'createdAt': createdAt.toIso8601String(),
+      'type': 'event',
+    };
+  }
+
+  factory Event.fromMap(Map<String, dynamic> map) {
+    return Event(
+      id:
+          map['_id'] is ObjectId
+              ? map['_id']
+              : (map['_id'] != null
+                  ? ObjectId.fromHexString(map['_id'].toString())
+                  : null),
+      title: map['title'] ?? '',
+      description: map['description'] ?? '',
+      dateTime:
+          map['dateTime'] is String
+              ? DateTime.parse(map['dateTime'])
+              : (map['dateTime'] as DateTime? ?? DateTime.now()),
+      userId: map['userId'] ?? '',
+      createdAt:
+          map['createdAt'] is String
+              ? DateTime.parse(map['createdAt'])
+              : (map['createdAt'] as DateTime? ?? DateTime.now()),
+    );
+  }
+}
 
 class Events extends StatefulWidget {
   const Events({super.key});
@@ -8,6 +65,204 @@ class Events extends StatefulWidget {
 }
 
 class _EventsState extends State<Events> {
+  List<Event> allEvents = [];
+  List<Event> filteredEvents = [];
+  List<Event> upcomingEvents = [];
+  List<Event> concludedEvents = [];
+  String selectedFilter = 'All Events';
+  String selectedTab = 'Upcoming'; // Add tab state
+  bool isLoading = true;
+
+  // Database helper methods
+  Future<List<Event>> _getAllEvents() async {
+    try {
+      final userId = UserSession().userId;
+      if (userId == null) return [];
+
+      final List<Map<String, dynamic>> results =
+          await MongoDatabase.getContacts(userId: userId, type: 'event');
+
+      return results.map((eventDoc) => Event.fromMap(eventDoc)).toList();
+    } catch (e) {
+      print('Error fetching events: $e');
+      return [];
+    }
+  }
+
+  Future<bool> _createEvent(Event event) async {
+    try {
+      final userId = UserSession().userId;
+      if (userId == null) return false;
+
+      final eventData = event.toMap();
+      return await MongoDatabase.insertData(
+        eventData,
+        userId: userId,
+        type: 'event',
+      );
+    } catch (e) {
+      print('Error creating event: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _updateEvent(Event event) async {
+    try {
+      final userId = UserSession().userId;
+      if (userId == null) return false;
+
+      final eventData = event.toMap();
+      return await MongoDatabase.updateData(
+        eventData,
+        userId: userId,
+        type: 'event',
+      );
+    } catch (e) {
+      print('Error updating event: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _deleteEvent(ObjectId eventId) async {
+    try {
+      final userId = UserSession().userId;
+      if (userId == null) return false;
+      return await MongoDatabase.deleteData(eventId, userId: userId);
+    } catch (e) {
+      print('Error deleting event: $e');
+      return false;
+    }
+  }
+
+  Future<List<Event>> _getUpcomingEvents() async {
+    try {
+      final allEvents = await _getAllEvents();
+      final now = DateTime.now();
+      return allEvents.where((event) => event.dateTime.isAfter(now)).toList()
+        ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+    } catch (e) {
+      print('Error fetching upcoming events: $e');
+      return [];
+    }
+  }
+
+  Future<List<Event>> _getConcludedEvents() async {
+    try {
+      final allEvents = await _getAllEvents();
+      final now = DateTime.now();
+      return allEvents.where((event) => event.dateTime.isBefore(now)).toList()
+        ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
+    } catch (e) {
+      print('Error fetching concluded events: $e');
+      return [];
+    }
+  }
+
+  List<Event> _getEventsThisMonth() {
+    try {
+      final now = DateTime.now();
+      final startOfMonth = DateTime(now.year, now.month, 1);
+      final endOfMonth = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+
+      return allEvents
+          .where(
+            (event) =>
+                event.dateTime.isAfter(
+                  startOfMonth.subtract(Duration(seconds: 1)),
+                ) &&
+                event.dateTime.isBefore(endOfMonth.add(Duration(seconds: 1))),
+          )
+          .toList()
+        ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+    } catch (e) {
+      print('Error filtering events this month: $e');
+      return [];
+    }
+  }
+
+  List<Event> _getEventsThisWeek() {
+    try {
+      final now = DateTime.now();
+      final startOfWeek = DateTime(
+        now.year,
+        now.month,
+        now.day - (now.weekday - 1),
+      );
+      final endOfWeek = DateTime(
+        now.year,
+        now.month,
+        now.day - (now.weekday - 1) + 6,
+        23,
+        59,
+        59,
+      );
+
+      return allEvents
+          .where(
+            (event) =>
+                event.dateTime.isAfter(
+                  startOfWeek.subtract(Duration(seconds: 1)),
+                ) &&
+                event.dateTime.isBefore(endOfWeek.add(Duration(seconds: 1))),
+          )
+          .toList()
+        ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+    } catch (e) {
+      print('Error filtering events this week: $e');
+      return [];
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEvents();
+  }
+
+  Future<void> _loadEvents() async {
+    setState(() => isLoading = true);
+
+    try {
+      final events = await _getAllEvents();
+      final upcoming = await _getUpcomingEvents();
+      final concluded = await _getConcludedEvents();
+
+      setState(() {
+        allEvents = events;
+        upcomingEvents = upcoming;
+        concludedEvents = concluded;
+        // Initialize filteredEvents with all events by default
+        filteredEvents = events;
+        isLoading = false;
+      });
+
+      // Apply the current filter after loading events
+      _applyFilter();
+    } catch (e) {
+      setState(() => isLoading = false);
+      print('Error loading events: $e');
+    }
+  }
+
+  void _applyFilter() {
+    setState(() {
+      switch (selectedFilter) {
+        case 'All Events':
+          filteredEvents = allEvents;
+          break;
+        case 'This Month':
+          filteredEvents = _getEventsThisMonth();
+          break;
+        case 'This Week':
+          filteredEvents = _getEventsThisWeek();
+          break;
+        default:
+          filteredEvents = allEvents;
+          break;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -16,43 +271,783 @@ class _EventsState extends State<Events> {
       body: SafeArea(
         child: Container(
           color: Theme.of(context).colorScheme.primary,
-          child: Column(
+          child: Stack(
             children: [
-              Container(
-                color: Theme.of(context).colorScheme.primary,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        margin: EdgeInsets.only(left: 40),
-                        child: Text(
-                          'Events',
-                          style: TextStyle(
-                            fontSize: 28,
-                            color: Theme.of(context).colorScheme.onPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
+              // Main content
+              Column(
+                children: [
+                  _buildHeader(),
+                  _buildFilterChips(),
+                  _buildTabSelector(), // Add tab selector here
+                  Expanded(
+                    child:
+                        isLoading
+                            ? Center(
+                              child: CircularProgressIndicator(
+                                color: Theme.of(context).colorScheme.secondary,
+                              ),
+                            )
+                            : _buildEventsList(),
                   ),
-                ),
+                ],
               ),
-              Spacer(),
-              Text(
-                "You have not added any events yet.",
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Theme.of(context).colorScheme.tertiary, 
-                ),
-                textAlign: TextAlign.center,
-              ),
-              Spacer(flex: 2),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      color: Theme.of(context).colorScheme.primary,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              margin: EdgeInsets.only(left: 40),
+              child: Text(
+                'Events',
+                style: TextStyle(
+                  fontSize: 28,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+            ),
+            Container(
+              margin: EdgeInsets.only(right: 20),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      // Search functionality disabled (keeping icon only)
+                    },
+                    icon: Icon(
+                      Icons.search,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      size: 30,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _showEventDialog(),
+                    icon: Icon(
+                      Icons.add,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      size: 26,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChips() {
+    final filters = ['All Events', 'This Month', 'This Week'];
+    return SizedBox(
+      height: 50,
+      child: Center(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children:
+              filters.map((filter) {
+                final isSelected = selectedFilter == filter;
+                final index = filters.indexOf(filter);
+
+                return Padding(
+                  padding: EdgeInsets.only(
+                    right: index < filters.length - 1 ? 20 : 0,
+                    top: 8,
+                    bottom: 8,
+                  ),
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        selectedFilter = filter;
+                      });
+                      _applyFilter();
+                    },
+                    child: Text(
+                      filter,
+                      style: TextStyle(
+                        color:
+                            isSelected
+                                ? Theme.of(context).colorScheme.secondary
+                                : Theme.of(context).colorScheme.tertiary,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.w500,
+                        fontFamily: 'Poppins',
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabSelector() {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildTabChip(
+              label: "Upcoming",
+              isSelected: selectedTab == 'Upcoming',
+              onTap: () {
+                setState(() {
+                  selectedTab = 'Upcoming';
+                });
+              },
+            ),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: _buildTabChip(
+              label: "Concluded",
+              isSelected: selectedTab == 'Concluded',
+              onTap: () {
+                setState(() {
+                  selectedTab = 'Concluded';
+                });
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color:
+              isSelected
+                  ? Colors.grey[700]
+                  : Theme.of(context).colorScheme.primary,
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(
+            color:
+                isSelected
+                    ? Colors.grey[700]!
+                    : Theme.of(
+                      context,
+                    ).colorScheme.tertiary.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color:
+                  isSelected
+                      ? Colors.white
+                      : Theme.of(context).colorScheme.tertiary,
+              fontWeight: FontWeight.w500,
+              fontFamily: 'Poppins',
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventsList() {
+    // Separate filtered events into upcoming and concluded
+    final now = DateTime.now();
+    final filteredUpcoming =
+        filteredEvents.where((event) => event.dateTime.isAfter(now)).toList()
+          ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+    final filteredConcluded =
+        filteredEvents.where((event) => event.dateTime.isBefore(now)).toList()
+          ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
+
+    // Get events for the selected tab
+    final eventsToShow =
+        selectedTab == 'Upcoming' ? filteredUpcoming : filteredConcluded;
+    final isCompleted = selectedTab == 'Concluded';
+
+    if (eventsToShow.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.event_outlined,
+              size: 80,
+              color: Theme.of(context).colorScheme.tertiary,
+            ),
+            SizedBox(height: 16),
+            Text(
+              selectedTab == 'Upcoming'
+                  ? "No upcoming events"
+                  : "No concluded events",
+              style: TextStyle(
+                fontSize: 18,
+                color: Theme.of(context).colorScheme.tertiary,
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 8),
+            Text(
+              "Tap the + button to add your first event",
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(
+                  context,
+                ).colorScheme.tertiary.withValues(alpha: 0.7),
+                fontFamily: 'Poppins',
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ..._buildEventsWithMonthDividers(
+            eventsToShow,
+            isCompleted: isCompleted,
+          ),
+          SizedBox(height: 100), // Space for floating button
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEventCard(Event event, {bool isCompleted = false}) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Theme.of(
+                context,
+              ).colorScheme.onPrimary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onPrimary.withValues(alpha: 0.2),
+                width: 1,
+              ),
+            ),
+            child: ListTile(
+              contentPadding: EdgeInsets.all(16),
+              leading: Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color:
+                      isCompleted
+                          ? Theme.of(
+                            context,
+                          ).colorScheme.tertiary.withValues(alpha: 0.3)
+                          : Theme.of(
+                            context,
+                          ).colorScheme.secondary.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      DateFormat('MMM').format(event.dateTime),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                        fontWeight: FontWeight.w500,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                    Text(
+                      DateFormat('dd').format(event.dateTime),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              title: Text(
+                event.title,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: 4),
+                  Text(
+                    DateFormat('MMM dd, yyyy - hh:mm a').format(event.dateTime),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.tertiary,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                  if (event.description.isNotEmpty) ...[
+                    SizedBox(height: 4),
+                    Text(
+                      event.description,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onPrimary.withValues(alpha: 0.8),
+                        fontFamily: 'Poppins',
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+              trailing: PopupMenuButton<String>(
+                icon: Icon(
+                  Icons.more_vert,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
+                onSelected: (value) {
+                  if (value == 'edit') {
+                    _showEventDialog(event: event);
+                  } else if (value == 'delete') {
+                    _showDeleteConfirmation(event);
+                  }
+                },
+                itemBuilder:
+                    (context) => [
+                      PopupMenuItem(value: 'edit', child: Text('Edit Event')),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Text('Delete Event'),
+                      ),
+                    ],
+              ),
+              onTap: () => _showEventDialog(event: event),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showEventDialog({Event? event}) {
+    final isEditing = event != null;
+    final titleController = TextEditingController(text: event?.title ?? '');
+    final descriptionController = TextEditingController(
+      text: event?.description ?? '',
+    );
+    DateTime selectedDate = event?.dateTime ?? DateTime.now();
+    TimeOfDay selectedTime = TimeOfDay.fromDateTime(
+      event?.dateTime ?? DateTime.now(),
+    );
+    showDialog(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setDialogState) => AlertDialog(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onPrimary.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  title: Text(
+                    isEditing ? 'Edit Event' : 'Add New Event',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      fontFamily: 'Poppins',
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildDialogTextField(
+                          controller: titleController,
+                          label: 'Event Title',
+                          hint: 'Enter event title',
+                        ),
+                        SizedBox(height: 16),
+                        _buildDialogTextField(
+                          controller: descriptionController,
+                          label: 'Description',
+                          hint: 'Enter event description',
+                          maxLines: 3,
+                        ),
+                        SizedBox(height: 16),
+                        _buildDateTimeSelector(
+                          selectedDate: selectedDate,
+                          selectedTime: selectedTime,
+                          onDateChanged: (date) {
+                            setDialogState(() => selectedDate = date);
+                          },
+                          onTimeChanged: (time) {
+                            setDialogState(() => selectedTime = time);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.tertiary,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed:
+                          () => _saveEvent(
+                            event: event,
+                            title: titleController.text,
+                            description: descriptionController.text,
+                            dateTime: DateTime(
+                              selectedDate.year,
+                              selectedDate.month,
+                              selectedDate.day,
+                              selectedTime.hour,
+                              selectedTime.minute,
+                            ),
+                          ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            Theme.of(context).colorScheme.secondary,
+                        foregroundColor:
+                            Theme.of(context).colorScheme.onPrimary,
+                      ),
+                      child: Text(
+                        isEditing ? 'Update' : 'Add',
+                        style: TextStyle(fontFamily: 'Poppins'),
+                      ),
+                    ),
+                  ],
+                ),
+          ),
+    );
+  }
+
+  Widget _buildDialogTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    int maxLines = 1,
+  }) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.onPrimary,
+        fontFamily: 'Poppins',
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        labelStyle: TextStyle(
+          color: Theme.of(context).colorScheme.tertiary,
+          fontFamily: 'Poppins',
+        ),
+        hintStyle: TextStyle(
+          color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.7),
+          fontFamily: 'Poppins',
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(
+              context,
+            ).colorScheme.tertiary.withValues(alpha: 0.3),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.secondary,
+            width: 2,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateTimeSelector({
+    required DateTime selectedDate,
+    required TimeOfDay selectedTime,
+    required Function(DateTime) onDateChanged,
+    required Function(TimeOfDay) onTimeChanged,
+  }) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: selectedDate,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(Duration(days: 365)),
+                  );
+                  if (date != null) onDateChanged(date);
+                },
+                icon: Icon(Icons.calendar_today, size: 18),
+                label: Text(
+                  DateFormat('MMM dd, yyyy').format(selectedDate),
+                  style: TextStyle(fontFamily: 'Poppins'),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  side: BorderSide(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.tertiary.withValues(alpha: 0.3),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final time = await showTimePicker(
+                    context: context,
+                    initialTime: selectedTime,
+                  );
+                  if (time != null) onTimeChanged(time);
+                },
+                icon: Icon(Icons.access_time, size: 18),
+                label: Text(
+                  selectedTime.format(context),
+                  style: TextStyle(fontFamily: 'Poppins'),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  side: BorderSide(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.tertiary.withValues(alpha: 0.3),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _saveEvent({
+    Event? event,
+    required String title,
+    required String description,
+    required DateTime dateTime,
+  }) async {
+    if (title.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Please enter an event title')));
+      return;
+    }
+
+    Navigator.pop(context);
+
+    final newEvent = Event(
+      id: event?.id,
+      title: title.trim(),
+      description: description.trim(),
+      dateTime: dateTime,
+      userId: '', // Will be set in adapter
+      createdAt: event?.createdAt ?? DateTime.now(),
+    );
+    bool success;
+    if (event != null) {
+      success = await _updateEvent(newEvent);
+    } else {
+      success = await _createEvent(newEvent);
+    }
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            event != null
+                ? 'Event updated successfully'
+                : 'Event added successfully',
+          ),
+        ),
+      );
+      _loadEvents();
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save event')));
+    }
+  }
+
+  void _showDeleteConfirmation(Event event) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            title: Text(
+              'Delete Event',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimary,
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            content: Text(
+              'Are you sure you want to delete "${event.title}"?',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimary,
+                fontFamily: 'Poppins',
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.tertiary,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => _deleteEventById(event),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text('Delete', style: TextStyle(fontFamily: 'Poppins')),
+              ),
+            ],
+          ),
+    );
+  }
+
+  void _deleteEventById(Event event) async {
+    Navigator.pop(context);
+
+    if (event.id != null) {
+      final success = await _deleteEvent(event.id!);
+
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Event deleted successfully')));
+        _loadEvents();
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to delete event')));
+      }
+    }
+  }
+
+  List<Widget> _buildEventsWithMonthDividers(
+    List<Event> events, {
+    bool isCompleted = false,
+  }) {
+    if (events.isEmpty) return [];
+
+    List<Widget> widgets = [];
+    String? currentMonth;
+
+    for (int i = 0; i < events.length; i++) {
+      final event = events[i];
+      final monthYear = DateFormat('MMMM yyyy').format(event.dateTime);
+
+      // Add month divider if this is a new month
+      if (currentMonth != monthYear) {
+        widgets.add(_buildMonthDivider(monthYear));
+        currentMonth = monthYear;
+      }
+
+      widgets.add(_buildEventCard(event, isCompleted: isCompleted));
+    }
+
+    return widgets;
+  }
+
+  Widget _buildMonthDivider(String monthYear) {
+    return Container(
+      margin: EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 8),
+      child: Row(
+        children: [
+          Text(
+            monthYear,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onPrimary,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Poppins',
+              fontSize: 16,
+            ),
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            child: Container(
+              height: 1,
+              color: Theme.of(
+                context,
+              ).colorScheme.onPrimary.withValues(alpha: 0.3),
+            ),
+          ),
+        ],
       ),
     );
   }
