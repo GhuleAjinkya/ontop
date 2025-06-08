@@ -7,8 +7,9 @@ class Project {
   List<dynamic> collaborators; // List of Contact ObjectIds
   List<ToDoItem> projectTasks;
   List<String>? completedTasks; // List of completed task IDs
-  final DateTime? createdAt;
+  DateTime? createdAt;
   DateTime? lastInteracted; // For sorting recently interacted projects
+  DateTime? completedAt; // When the project was completed
   bool isCompleted; // For greying out completed projects
   String? lastCompletedTask; // Store the last completed task text
   List<String>? completedTasksHistory; // History of completed tasks for undo
@@ -21,10 +22,11 @@ class Project {
     this.completedTasks,
     this.createdAt,
     this.lastInteracted,
+    this.completedAt,
     this.isCompleted = false,
     this.lastCompletedTask,
     this.completedTasksHistory,
-  });  // Convert MongoDB document to Project object
+  }); // Convert MongoDB document to Project object
   factory Project.fromMongo(Map<String, dynamic> doc) {
     return Project(
       id: doc['_id'], // Keep as ObjectId
@@ -41,16 +43,22 @@ class Project {
               : null,
       createdAt:
           doc['created_at'] != null ? DateTime.parse(doc['created_at']) : null,
-      lastInteracted: doc['last_interacted'] != null 
-          ? DateTime.parse(doc['last_interacted']) 
-          : null,
+      lastInteracted:
+          doc['last_interacted'] != null
+              ? DateTime.parse(doc['last_interacted'])
+              : null,
+      completedAt:
+          doc['completed_at'] != null
+              ? DateTime.parse(doc['completed_at'])
+              : null,
       isCompleted: doc['is_completed'] ?? false,
       lastCompletedTask: doc['last_completed_task'],
-      completedTasksHistory: doc['completed_tasks_history'] != null
-          ? List<String>.from(doc['completed_tasks_history'])
-          : null,
+      completedTasksHistory:
+          doc['completed_tasks_history'] != null
+              ? List<String>.from(doc['completed_tasks_history'])
+              : null,
     );
-  }  // Convert Project to Map for MongoDB
+  } // Convert Project to Map for MongoDB
   Map<String, dynamic> toMap() {
     return {
       'title': title,
@@ -61,12 +69,13 @@ class Project {
       'type': 'project', // Add type field for database consistency
       'created_at': (createdAt ?? DateTime.now()).toIso8601String(),
       'last_interacted': lastInteracted?.toIso8601String(),
+      'completed_at': completedAt?.toIso8601String(),
       'is_completed': isCompleted,
       'last_completed_task': lastCompletedTask,
       'completed_tasks_history': completedTasksHistory,
     };
-  }
-  // Create a copy of Project with updated values
+  } // Create a copy of Project with updated values
+
   Project copyWith({
     dynamic id,
     String? title,
@@ -76,6 +85,7 @@ class Project {
     List<String>? completedTasks,
     DateTime? createdAt,
     DateTime? lastInteracted,
+    DateTime? completedAt,
     bool? isCompleted,
     String? lastCompletedTask,
     List<String>? completedTasksHistory,
@@ -89,9 +99,11 @@ class Project {
       completedTasks: completedTasks ?? this.completedTasks,
       createdAt: createdAt ?? this.createdAt,
       lastInteracted: lastInteracted ?? this.lastInteracted,
+      completedAt: completedAt ?? this.completedAt,
       isCompleted: isCompleted ?? this.isCompleted,
       lastCompletedTask: lastCompletedTask ?? this.lastCompletedTask,
-      completedTasksHistory: completedTasksHistory ?? this.completedTasksHistory,
+      completedTasksHistory:
+          completedTasksHistory ?? this.completedTasksHistory,
     );
   }
 }

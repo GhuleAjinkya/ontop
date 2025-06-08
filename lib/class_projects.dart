@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'models/project.dart';
 import 'models/to_do_item.dart';
 import 'main.dart';
@@ -17,14 +18,45 @@ class Projects extends StatefulWidget {
 class _ProjectsState extends State<Projects> {
   List<Project> projects = [];
   bool addingProject = false;
+  bool searching = false;
+  String searchQuery = '';
+  String selectedTab = 'Ongoing'; // Add tab state - default to Ongoing
   TextEditingController projectTitle = TextEditingController();
+  final TextEditingController searchController = TextEditingController();
   Project? openedProject;
   String get userId => UserSession().userId ?? '';
+  List<Contact> globalContacts = []; // For collaborator name mapping
 
   @override
   void initState() {
     super.initState();
     loadProjects();
+    loadContactsFromMongo();
+  }
+
+  Future<void> loadContactsFromMongo() async {
+    String userId = UserSession().userId ?? '';
+    if (userId.isEmpty) {
+      print("No user ID available. Cannot load contacts.");
+      globalContacts = [];
+      return;
+    }
+
+    try {
+      // Use ContactsAdapter instead of direct MongoDB access
+      List<Map<String, dynamic>> fetchedContacts =
+          await ContactsAdapter.getContacts();
+      globalContacts =
+          fetchedContacts.map((doc) => Contact.fromMongo(doc)).toList();
+      print(
+        "Successfully loaded ${globalContacts.length} contacts for project collaborators",
+      );
+      setState(() {});
+    } catch (e) {
+      print("Error loading contacts for project: $e");
+      globalContacts = [];
+      setState(() {});
+    }
   }
 
   Future<void> loadProjects() async {
@@ -268,6 +300,558 @@ class _ProjectsState extends State<Projects> {
     );
   }
 
+  // Enhanced project tiles builder based on Figma design
+  Widget buildEnhancedProjectTiles(List<Project> allProjects) {
+    // Filter projects based on search query if searching
+    List<Project> filteredProjects = allProjects;
+    
+    if (searching && searchQuery.isNotEmpty) {
+      filteredProjects = allProjects.where((project) {
+        // Search in project title, description, and collaborator names
+        final titleMatch = project.title.toLowerCase().contains(searchQuery.toLowerCase());
+        final descriptionMatch = project.description.toLowerCase().contains(searchQuery.toLowerCase());
+        
+        // Search in collaborator names
+        final collaboratorMatch = project.collaborators.any((phone) {
+          final contact = globalContacts.firstWhere(
+            (c) => c.phoneNumber == phone,
+            orElse: () => Contact(
+              id: 0,
+              name: "Unknown",
+              organization: "",
+              phoneNumber: phone,
+              position: "",
+              starred: 0,
+            ),
+          );
+          return contact.name.toLowerCase().contains(searchQuery.toLowerCase());
+        });
+        
+        return titleMatch || descriptionMatch || collaboratorMatch;
+      }).toList();
+    }
+    
+    // Filter projects based on selected tab (Ongoing vs Completed)
+    List<Project> tabFilteredProjects;
+    if (selectedTab == 'Ongoing') {
+      tabFilteredProjects = filteredProjects.where((p) => p.isCompleted != true).toList();
+    } else {
+      tabFilteredProjects = filteredProjects.where((p) => p.isCompleted == true).toList();
+    }
+    
+    // Sort projects: for completed projects, show recently completed first
+    // For ongoing projects, sort by creation date (most recent first)
+    tabFilteredProjects.sort((a, b) {
+      if (selectedTab == 'Completed') {
+        // For completed projects, prioritize:
+        // 1. Recently checked off (isCompleted true but completedAt null)
+        // 2. Most recently completed (by completedAt)
+        // 3. Fall back to creation date if needed
+        if (a.isCompleted == true && a.completedAt == null && b.isCompleted == true && b.completedAt != null) {
+          return -1; // a was just checked off, should come before b
+        }
+        if (a.isCompleted == true && a.completedAt != null && b.isCompleted == true && b.completedAt == null) {
+          return 1; // b was just checked off, should come before a
+        }
+        if (a.completedAt == null && b.completedAt == null) {
+          // If both don't have completedAt, fall back to creation date
+          if (a.createdAt == null && b.createdAt == null) return 0;
+          if (a.createdAt == null) return 1;
+          if (b.createdAt == null) return -1;
+          return b.createdAt!.compareTo(a.createdAt!);
+        }
+        if (a.completedAt == null) return 1;
+        if (b.completedAt == null) return -1;
+        return b.completedAt!.compareTo(a.completedAt!);
+      } else {
+        // For ongoing projects, sort by creation date (most recent first)
+        if (a.createdAt == null && b.createdAt == null) return 0;
+        if (a.createdAt == null) return 1;
+        if (b.createdAt == null) return -1;
+        return b.createdAt!.compareTo(a.createdAt!);
+      }
+    });
+    
+    // If no projects found for the selected tab, show empty state
+    if (tabFilteredProjects.isEmpty) {
+      return Center(
+        child: Container(
+          margin: EdgeInsets.only(top: 50),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.folder_outlined,
+                size: 80,
+                color: Theme.of(context).colorScheme.tertiary,
+              ),
+              SizedBox(height: 16),
+              Text(
+                selectedTab == 'Ongoing' 
+                  ? (searching && searchQuery.isNotEmpty ? 'No ongoing projects found' : 'No ongoing projects')
+                  : (searching && searchQuery.isNotEmpty ? 'No completed projects found' : 'No completed projects'),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.tertiary,
+                  fontSize: 18,
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (!searching && selectedTab == 'Ongoing') ...[
+                SizedBox(height: 8),
+                Text(
+                  'Tap the + button to add your first project',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.7),
+                    fontSize: 14,
+                    fontFamily: 'Poppins',
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+    
+    return ListView.builder(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 27, vertical: 20),
+      itemCount: tabFilteredProjects.length,
+      itemBuilder: (context, index) {
+        final project = tabFilteredProjects[index];
+        
+        // Get collaborators display text using NAMES instead of phone numbers
+        String collaboratorsText = project.collaborators.isEmpty
+            ? "No collaborators"
+            : "Collaborators: ${project.collaborators.map((phone) {
+                final contact = globalContacts.firstWhere(
+                  (c) => c.phoneNumber == phone,
+                  orElse: () => Contact(
+                    id: 0,
+                    name: "Unknown",
+                    organization: "",
+                    phoneNumber: phone,
+                    position: "",
+                    starred: 0,
+                  ),
+                );
+                return contact.name;
+              }).take(2).join(", ")}${project.collaborators.length > 2 ? "..." : ""}";
+
+        // Get description display text
+        String descriptionText = project.description.isEmpty
+            ? "No description"
+            : "Description: ${project.description.length > 40 ? "${project.description.substring(0, 40)}..." : project.description}";
+
+        // Get formatted creation date
+        String creationDate = "";
+        String completionDate = "";
+        try {
+          if (project.createdAt != null) {
+            final date = project.createdAt!;
+            final months = [
+              '', 'January', 'February', 'March', 'April', 'May', 'June',
+              'July', 'August', 'September', 'October', 'November', 'December'
+            ];
+            creationDate = "${date.day} ${months[date.month]}, ${date.year}";
+          }
+          
+          // Add completion date if project is completed
+          if (project.isCompleted == true && project.completedAt != null) {
+            final date = project.completedAt!;
+            final months = [
+              '', 'January', 'February', 'March', 'April', 'May', 'June',
+              'July', 'August', 'September', 'October', 'November', 'December'
+            ];
+            completionDate = "${date.day} ${months[date.month]}, ${date.year}";
+          }
+        } catch (e) {
+          creationDate = "Date unknown";
+        }
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 20),
+          child: Stack(
+            children: [
+              // Main project tile with Events tab style decoration
+              ClipRRect(
+                borderRadius: BorderRadius.circular(15),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    width: double.infinity,
+                    constraints: const BoxConstraints(
+                      minHeight: 179, // Minimum height
+                    ),
+                    decoration: BoxDecoration(
+                      color: (project.isCompleted == true) 
+                        ? Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.05)
+                        : Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(
+                        color: (project.isCompleted == true)
+                          ? Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.1)
+                          : Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.2),
+                        width: 1,
+                      ),
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(15),
+                        onTap: () {
+                          setState(() {
+                            openedProject = project;
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(25),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Project title with Figma styling
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Title row with checkbox
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      Expanded(
+                                        flex: 4,
+                                        child: Text(
+                                          project.title,
+                                          style: TextStyle(
+                                            color: (project.isCompleted == true) ? Colors.white60 : Colors.white,
+                                            fontSize: 24,
+                                            fontFamily: 'Poppins',
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          softWrap: true,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      // Functional checkbox for project completion status (top right)
+                                      Flexible(
+                                        flex: 0,
+                                        child: GestureDetector(
+                                          onTap: () async {
+                                            // Toggle project completion status
+                                            final newCompletionStatus = project.isCompleted != true;
+                                            
+                                            try {
+                                              // Update project completion status in database
+                                              final now = DateTime.now();
+                                              final updatedProject = project.copyWith(
+                                                isCompleted: newCompletionStatus,
+                                                completedAt: newCompletionStatus ? now : null,
+                                              );
+                                              final projectData = updatedProject.toMap();
+                                              projectData['_id'] = project.id;
+                                              
+                                              bool success = await ProjectsAdapter.updateProject(projectData);
+                                              if (success) {
+                                                // Update local state
+                                                setState(() {
+                                                  // Find and update the project in the main projects list
+                                                  final projectIndex = projects.indexWhere((p) => p.id == project.id);
+                                                  if (projectIndex != -1) {
+                                                    projects[projectIndex] = project.copyWith(
+                                                      isCompleted: newCompletionStatus,
+                                                      completedAt: newCompletionStatus ? now : null,
+                                                    );
+                                                  }
+                                                });
+                                                
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      newCompletionStatus 
+                                                        ? 'Project "${project.title}" marked as completed!' 
+                                                        : 'Project "${project.title}" marked as incomplete!',
+                                                    ),
+                                                    duration: const Duration(seconds: 2),
+                                                  ),
+                                                );
+                                              } else {
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text('Failed to update project status'),
+                                                    duration: Duration(seconds: 2),
+                                                  ),
+                                                );
+                                              }
+                                            } catch (e) {
+                                              print('Error updating project completion status: $e');
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text('Error updating project: $e'),
+                                                  duration: const Duration(seconds: 2),
+                                                ),
+                                              );
+                                            }
+                                          },
+                                          child: Container(
+                                            width: 26,
+                                            height: 26,
+                                            decoration: BoxDecoration(
+                                              color: (project.isCompleted == true) 
+                                                ? const Color(0xFFF2F2F2)
+                                                : Colors.transparent,
+                                              borderRadius: BorderRadius.circular(4),
+                                              border: Border.all(
+                                                color: const Color(0xFFF2F2F2),
+                                                width: 2,
+                                              ),
+                                            ),
+                                            child: (project.isCompleted == true)
+                                              ? const Icon(
+                                                  Icons.check,
+                                                  size: 16,
+                                                  color: Color(0xFF1A1A1A),
+                                                )
+                                              : null,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  // Creation date under the title
+                                  if (creationDate.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "Created: $creationDate",
+                                      style: TextStyle(
+                                        color: (project.isCompleted == true) ? Colors.white.withValues(alpha: 0.4) : Colors.white70,
+                                        fontSize: 12,
+                                        fontFamily: 'Poppins',
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
+                                  ],
+                                  // Completion date for completed projects
+                                  if (project.isCompleted == true && completionDate.isNotEmpty) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      "Completed: $completionDate",
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(alpha: 0.5),
+                                        fontSize: 12,
+                                        fontFamily: 'Poppins',
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              
+                              const SizedBox(height: 20),
+                              
+                              // Collaborators text with Figma styling
+                              Text(
+                                collaboratorsText,
+                                style: TextStyle(
+                                  color: (project.isCompleted == true) ? Colors.white60 : Colors.white,
+                                  fontSize: 14,
+                                  fontFamily: 'Poppins',
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              
+                              const SizedBox(height: 4),
+                              
+                              // Description text with Figma styling
+                              Text(
+                                descriptionText,
+                                style: TextStyle(
+                                  color: (project.isCompleted == true) ? Colors.white60 : Colors.white,
+                                  fontSize: 14,
+                                  fontFamily: 'Poppins',
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              
+                              // Add some bottom padding to ensure delete button doesn't overlap
+                              const SizedBox(height: 45),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Delete button positioned at bottom right with tertiary color
+              Positioned(
+                bottom: 25, // Same distance from bottom as checkbox is from top
+                right: 25, // Moved a bit more to the left
+                child: Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: () async {
+                      // Show confirmation dialog for project deletion
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(
+                              color: Theme.of(context).colorScheme.onSecondary,
+                              width: 1.5,
+                            ),
+                          ),
+                          title: Text(
+                            'Delete Project?',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
+                          ),
+                          content: Text(
+                            'Project "${project.title}" will be permanently deleted.',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
+                          ),
+                          actions: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                IconButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  icon: Icon(
+                                    Icons.close,
+                                    color: Theme.of(context).colorScheme.onPrimary,
+                                    size: 30,
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  icon: Icon(
+                                    Icons.check,
+                                    color: Theme.of(context).colorScheme.error,
+                                    size: 30,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+
+                      if (confirmed == true) {
+                        try {
+                          // Delete project from database
+                          bool success = await ProjectsAdapter.deleteProject(project.id!);
+                          if (success) {
+                            // Remove from local list
+                            setState(() {
+                              projects.removeWhere((p) => p.id == project.id);
+                            });
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Project "${project.title}" deleted successfully'),
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          } else {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Failed to delete project'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          }
+                        } catch (e) {
+                          print('Error deleting project: $e');
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error deleting project: $e'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        }
+                      }
+                    },
+                    icon: Icon(
+                      Icons.delete,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 16,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Helper method to build tab chips with Events-style design
+  Widget _buildTabChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 12), // Match Events exactly
+        decoration: BoxDecoration(
+          color: isSelected 
+            ? Colors.grey[700]
+            : Theme.of(context).colorScheme.primary,
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(
+            color: isSelected
+                ? Colors.grey[700]!
+                : Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.3), // Light purple
+            width: 1,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected 
+                ? Colors.white
+                : Theme.of(context).colorScheme.tertiary, // Light purple
+              fontWeight: FontWeight.w500,
+              fontFamily: 'Poppins',
+              fontSize: 14, // Match Events exactly
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (openedProject != null) {
@@ -297,59 +881,127 @@ class _ProjectsState extends State<Projects> {
           color: Theme.of(context).colorScheme.primary,
           child: Column(
             children: [
+              // Enhanced header with Projects title and action buttons
               Container(
-                // Tab Actions
                 color: Theme.of(context).colorScheme.primary,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        margin: EdgeInsets.only(left: 40),
-                        child: Text(
-                          'Projects',
-                          style: TextStyle(
-                            fontSize: 28,
-                            color: Theme.of(context).colorScheme.onPrimary,
-                            fontWeight: FontWeight.w600,
+                      if (!searching) ...[
+                        Container(
+                          margin: EdgeInsets.only(left: 40),
+                          child: Text(
+                            'Projects',
+                            style: TextStyle(
+                              fontSize: 28,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                      ),
+                      ] else ...[
+                        Container(
+                          margin: const EdgeInsets.only(
+                            left: 36,
+                            top: 5,
+                            bottom: 5,
+                            right: 5,
+                          ),
+                          width: MediaQuery.of(context).size.width * 0.6,
+                          decoration: standardTile(10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 2,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: searchController,
+                                  style: TextStyle(
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                  ),
+                                  cursorColor:
+                                      Theme.of(context).colorScheme.tertiary,
+                                  decoration: InputDecoration(
+                                    hintText: 'Search',
+                                    labelText: 'Search projects',
+                                    labelStyle: TextStyle(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onSecondary,
+                                    ),
+                                    hintStyle: TextStyle(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onSecondary,
+                                    ),
+                                    border: const UnderlineInputBorder(),
+                                  ),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      searchQuery = value.trim().toLowerCase();
+                                    });
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       Container(
                         margin: EdgeInsets.only(right: 20),
                         child: Row(
                           children: [
                             IconButton(
                               icon: Icon(
-                                Icons.add,
-                                color: Theme.of(context).colorScheme.onPrimary,
-                                size: 30,
+                                !searching
+                                    ? Icons.search
+                                    : Icons.cancel_outlined,
+                                color:
+                                    Theme.of(context).colorScheme.onPrimary,
+                                size: !searching ? 30 : 25,
                               ),
                               onPressed: () {
                                 setState(() {
-                                  addingProject = true;
+                                  searching = !searching;
+                                  searchController.clear();
+                                  searchQuery = '';
                                 });
                               },
                             ),
-                            IconButton(
-                              icon: Icon(
-                                Icons.search,
-                                color: Theme.of(context).colorScheme.onPrimary,
+                            if (!searching) ...[
+                              IconButton(
+                                icon: Icon(
+                                  Icons.add,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                  size: 26,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    addingProject = true;
+                                  });
+                                },
                               ),
-                              onPressed: () {
-                                setState(() {});
-                              },
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                Icons.more_vert,
-                                color: Theme.of(context).colorScheme.onPrimary,
+                              IconButton(
+                                icon: Icon(
+                                  Icons.more_vert,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                  size: 28,
+                                ),
+                                onPressed: () {
+                                  // TODO: Implement more options menu
+                                  setState(() {});
+                                },
                               ),
-                              onPressed: () {
-                                setState(() {});
-                              },
-                            ),
+                            ],
                           ],
                         ),
                       ),
@@ -357,6 +1009,8 @@ class _ProjectsState extends State<Projects> {
                   ),
                 ),
               ),
+              
+              // Add project input field
               if (addingProject) ...[
                 Container(
                   margin: const EdgeInsets.symmetric(
@@ -477,7 +1131,41 @@ class _ProjectsState extends State<Projects> {
                   ),
                 ),
               ],
-              Expanded(child: buildProjectTiles(projects)),
+              
+              // Tab selector for Ongoing vs Completed projects (exact copy from Events)
+              Container(
+                margin: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildTabChip(
+                        label: "Ongoing",
+                        isSelected: selectedTab == 'Ongoing',
+                        onTap: () {
+                          setState(() {
+                            selectedTab = 'Ongoing';
+                          });
+                        },
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: _buildTabChip(
+                        label: "Completed",
+                        isSelected: selectedTab == 'Completed',
+                        onTap: () {
+                          setState(() {
+                            selectedTab = 'Completed';
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Enhanced project tiles list
+              Expanded(child: buildEnhancedProjectTiles(projects)),
             ],
           ),
         ),
@@ -637,17 +1325,20 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                       ),
                     ),
                   ),
-                  Container(
-                    margin: EdgeInsets.only(left: 10, right: 20),
-                    child: Text(
-                      project.title,
-                      textAlign: TextAlign.right,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onPrimary,
+                  Expanded(
+                    child: Container(
+                      margin: EdgeInsets.only(left: 10, right: 20),
+                      child: Text(
+                        project.title,
+                        textAlign: TextAlign.right,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: true,
+                        style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
                       ),
                     ),
                   ),

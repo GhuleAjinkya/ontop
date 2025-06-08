@@ -96,9 +96,8 @@ class _TasksWithMongoDBState extends State<TasksWithMongoDB> {
       taskSections = await TasksAdapter.loadSections();
 
       // Load all tasks
-      final allTasks = await TasksAdapter.loadTasks();
-
-      // Organize tasks into sections and completed sections
+      final allTasks =
+          await TasksAdapter.loadTasks(); // Organize tasks into sections and completed sections
       sections.clear();
       completedSections.clear();
 
@@ -109,6 +108,29 @@ class _TasksWithMongoDBState extends State<TasksWithMongoDB> {
             sectionTasks.where((task) => !task.isCompleted).toList();
         final completedTasks =
             sectionTasks.where((task) => task.isCompleted).toList();
+
+        // Sort tasks: for ongoing tasks, sort by deadline (earliest first)
+        // For completed tasks, show recently completed first (using completedAt timestamp)
+        todoTasks.sort((a, b) {
+          if (a.deadlineDate.isBefore(b.deadlineDate)) return -1;
+          if (a.deadlineDate.isAfter(b.deadlineDate)) return 1;
+          return 0;
+        });
+
+        // For completed tasks, sort by completion time (most recently completed first)
+        completedTasks.sort((a, b) {
+          // Prioritize tasks with completedAt timestamp
+          if (a.completedAt != null && b.completedAt != null) {
+            return b.completedAt!.compareTo(a.completedAt!);
+          }
+          // If one has completedAt and other doesn't, prioritize the one with timestamp
+          if (a.completedAt != null && b.completedAt == null) return -1;
+          if (a.completedAt == null && b.completedAt != null) return 1;
+          // Fall back to deadline date for tasks without completedAt (legacy tasks)
+          if (a.deadlineDate.isBefore(b.deadlineDate)) return 1;
+          if (a.deadlineDate.isAfter(b.deadlineDate)) return -1;
+          return 0;
+        });
 
         if (todoTasks.isNotEmpty) {
           sections[section.name] = todoTasks;

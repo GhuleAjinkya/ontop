@@ -37,6 +37,7 @@ class ToDoItem {
   String text;
   DateTime deadlineDate;
   final bool isCompleted;
+  DateTime? completedAt; // Track when the task was completed
 
   ToDoItem({
     required this.id,
@@ -44,8 +45,8 @@ class ToDoItem {
     required this.text,
     required this.deadlineDate,
     required this.isCompleted,
+    this.completedAt,
   });
-
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -53,6 +54,7 @@ class ToDoItem {
       'text': text,
       'deadlineDate': deadlineDate.toIso8601String(),
       'isCompleted': isCompleted,
+      'completedAt': completedAt?.toIso8601String(),
       'type': 'task_item',
     };
   }
@@ -66,6 +68,10 @@ class ToDoItem {
         map['deadlineDate'] ?? DateTime.now().toIso8601String(),
       ),
       isCompleted: map['isCompleted'] ?? false,
+      completedAt:
+          map['completedAt'] != null
+              ? DateTime.parse(map['completedAt'])
+              : null,
     );
   }
 
@@ -247,9 +253,14 @@ class TasksAdapter {
     }
 
     try {
+      final updateData = {
+        'isCompleted': isCompleted,
+        'completedAt': isCompleted ? DateTime.now().toIso8601String() : null,
+      };
+
       final success = await MongoDatabase.updateDataByQuery(
         {'id': taskId, 'type': 'task_item'},
-        {'isCompleted': isCompleted},
+        updateData,
         userId: userId,
       );
 

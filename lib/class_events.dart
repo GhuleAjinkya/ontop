@@ -72,6 +72,9 @@ class _EventsState extends State<Events> {
   String selectedFilter = 'All Events';
   String selectedTab = 'Upcoming'; // Add tab state
   bool isLoading = true;
+  bool searching = false;
+  String searchQuery = '';
+  final TextEditingController searchController = TextEditingController();
 
   // Database helper methods
   Future<List<Event>> _getAllEvents() async {
@@ -246,19 +249,31 @@ class _EventsState extends State<Events> {
 
   void _applyFilter() {
     setState(() {
+      List<Event> baseEvents;
       switch (selectedFilter) {
         case 'All Events':
-          filteredEvents = allEvents;
+          baseEvents = allEvents;
           break;
         case 'This Month':
-          filteredEvents = _getEventsThisMonth();
+          baseEvents = _getEventsThisMonth();
           break;
         case 'This Week':
-          filteredEvents = _getEventsThisWeek();
+          baseEvents = _getEventsThisWeek();
           break;
         default:
-          filteredEvents = allEvents;
+          baseEvents = allEvents;
           break;
+      }
+
+      // Apply search filter if searching
+      if (searching && searchQuery.isNotEmpty) {
+        filteredEvents = baseEvents.where((event) {
+          final titleMatch = event.title.toLowerCase().contains(searchQuery.toLowerCase());
+          final descriptionMatch = event.description.toLowerCase().contains(searchQuery.toLowerCase());
+          return titleMatch || descriptionMatch;
+        }).toList();
+      } else {
+        filteredEvents = baseEvents;
       }
     });
   }
@@ -306,40 +321,104 @@ class _EventsState extends State<Events> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Container(
-              margin: EdgeInsets.only(left: 40),
-              child: Text(
-                'Events',
-                style: TextStyle(
-                  fontSize: 28,
-                  color: Theme.of(context).colorScheme.onPrimary,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'Poppins',
+            if (!searching) ...[
+              Container(
+                margin: EdgeInsets.only(left: 40),
+                child: Text(
+                  'Events',
+                  style: TextStyle(
+                    fontSize: 28,
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Poppins',
+                  ),
                 ),
               ),
-            ),
+            ] else ...[
+              Container(
+                margin: const EdgeInsets.only(
+                  left: 36,
+                  top: 5,
+                  bottom: 5,
+                  right: 5,
+                ),
+                width: MediaQuery.of(context).size.width * 0.6,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.2),
+                    width: 1,
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 2,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: searchController,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onPrimary,
+                          fontFamily: 'Poppins',
+                        ),
+                        cursorColor: Theme.of(context).colorScheme.tertiary,
+                        decoration: InputDecoration(
+                          hintText: 'Search events',
+                          labelText: 'Search events',
+                          labelStyle: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.6),
+                            fontFamily: 'Poppins',
+                          ),
+                          hintStyle: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.6),
+                            fontFamily: 'Poppins',
+                          ),
+                          border: const UnderlineInputBorder(),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            searchQuery = value.trim().toLowerCase();
+                          });
+                          _applyFilter();
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             Container(
               margin: EdgeInsets.only(right: 20),
               child: Row(
                 children: [
                   IconButton(
+                    icon: Icon(
+                      !searching ? Icons.search : Icons.cancel_outlined,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      size: !searching ? 30 : 25,
+                    ),
                     onPressed: () {
-                      // Search functionality disabled (keeping icon only)
+                      setState(() {
+                        searching = !searching;
+                        searchController.clear();
+                        searchQuery = '';
+                      });
+                      _applyFilter();
                     },
-                    icon: Icon(
-                      Icons.search,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      size: 30,
-                    ),
                   ),
-                  IconButton(
-                    onPressed: () => _showEventDialog(),
-                    icon: Icon(
-                      Icons.add,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      size: 26,
+                  if (!searching) ...[
+                    IconButton(
+                      onPressed: () => _showEventDialog(),
+                      icon: Icon(
+                        Icons.add,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                        size: 26,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),

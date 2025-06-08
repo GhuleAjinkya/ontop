@@ -65,7 +65,30 @@ class _TasksState extends State<Tasks> {
         final todoTasks =
             sectionTasks.where((task) => !task.isCompleted).toList();
         final completedTasks =
-            sectionTasks.where((task) => task.isCompleted).toList();
+            sectionTasks
+                .where((task) => task.isCompleted)
+                .toList(); // Sort tasks: for ongoing tasks, sort by deadline (earliest first)
+        // For completed tasks, show recently completed first (using completedAt timestamp)
+        todoTasks.sort((a, b) {
+          if (a.deadlineDate.isBefore(b.deadlineDate)) return -1;
+          if (a.deadlineDate.isAfter(b.deadlineDate)) return 1;
+          return 0;
+        });
+
+        // For completed tasks, sort by completion time (most recently completed first)
+        completedTasks.sort((a, b) {
+          // Prioritize tasks with completedAt timestamp
+          if (a.completedAt != null && b.completedAt != null) {
+            return b.completedAt!.compareTo(a.completedAt!);
+          }
+          // If one has completedAt and other doesn't, prioritize the one with timestamp
+          if (a.completedAt != null && b.completedAt == null) return -1;
+          if (a.completedAt == null && b.completedAt != null) return 1;
+          // Fall back to deadline date for tasks without completedAt (legacy tasks)
+          if (a.deadlineDate.isBefore(b.deadlineDate)) return 1;
+          if (a.deadlineDate.isAfter(b.deadlineDate)) return -1;
+          return 0;
+        });
 
         // Always add sections to the maps, even if empty, so they appear in the UI
         sections[section.name] = todoTasks;
@@ -799,6 +822,50 @@ class _TasksState extends State<Tasks> {
     );
   }
 
+  // Helper method to build tab chips with Events-style design (matching Projects)
+  Widget _buildTabChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 12), // Match Events exactly
+        decoration: BoxDecoration(
+          color:
+              isSelected
+                  ? Colors.grey[700]
+                  : Theme.of(context).colorScheme.primary,
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(
+            color:
+                isSelected
+                    ? Colors.grey[700]!
+                    : Theme.of(context).colorScheme.tertiary.withValues(
+                      alpha: 0.3,
+                    ), // Light purple
+            width: 1,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color:
+                  isSelected
+                      ? Colors.white
+                      : Theme.of(context).colorScheme.tertiary, // Light purple
+              fontWeight: FontWeight.w500,
+              fontFamily: 'Poppins',
+              fontSize: 14, // Match Events exactly
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget singleFilterChip({
     required String label,
     bool isSelected = false,
@@ -1258,31 +1325,35 @@ class _TasksState extends State<Tasks> {
                   ),
                 ),
               ),
+              // Tab selector for To-Do vs Completed tasks (exact copy from Events)
               Container(
-                margin: EdgeInsets.only(left: 10, right: 10),
+                margin: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    singleFilterChip(
-                      label: "To-Do",
-                      isSelected: !openCompleted,
-                      onTap: () {
-                        setState(() {
-                          openCompleted = false;
-                          selectedTaskIDs.clear();
-                        });
-                      },
+                    Expanded(
+                      child: _buildTabChip(
+                        label: "To-Do",
+                        isSelected: !openCompleted,
+                        onTap: () {
+                          setState(() {
+                            openCompleted = false;
+                            selectedTaskIDs.clear();
+                          });
+                        },
+                      ),
                     ),
-
-                    singleFilterChip(
-                      label: "Completed",
-                      isSelected: openCompleted,
-                      onTap: () {
-                        setState(() {
-                          openCompleted = true;
-                          selectedTaskIDs.clear();
-                        });
-                      },
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: _buildTabChip(
+                        label: "Completed",
+                        isSelected: openCompleted,
+                        onTap: () {
+                          setState(() {
+                            openCompleted = true;
+                            selectedTaskIDs.clear();
+                          });
+                        },
+                      ),
                     ),
                   ],
                 ),
