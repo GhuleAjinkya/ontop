@@ -2,6 +2,18 @@ import 'package:flutter/material.dart';
 import 'main.dart';
 import 'services/tasks_adapter.dart';
 
+ScaffoldFeatureController<SnackBar, SnackBarClosedReason> updatingSnackBar(BuildContext context) {
+  return ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        'Please wait. Updating Contacts...',
+      ),
+      duration: Duration(seconds: 1),
+      showCloseIcon: true,
+    ),
+  );
+}
+
 class Tasks extends StatefulWidget {
   const Tasks({super.key});
 
@@ -1042,7 +1054,7 @@ class _TasksState extends State<Tasks> {
                 ),
                 SizedBox(height: 16),
                 Text(
-                  'Loading tasks...',
+                  'Fetching tasks...',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onPrimary,
                     fontSize: 16,

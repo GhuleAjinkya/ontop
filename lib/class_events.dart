@@ -299,7 +299,7 @@ class _EventsState extends State<Events> {
                         isLoading
                             ? Center(
                               child: CircularProgressIndicator(
-                                color: Theme.of(context).colorScheme.secondary,
+                                color: Theme.of(context).colorScheme.tertiary,
                               ),
                             )
                             : _buildEventsList(),
@@ -396,7 +396,7 @@ class _EventsState extends State<Events> {
                 children: [
                   IconButton(
                     icon: Icon(
-                      !searching ? Icons.search : Icons.cancel_outlined,
+                      !searching ? Icons.search : Icons.close,
                       color: Theme.of(context).colorScheme.onPrimary,
                       size: !searching ? 30 : 25,
                     ),

@@ -19,6 +19,7 @@ class _ProjectsState extends State<Projects> {
   List<Project> projects = [];
   bool addingProject = false;
   bool searching = false;
+  bool fetchingProjects = false;
   String searchQuery = '';
   String selectedTab = 'Ongoing'; // Add tab state - default to Ongoing
   TextEditingController projectTitle = TextEditingController();
@@ -30,6 +31,7 @@ class _ProjectsState extends State<Projects> {
   @override
   void initState() {
     super.initState();
+    print("Called Projects initState");
     loadProjects();
     loadContactsFromMongo();
   }
@@ -44,10 +46,8 @@ class _ProjectsState extends State<Projects> {
 
     try {
       // Use ContactsAdapter instead of direct MongoDB access
-      List<Map<String, dynamic>> fetchedContacts =
-          await ContactsAdapter.getContacts();
-      globalContacts =
-          fetchedContacts.map((doc) => Contact.fromMongo(doc)).toList();
+      List<Map<String, dynamic>> fetchedContacts = await ContactsAdapter.getContacts();
+      globalContacts = fetchedContacts.map((doc) => Contact.fromMongo(doc)).toList();
       print(
         "Successfully loaded ${globalContacts.length} contacts for project collaborators",
       );
@@ -67,19 +67,20 @@ class _ProjectsState extends State<Projects> {
     }
 
     try {
-      List<Map<String, dynamic>> fetchedProjects =
-          await ProjectsAdapter.getProjects();
+      setState(() {fetchingProjects = true;});
+      List<Map<String, dynamic>> fetchedProjects = await ProjectsAdapter.getProjects();
 
       // Convert documents to Project objects
       projects = fetchedProjects.map((doc) => Project.fromMongo(doc)).toList();
 
       print("Successfully loaded ${projects.length} projects for user $userId");
-      setState(() {});
+      setState(() {fetchingProjects = false;});
     } catch (e) {
       print("Error loading projects: $e");
       projects = [];
 
       if (mounted) {
+        setState(() {fetchingProjects = false;});
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to load projects: $e'),
@@ -88,216 +89,6 @@ class _ProjectsState extends State<Projects> {
         );
       }
     }
-  }
-
-  Widget buildProjectTiles(List<Project> projects, {bool completed = false}) {
-    return ListView.builder(
-      //shrinkWrap: true,
-      physics: const BouncingScrollPhysics(),
-      itemCount: projects.length,
-      itemBuilder: (context, index) {
-        final project = projects[index];
-        return Padding(
-          padding: EdgeInsets.symmetric(vertical: 6, horizontal: 16),
-          child: Container(
-            decoration: standardTile(15),
-            margin: EdgeInsets.symmetric(horizontal: 20),
-            child: ListTile(
-              //dense: true,
-              onTap: () {
-                setState(() {
-                  openedProject = project;
-                });
-              },
-              title: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      project.title,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 25,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                      ),
-                    ),
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        onPressed: () async {
-                          // Show confirmation dialog for project deletion
-                          final confirmed = await showDialog<bool>(
-                            context: context,
-                            builder:
-                                (context) => AlertDialog(
-                                  backgroundColor:
-                                      Theme.of(context).colorScheme.primary,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    side: BorderSide(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onSecondary,
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  title: Text(
-                                    'Delete Project?',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimary,
-                                    ),
-                                  ),
-                                  content: Text(
-                                    'Project "${project.title}" will be permanently deleted.',
-                                    style: TextStyle(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimary,
-                                    ),
-                                  ),
-                                  actions: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceEvenly,
-                                      children: [
-                                        IconButton(
-                                          onPressed:
-                                              () =>
-                                                  Navigator.pop(context, false),
-                                          icon: Icon(
-                                            Icons.close,
-                                            color:
-                                                Theme.of(
-                                                  context,
-                                                ).colorScheme.onPrimary,
-                                            size: 30,
-                                          ),
-                                        ),
-                                        IconButton(
-                                          onPressed:
-                                              () =>
-                                                  Navigator.pop(context, true),
-                                          icon: Icon(
-                                            Icons.check,
-                                            color:
-                                                Theme.of(
-                                                  context,
-                                                ).colorScheme.error,
-                                            size: 30,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                          );
-
-                          if (confirmed == true) {
-                            try {
-                              // Delete project from database
-                              bool success =
-                                  await ProjectsAdapter.deleteProject(
-                                    project.id!,
-                                  );
-                              if (success) {
-                                // Remove from local list
-                                setState(() {
-                                  projects.removeWhere(
-                                    (p) => p.id == project.id,
-                                  );
-                                });
-                                if (mounted) {
-                                  final messenger = ScaffoldMessenger.of(
-                                    context,
-                                  );
-                                  messenger.showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Project "${project.title}" deleted successfully',
-                                      ),
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
-                                }
-                              } else {
-                                if (mounted) {
-                                  final messenger = ScaffoldMessenger.of(
-                                    context,
-                                  );
-                                  messenger.showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Failed to delete project'),
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
-                                }
-                              }
-                            } catch (e) {
-                              print('Error deleting project: $e');
-                              if (mounted) {
-                                final messenger = ScaffoldMessenger.of(context);
-                                messenger.showSnackBar(
-                                  SnackBar(
-                                    content: Text('Error deleting project: $e'),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                              }
-                            }
-                          }
-                        },
-                        icon: Icon(
-                          Icons.delete_outline,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onPrimary.withValues(alpha: 0.7),
-                          size: 22,
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () {
-                          // transfer to completed projects
-                        },
-                        icon: Icon(
-                          completed
-                              ? Icons.check_box_outlined
-                              : Icons.check_box_outline_blank,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  project.description.isNotEmpty
-                      ? Text(
-                        "Description: ${project.description}",
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 17,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                      )
-                      : Container(),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
   }
 
   // Enhanced project tiles builder based on Figma design
@@ -380,13 +171,18 @@ class _ProjectsState extends State<Projects> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
+              fetchingProjects ? 
+              CircularProgressIndicator(
+                color: Theme.of(context).colorScheme.tertiary,
+              )
+              :Icon(
                 Icons.folder_outlined,
                 size: 80,
                 color: Theme.of(context).colorScheme.tertiary,
               ),
               SizedBox(height: 16),
               Text(
+                fetchingProjects ? "Fetching Projects...":
                 selectedTab == 'Ongoing' 
                   ? (searching && searchQuery.isNotEmpty ? 'No ongoing projects found' : 'No ongoing projects')
                   : (searching && searchQuery.isNotEmpty ? 'No completed projects found' : 'No completed projects'),
@@ -398,7 +194,7 @@ class _ProjectsState extends State<Projects> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              if (!searching && selectedTab == 'Ongoing') ...[
+              if (!searching && selectedTab == 'Ongoing' && !fetchingProjects) ...[
                 SizedBox(height: 8),
                 Text(
                   'Tap the + button to add your first project',
@@ -760,6 +556,15 @@ class _ProjectsState extends State<Projects> {
 
                       if (confirmed == true) {
                         try {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Please wait. Updating Projects...',
+                              ),
+                              duration: Duration(seconds: 1),
+                              showCloseIcon: true,
+                            ),
+                          );
                           // Delete project from database
                           bool success = await ProjectsAdapter.deleteProject(project.id!);
                           if (success) {
@@ -962,7 +767,7 @@ class _ProjectsState extends State<Projects> {
                               icon: Icon(
                                 !searching
                                     ? Icons.search
-                                    : Icons.cancel_outlined,
+                                    : Icons.close,
                                 color:
                                     Theme.of(context).colorScheme.onPrimary,
                                 size: !searching ? 30 : 25,
@@ -1074,13 +879,20 @@ class _ProjectsState extends State<Projects> {
                           );
                           return;
                         }
-
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Please wait. Updating Projects...',
+                            ),
+                            duration: Duration(seconds: 1),
+                            showCloseIcon: true,
+                          ),
+                        );
                         // Create project data
                         final projectData = {
                           'title': projectTitle.text.trim(),
                           'description': '',
-                          'collaborators':
-                              [], // Empty array of Contact ObjectIds
+                          'collaborators': [], // Empty array of Contact ObjectIds
                           'project_tasks': [],
                           'type': 'project',
                           'created_at': DateTime.now().toIso8601String(),
@@ -1197,6 +1009,8 @@ class _ProjectDetailsState extends State<ProjectDetails> {
   bool expandToDo = true;
   bool editingToDo = false;
   bool openCompletedTasks = false;
+  bool contactsFetched = false;
+  bool fetchingContacts = false;
   List<String> completedTasks = [];
   TextEditingController descriptionController = TextEditingController();
   TextEditingController textController = TextEditingController();
@@ -1204,6 +1018,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
   TimeOfDay? selectedTime;
   List<Contact> globalContacts = [];
   Contact? openedContact;
+
   Future<void> loadContactsFromMongo() async {
     String userId = UserSession().userId ?? '';
     if (userId.isEmpty) {
@@ -1213,6 +1028,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
     }
 
     try {
+      setState((){fetchingContacts = true;});
       // Use ContactsAdapter instead of direct MongoDB access
       List<Map<String, dynamic>> fetchedContacts =
           await ContactsAdapter.getContacts();
@@ -1221,11 +1037,13 @@ class _ProjectDetailsState extends State<ProjectDetails> {
       print(
         "Successfully loaded ${globalContacts.length} contacts for project collaborators",
       );
-      setState(() {});
+      setState(() {fetchingContacts = false;});
     } catch (e) {
+      if (mounted) {
+        setState(() {fetchingContacts = false;});
+      }
       print("Error loading contacts for project: $e");
       globalContacts = [];
-      setState(() {});
     }
   }
 
@@ -1298,6 +1116,17 @@ class _ProjectDetailsState extends State<ProjectDetails> {
         onBack: () {
           setState(() {
             openedContact = null;
+          });
+        },
+        onUpdate: (updatedContact) {
+          setState(() {
+            final idx = globalContacts.indexWhere(
+              (c) => c.id.toString() == updatedContact.id.toString()
+            );
+            if (idx != -1) {
+              globalContacts[idx] = updatedContact;
+              openedContact = updatedContact;
+            }
           });
         },
       );
@@ -1394,6 +1223,15 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                     ),
                                     onPressed: () async {
                                       try {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Please wait. Updating Projects...',
+                                            ),
+                                            duration: Duration(seconds: 1),
+                                            showCloseIcon: true,
+                                          ),
+                                        );
                                         final updatedDescription =
                                             descriptionController.text.trim();
                                         final updatedProject = project.copyWith(
@@ -1977,9 +1815,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                       ),
                                       onPressed: () async {
                                         // Show confirmation dialog
-                                        final confirmed = await showDialog<
-                                          bool
-                                        >(
+                                        final confirmed = await showDialog<bool>(
                                           context: context,
                                           builder:
                                               (context) => AlertDialog(
@@ -2024,11 +1860,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                             .spaceEvenly,
                                                     children: [
                                                       IconButton(
-                                                        onPressed:
-                                                            () => Navigator.pop(
-                                                              context,
-                                                              false,
-                                                            ),
+                                                        onPressed: () => Navigator.pop(context,false),
                                                         icon: Icon(
                                                           Icons.close,
                                                           color:
@@ -2060,6 +1892,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                         );
 
                                         if (confirmed == true) {
+                                          
                                           // Store original state for rollback
                                           final originalTasks =
                                               List<ToDoItem>.from(
@@ -2080,6 +1913,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
 
                                           // Update project in database
                                           try {
+                                            
                                             final updatedProject = project
                                                 .copyWith(
                                                   projectTasks:
@@ -2184,7 +2018,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              "Collaborators",
+                              fetchingContacts ? 
+                              "Fetching Collaborators..."
+                              : "Collaborators",
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Theme.of(context).colorScheme.onPrimary,
@@ -2203,27 +2039,31 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                     List<Contact> filtered = globalContacts;
                                     TextEditingController searchController =
                                         TextEditingController();
+                                    bool fetchingContacts = false;
+                                    int loop = 0;
                                     return StatefulBuilder(
                                       builder: (context, setDialogState) {
                                         // Filter contacts by search query with improved ordering
-                                        filtered =
-                                            globalContacts
-                                                .where(
-                                                  (c) =>
-                                                      c.name
-                                                          .toLowerCase()
-                                                          .contains(
-                                                            search
-                                                                .toLowerCase(),
-                                                          ) ||
-                                                      c.phoneNumber
-                                                          .toLowerCase()
-                                                          .contains(
-                                                            search
-                                                                .toLowerCase(),
-                                                          ),
-                                                )
-                                                .toList();
+                                        if (globalContacts.isEmpty && contactsFetched == false) {
+                                          loop += 1;
+                                          print("loops = $loop\n");
+                                          setDialogState((){
+                                            fetchingContacts = true;
+                                          });
+                                          loadContactsFromMongo().then((_) {
+                                            setDialogState(() {
+                                              filtered = globalContacts;
+                                              fetchingContacts = false;
+                                              contactsFetched = true;
+                                            });
+                                            
+                                          });
+                                        } else {
+                                          filtered = globalContacts.where((c) =>
+                                            c.name.toLowerCase().contains(search.toLowerCase()) ||
+                                            c.phoneNumber.toLowerCase().contains(search.toLowerCase())
+                                          ).toList();
+                                        }
 
                                         // Sort filtered contacts: starts with query first, then contains query
                                         if (search.isNotEmpty) {
@@ -2280,11 +2120,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                             return a.name.compareTo(b.name);
                                           });
                                         }
+                                        
                                         return AlertDialog(
-                                          backgroundColor:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.primary,
+                                          backgroundColor: Theme.of(context).colorScheme.primary,
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(
                                               16,
@@ -2383,7 +2221,25 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                 ),
                                                 Expanded(
                                                   child:
-                                                      filtered.isEmpty
+                                                    fetchingContacts ? 
+                                                      Container(
+                                                            margin:
+                                                                EdgeInsets.only(
+                                                                  top: 75,
+                                                                ),
+                                                            child: Text(
+                                                              "Fetching Contacts...",
+                                                              style: TextStyle(
+                                                                color:
+                                                                    Theme.of(
+                                                                          context,
+                                                                        )
+                                                                        .colorScheme
+                                                                        .tertiary,
+                                                              ),
+                                                            ),
+                                                          )
+                                                      : filtered.isEmpty
                                                           ? Container(
                                                             margin:
                                                                 EdgeInsets.only(
@@ -2581,7 +2437,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                 ? Container(
                                   margin: EdgeInsets.symmetric(vertical: 10),
                                   child: Text(
-                                    "No collaborators",
+                                    fetchingContacts ? "" : "No collaborators",
                                     style: TextStyle(
                                       color:
                                           Theme.of(
@@ -2617,211 +2473,180 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                     ),
                                               );
                                           return GestureDetector(
-                                            onTap: () {
-                                              // Show contact profile inline
+                                            onTap: fetchingContacts ?
+                                            null :
+                                            () {
                                               setState(() {
                                                 openedContact = contact;
                                               });
                                             },
-                                            child: Tooltip(
-                                              message:
-                                                  'Tap to view ${contact.name}\'s profile',
-                                              child: Chip(
-                                                backgroundColor: Theme.of(
-                                                      context,
-                                                    ).colorScheme.tertiary
-                                                    .withValues(alpha: 0.8),
+                                            child: Chip(
+                                              backgroundColor: Theme.of(context).colorScheme.primary.withAlpha(205),
+                                              shape: StadiumBorder(
                                                 side: BorderSide(
+                                                  color: Theme.of(context).colorScheme.secondary,
+                                                  width: 2,
+                                                ),
+                                              ),
+                                              label: Text(
+                                                contact.name,
+                                                style: TextStyle(
                                                   color:
                                                       Theme.of(
                                                         context,
-                                                      ).colorScheme.secondary,
-                                                  width: 1,
+                                                      ).colorScheme.onPrimary,
+                                                  fontWeight: FontWeight.w500,
                                                 ),
-                                                label: Text(
-                                                  contact.name,
-                                                  style: TextStyle(
-                                                    color:
-                                                        Theme.of(
-                                                          context,
-                                                        ).colorScheme.primary,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                                deleteIcon: Icon(
-                                                  Icons.close,
-                                                  color:
-                                                      Theme.of(
+                                              ),
+                                              deleteIcon: Icon(
+                                                Icons.close,
+                                                color:
+                                                    Theme.of(
+                                                      context,
+                                                    ).colorScheme.onPrimary,
+                                                size: 16,
+                                              ),
+                                              onDeleted: () async {
+                                                // Show confirmation dialog
+                                                final confirmed = await showDialog<
+                                                  bool
+                                                >(
+                                                  context: context,
+                                                  builder:
+                                                      (
                                                         context,
-                                                      ).colorScheme.primary,
-                                                  size: 16,
-                                                ),
-                                                onDeleted: () async {
-                                                  // Show confirmation dialog
-                                                  final confirmed = await showDialog<
-                                                    bool
-                                                  >(
-                                                    context: context,
-                                                    builder:
-                                                        (
-                                                          context,
-                                                        ) => AlertDialog(
-                                                          backgroundColor:
-                                                              Theme.of(context)
-                                                                  .colorScheme
-                                                                  .primary,
-                                                          shape: RoundedRectangleBorder(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  16,
-                                                                ),
-                                                            side: BorderSide(
-                                                              color:
-                                                                  Theme.of(
-                                                                        context,
-                                                                      )
-                                                                      .colorScheme
-                                                                      .onPrimary,
-                                                              width: 1,
-                                                            ),
+                                                      ) => AlertDialog(
+                                                        backgroundColor:
+                                                            Theme.of(context)
+                                                                .colorScheme
+                                                                .primary,
+                                                        shape: RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                16,
+                                                              ),
+                                                          side: BorderSide(
+                                                            color:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .onPrimary,
+                                                            width: 1,
                                                           ),
-                                                          title: Text(
-                                                            'Remove Collaborator',
-                                                            style: TextStyle(
-                                                              color:
-                                                                  Theme.of(
-                                                                        context,
-                                                                      )
-                                                                      .colorScheme
-                                                                      .onPrimary,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w600,
-                                                            ),
-                                                          ),
-                                                          content: Text(
-                                                            'Remove ${contact.name} from this project?',
-                                                            style: TextStyle(
-                                                              color:
-                                                                  Theme.of(
-                                                                        context,
-                                                                      )
-                                                                      .colorScheme
-                                                                      .onPrimary,
-                                                            ),
-                                                          ),
-                                                          actions: [
-                                                            Row(
-                                                              mainAxisAlignment:
-                                                                  MainAxisAlignment
-                                                                      .spaceEvenly,
-                                                              children: [
-                                                                IconButton(
-                                                                  onPressed:
-                                                                      () => Navigator.pop(
-                                                                        context,
-                                                                        false,
-                                                                      ),
-                                                                  icon: Icon(
-                                                                    Icons.close,
-                                                                    color:
-                                                                        Theme.of(
-                                                                          context,
-                                                                        ).colorScheme.onPrimary,
-                                                                    size: 30,
-                                                                  ),
-                                                                ),
-                                                                IconButton(
-                                                                  onPressed:
-                                                                      () => Navigator.pop(
-                                                                        context,
-                                                                        true,
-                                                                      ),
-                                                                  icon: Icon(
-                                                                    Icons.check,
-                                                                    color:
-                                                                        Theme.of(
-                                                                          context,
-                                                                        ).colorScheme.error,
-                                                                    size: 30,
-                                                                  ),
-                                                                ),
-                                                              ],
-                                                            ),
-                                                          ],
                                                         ),
-                                                  );
-
-                                                  if (confirmed == true) {
-                                                    // Remove collaborator from local state
-                                                    setState(() {
-                                                      project.collaborators
-                                                          .remove(phoneNumber);
-                                                    });
-
-                                                    // Update project in database
-                                                    try {
-                                                      final updatedProject =
-                                                          project.copyWith(
-                                                            collaborators:
-                                                                project
-                                                                    .collaborators,
-                                                          );
-                                                      final projectData =
-                                                          updatedProject
-                                                              .toMap();
-                                                      projectData['_id'] =
-                                                          updatedProject.id;
-
-                                                      bool success =
-                                                          await ProjectsAdapter.updateProject(
-                                                            projectData,
-                                                          );
-                                                      if (success) {
-                                                        widget.onUpdate(
-                                                          updatedProject,
+                                                        title: Text(
+                                                          'Remove Collaborator',
+                                                          style: TextStyle(
+                                                            color:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .onPrimary,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w600,
+                                                          ),
+                                                        ),
+                                                        content: Text(
+                                                          'Remove ${contact.name} from this project?',
+                                                          style: TextStyle(
+                                                            color:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .onPrimary,
+                                                          ),
+                                                        ),
+                                                        actions: [
+                                                          Row(
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .spaceEvenly,
+                                                            children: [
+                                                              IconButton(
+                                                                onPressed:
+                                                                    () => Navigator.pop(
+                                                                      context,
+                                                                      false,
+                                                                    ),
+                                                                icon: Icon(
+                                                                  Icons.close,
+                                                                  color:
+                                                                      Theme.of(
+                                                                        context,
+                                                                      ).colorScheme.onPrimary,
+                                                                  size: 30,
+                                                                ),
+                                                              ),
+                                                              IconButton(
+                                                                onPressed:
+                                                                    () => Navigator.pop(
+                                                                      context,
+                                                                      true,
+                                                                    ),
+                                                                icon: Icon(
+                                                                  Icons.check,
+                                                                  color:
+                                                                      Theme.of(
+                                                                        context,
+                                                                      ).colorScheme.error,
+                                                                  size: 30,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ],
+                                                      ),
+                                                );
+                                            
+                                                if (confirmed == true) {
+                                                  // Remove collaborator from local state
+                                                  setState(() {
+                                                    project.collaborators
+                                                        .remove(phoneNumber);
+                                                  });
+                                            
+                                                  // Update project in database
+                                                  try {
+                                                    final updatedProject =
+                                                        project.copyWith(
+                                                          collaborators:
+                                                              project
+                                                                  .collaborators,
                                                         );
-                                                        if (mounted) {
-                                                          ScaffoldMessenger.of(
-                                                            context,
-                                                          ).showSnackBar(
-                                                            SnackBar(
-                                                              content: Text(
-                                                                '${contact.name} removed from project',
-                                                              ),
-                                                              duration:
-                                                                  Duration(
-                                                                    seconds: 2,
-                                                                  ),
-                                                            ),
-                                                          );
-                                                        }
-                                                      } else {
-                                                        // Revert the local change if database update failed
-                                                        setState(() {
-                                                          project.collaborators
-                                                              .add(phoneNumber);
-                                                        });
-                                                        if (mounted) {
-                                                          ScaffoldMessenger.of(
-                                                            context,
-                                                          ).showSnackBar(
-                                                            const SnackBar(
-                                                              content: Text(
-                                                                'Failed to remove collaborator',
-                                                              ),
-                                                              duration:
-                                                                  Duration(
-                                                                    seconds: 2,
-                                                                  ),
-                                                            ),
-                                                          );
-                                                        }
-                                                      }
-                                                    } catch (e) {
-                                                      print(
-                                                        'Error removing collaborator: $e',
+                                                    final projectData =
+                                                        updatedProject
+                                                            .toMap();
+                                                    projectData['_id'] =
+                                                        updatedProject.id;
+                                            
+                                                    bool success =
+                                                        await ProjectsAdapter.updateProject(
+                                                          projectData,
+                                                        );
+                                                    if (success) {
+                                                      widget.onUpdate(
+                                                        updatedProject,
                                                       );
+                                                      if (mounted) {
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          SnackBar(
+                                                            content: Text(
+                                                              '${contact.name} removed from project',
+                                                            ),
+                                                            duration:
+                                                                Duration(
+                                                                  seconds: 2,
+                                                                ),
+                                                          ),
+                                                        );
+                                                      }
+                                                    } else {
                                                       // Revert the local change if database update failed
                                                       setState(() {
                                                         project.collaborators
@@ -2831,20 +2656,44 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                         ScaffoldMessenger.of(
                                                           context,
                                                         ).showSnackBar(
-                                                          SnackBar(
+                                                          const SnackBar(
                                                             content: Text(
-                                                              'Error removing collaborator: $e',
+                                                              'Failed to remove collaborator',
                                                             ),
-                                                            duration: Duration(
-                                                              seconds: 2,
-                                                            ),
+                                                            duration:
+                                                                Duration(
+                                                                  seconds: 2,
+                                                                ),
                                                           ),
                                                         );
                                                       }
                                                     }
+                                                  } catch (e) {
+                                                    print(
+                                                      'Error removing collaborator: $e',
+                                                    );
+                                                    // Revert the local change if database update failed
+                                                    setState(() {
+                                                      project.collaborators
+                                                          .add(phoneNumber);
+                                                    });
+                                                    if (mounted) {
+                                                      ScaffoldMessenger.of(
+                                                        context,
+                                                      ).showSnackBar(
+                                                        SnackBar(
+                                                          content: Text(
+                                                            'Error removing collaborator: $e',
+                                                          ),
+                                                          duration: Duration(
+                                                            seconds: 2,
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }
                                                   }
-                                                },
-                                              ),
+                                                }
+                                              },
                                             ),
                                           );
                                         }).toList(),

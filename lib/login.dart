@@ -618,7 +618,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ), // Login/Signup Button
                         Container(
-                          margin: EdgeInsets.only(top: 20),
+                          margin: EdgeInsets.only(top: 25),
                           decoration: standardTile(20),
                           child: Container(
                             margin: EdgeInsets.all(3),
