@@ -3,12 +3,14 @@ class ToDoItem {
   String text;
   DateTime deadlineDate;
   DateTime? completedAt; // Track when the task was completed
+  bool checkedOff; // Track if the task is checked off
 
   ToDoItem({
     required this.id,
     required this.text,
     required this.deadlineDate,
     this.completedAt,
+    this.checkedOff = false,
   });
   // Convert Map to ToDoItem object
   factory ToDoItem.fromMap(Map<String, dynamic> map) {
@@ -25,6 +27,7 @@ class ToDoItem {
           map['completed_at'] != null
               ? DateTime.parse(map['completed_at'])
               : null,
+      checkedOff: map['checked_off'] ?? false,
     );
   }
   // Convert ToDoItem to Map for MongoDB storage
@@ -34,6 +37,7 @@ class ToDoItem {
       'text': text,
       'deadline_date': deadlineDate.toIso8601String(),
       'completed_at': completedAt?.toIso8601String(),
+      'checked_off': checkedOff,
     };
   }
 
@@ -43,12 +47,14 @@ class ToDoItem {
     String? text,
     DateTime? deadlineDate,
     DateTime? completedAt,
+    bool? checkedOff,
   }) {
     return ToDoItem(
       id: id ?? this.id,
       text: text ?? this.text,
       deadlineDate: deadlineDate ?? this.deadlineDate,
       completedAt: completedAt ?? this.completedAt,
+      checkedOff: checkedOff ?? this.checkedOff,
     );
   }
 }
