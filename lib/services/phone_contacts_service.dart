@@ -5,9 +5,12 @@ import '../class_contacts.dart' as app_contacts;
 class PhoneContactsService {
   /// Request permission to access contacts
   static Future<bool> requestContactsPermission() async {
-    // Use permission_handler for more reliable permission requests
-    final status = await Permission.contacts.request();
-    return status == PermissionStatus.granted;
+    // Use permission_handler with array format for reliable permission requests
+    final statuses = await [
+      Permission.contacts,
+    ].request();
+    
+    return statuses[Permission.contacts] == PermissionStatus.granted;
   }
 
   /// Check if contacts permission is already granted
@@ -50,8 +53,12 @@ class PhoneContactsService {
       if (!canAccessContacts) {
         print('Requesting contacts permission...');
         
-        // Use permission_handler for reliable permission request
-        final status = await Permission.contacts.request();
+        // Use permission_handler with array format for reliable permission request
+        final statuses = await [
+          Permission.contacts,
+        ].request();
+        
+        final status = statuses[Permission.contacts];
         print('Permission request status: $status');
         
         if (status == PermissionStatus.granted) {

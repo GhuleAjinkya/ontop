@@ -25,7 +25,26 @@ class _ContactImportScreenState extends State<ContactImportScreen> {
   @override
   void initState() {
     super.initState();
+    _requestPermissionAndLoadContacts();
+  }
+
+  Future<void> _requestPermissionAndLoadContacts() async {
+    // Proactively request permission on screen load
+    await _requestContactsPermission();
     _loadPhoneContacts();
+  }
+
+  Future<void> _requestContactsPermission() async {
+    try {
+      final statuses = await [
+        Permission.contacts,
+      ].request();
+      
+      final status = statuses[Permission.contacts];
+      print('Proactive permission request status: $status');
+    } catch (e) {
+      print('Error in proactive permission request: $e');
+    }
   }
 
   @override
@@ -41,11 +60,11 @@ class _ContactImportScreenState extends State<ContactImportScreen> {
 
     try {
       print('Starting to load phone contacts...');
-      
+
       // First check if we have permission
       final hasPermission = await PhoneContactsService.hasContactsPermission();
       print('Has permission: $hasPermission');
-      
+
       final contacts = await PhoneContactsService.getImportableContacts();
       print('Loaded ${contacts.length} contacts successfully');
 
@@ -78,21 +97,25 @@ class _ContactImportScreenState extends State<ContactImportScreen> {
         String errorMessage = 'Failed to load contacts';
         String actionLabel = 'Retry';
         VoidCallback? actionCallback = _loadPhoneContacts;
-        
+
         if (e.toString().toLowerCase().contains('permission')) {
-          errorMessage = 'Contacts permission required. Please grant permission and try again.';
+          errorMessage =
+              'Contacts permission required. Please grant permission and try again.';
           actionLabel = 'Open Settings';
           actionCallback = () async {
             // Try to request permission again
             try {
-              final granted = await PhoneContactsService.requestContactsPermission();
+              final granted =
+                  await PhoneContactsService.requestContactsPermission();
               if (granted) {
                 _loadPhoneContacts();
               } else {
                 // Open app settings
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Please enable contacts permission in your device settings'),
+                    content: Text(
+                      'Please enable contacts permission in your device settings',
+                    ),
                     duration: Duration(seconds: 3),
                   ),
                 );
@@ -102,7 +125,8 @@ class _ContactImportScreenState extends State<ContactImportScreen> {
             }
           };
         } else if (e.toString().toLowerCase().contains('denied')) {
-          errorMessage = 'Contacts access was denied. Please enable it in your device settings.';
+          errorMessage =
+              'Contacts access was denied. Please enable it in your device settings.';
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -355,23 +379,29 @@ class _ContactImportScreenState extends State<ContactImportScreen> {
                             onPressed: () async {
                               try {
                                 // Check current permission status
-                                final currentStatus = await Permission.contacts.status;
-                                
-                                if (currentStatus == PermissionStatus.permanentlyDenied) {
+                                final currentStatus =
+                                    await Permission.contacts.status;
+
+                                if (currentStatus ==
+                                    PermissionStatus.permanentlyDenied) {
                                   // Show dialog to open app settings
                                   _showOpenSettingsDialog();
                                   return;
                                 }
-                                
-                                final granted = await PhoneContactsService.requestContactsPermission();
+
+                                final granted =
+                                    await PhoneContactsService.requestContactsPermission();
                                 if (granted) {
                                   _loadPhoneContacts();
                                 } else {
                                   if (mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content: const Text('Please grant contacts permission to import your contacts'),
-                                        backgroundColor: Theme.of(context).colorScheme.error,
+                                        content: const Text(
+                                          'Please grant contacts permission to import your contacts',
+                                        ),
+                                        backgroundColor:
+                                            Theme.of(context).colorScheme.error,
                                         action: SnackBarAction(
                                           label: 'Settings',
                                           onPressed: () => openAppSettings(),
@@ -384,8 +414,11 @@ class _ContactImportScreenState extends State<ContactImportScreen> {
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text('Error requesting permission: $e'),
-                                      backgroundColor: Theme.of(context).colorScheme.error,
+                                      content: Text(
+                                        'Error requesting permission: $e',
+                                      ),
+                                      backgroundColor:
+                                          Theme.of(context).colorScheme.error,
                                       action: SnackBarAction(
                                         label: 'Settings',
                                         onPressed: () => openAppSettings(),
@@ -396,9 +429,13 @@ class _ContactImportScreenState extends State<ContactImportScreen> {
                               }
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).colorScheme.tertiary,
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.tertiary,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
                             ),
                             icon: const Icon(Icons.security),
                             label: const Text('Grant Contacts Permission'),
@@ -509,25 +546,26 @@ class _ContactImportScreenState extends State<ContactImportScreen> {
   void _showOpenSettingsDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Permission Required'),
-        content: const Text(
-          'Contacts permission has been permanently denied. Please enable it in your device settings to import contacts.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Permission Required'),
+            content: const Text(
+              'Contacts permission has been permanently denied. Please enable it in your device settings to import contacts.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  openAppSettings();
+                },
+                child: const Text('Open Settings'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              openAppSettings();
-            },
-            child: const Text('Open Settings'),
-          ),
-        ],
-      ),
     );
   }
 }
