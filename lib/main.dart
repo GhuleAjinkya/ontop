@@ -56,11 +56,14 @@ void main() async {
   print("Connecting to MongoDB...");
   bool connected = await MongoDatabase.connect();
   print("MongoDB connection status: $connected");
-
   // Initialize user session
   print("Initializing user session...");
-  await userSession.initialize();
+  bool sessionInitialized = await userSession.initialize();
+  print("User session initialized: $sessionInitialized");
   print("User logged in: ${userSession.isLoggedIn}");
+  if (userSession.isLoggedIn) {
+    print("Current user: ${userSession.currentUser}");
+  }
 
   // Run the app
   runApp(const MyApp());
@@ -84,14 +87,27 @@ class MyApp extends StatelessWidget {
           secondary: Color.fromARGB(255, 101, 28, 132),
           tertiary: Color.fromARGB(255, 200, 162, 200),
           onSecondary: Color.fromARGB(255, 88, 81, 111),
-        ),
-      ),
+        ),      ),
       // Show HomePage if user is logged in, otherwise show LoginPage
-      home:
-          userSession.isLoggedIn
-              ? HomePage(userData: userSession.currentUser)
-              : LoginPage(),
+      home: _buildHomePage(),
     );
+  }
+
+  Widget _buildHomePage() {
+    final isLoggedIn = userSession.isLoggedIn;
+    final userData = userSession.currentUser;
+    
+    print('🏗️ MyApp: Building home page...');
+    print('🔐 MyApp: User logged in: $isLoggedIn');
+    print('👤 MyApp: User data: ${userData?.toString() ?? "null"}');
+    
+    if (isLoggedIn) {
+      print('✅ MyApp: Showing HomePage');
+      return HomePage(userData: userData);
+    } else {
+      print('❌ MyApp: Showing LoginPage');
+      return LoginPage();
+  }
   }
 }
 

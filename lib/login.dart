@@ -108,13 +108,19 @@ class _LoginPageState extends State<LoginPage> {
         phoneNumber: phoneNumber.text,
         password: password.text,
       );
-
       if (result['success']) {
+        print('🎉 Login: Login successful, user data: ${result['user']}');
+
         // Save user data to session
+        print('💾 Login: Saving user data to session...');
         await userSession.setUser(result['user']);
+        print(
+          '✅ Login: User data saved, session status: ${userSession.isLoggedIn}',
+        );
 
         // Navigate to home page on successful login with user data
         if (mounted) {
+          print('🏠 Login: Navigating to home page...');
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
