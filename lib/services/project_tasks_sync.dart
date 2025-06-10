@@ -8,7 +8,8 @@ import '../models/to_do_item.dart';
 class ProjectTasksSync {
   /// Sync project tasks to Tasks tab when project tasks are modified
   static Future<bool> syncProjectToTasks(Project project) async {
-    try {      log("ProjectTasksSync: Syncing project ${project.title} to tasks");
+    try {
+      log("ProjectTasksSync: Syncing project ${project.title} to tasks");
 
       // Create or update project section
       await tasks_adapter.TasksAdapter.createOrUpdateProjectSection(
@@ -32,7 +33,8 @@ class ProjectTasksSync {
                           : null,
                 },
               )
-              .toList();      // Sync tasks
+              .toList();
+      // Sync tasks
       final success = await tasks_adapter.TasksAdapter.syncProjectTasks(
         projectId: project.id.toString(),
         projectTasks: taskDataList,
@@ -56,7 +58,9 @@ class ProjectTasksSync {
     try {
       log("ProjectTasksSync: Removing project $projectId from tasks");
 
-      final success = await tasks_adapter.TasksAdapter.deleteProjectSection(projectId);
+      final success = await tasks_adapter.TasksAdapter.deleteProjectSection(
+        projectId,
+      );
 
       if (success) {
         log("ProjectTasksSync: Successfully removed project $projectId");
@@ -186,6 +190,63 @@ class ProjectTasksSync {
       return success;
     } catch (e) {
       log("ProjectTasksSync: Error syncing task to project: $e");
+      return false;
+    }
+  }
+
+  /// Sync task deletion from Tasks tab back to project
+  static Future<bool> syncTaskDeletionToProject({
+    required String taskId,
+    required String projectId,
+  }) async {
+    try {
+      log("ProjectTasksSync: Deleting task $taskId from project $projectId");
+
+      // Load the project to remove the task
+      final projectDocs = await ProjectsAdapter.getProjects();
+      final projectDoc = projectDocs.firstWhere(
+        (p) => p['_id'].toString() == projectId,
+        orElse: () => throw Exception('Project not found'),
+      );
+
+      // Convert to Project object
+      final project = Project.fromMongo(projectDoc);
+
+      // Remove the task from project tasks
+      final updatedProjectTasks =
+          project.projectTasks.where((task) => task.id != taskId).toList();
+
+      // Also remove from completed tasks and history if present
+      List<String> completedTasks = List<String>.from(
+        project.completedTasks ?? [],
+      );
+      List<String> completedTasksHistory = List<String>.from(
+        project.completedTasksHistory ?? [],
+      );
+
+      completedTasks.remove(taskId);
+      completedTasksHistory.remove(taskId);
+
+      // Update the project in database
+      final updatedProject = project.copyWith(
+        projectTasks: updatedProjectTasks,
+      );
+      final projectData = updatedProject.toMap();
+      projectData['_id'] = updatedProject.id;
+      projectData['completed_tasks'] = completedTasks;
+      projectData['completed_tasks_history'] = completedTasksHistory;
+
+      final success = await ProjectsAdapter.updateProject(projectData);
+
+      if (success) {
+        log("ProjectTasksSync: Task $taskId deleted from project $projectId");
+      } else {
+        log("ProjectTasksSync: Failed to delete task from project $projectId");
+      }
+
+      return success;
+    } catch (e) {
+      log("ProjectTasksSync: Error syncing task deletion: $e");
       return false;
     }
   }

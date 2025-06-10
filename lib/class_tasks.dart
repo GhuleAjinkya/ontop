@@ -1291,20 +1291,61 @@ class _TasksState extends State<Tasks> {
     List<String> taskIdsToDelete = [];
     Map<String, List<ToDoItem>> originalSections = {};
     Map<String, List<ToDoItem>> originalCompletedSections = {};
+    List<ToDoItem> projectTasksToSync = []; // Track project tasks for syncing
 
     // Store original state and collect task IDs
     for (final sectionName in selectedTaskIDs.keys) {
       final taskIds = selectedTaskIDs[sectionName] ?? {};
-      taskIdsToDelete.addAll(taskIds);
+      taskIdsToDelete.addAll(
+        taskIds,
+      ); // Find the section info to check if it's a project section
+      final section = taskSections.firstWhere(
+        (s) => s.name == sectionName,
+        orElse:
+            () => TaskSection(
+              id: '',
+              name: sectionName,
+              isCompleted: false,
+              type: SectionType.userCreated,
+            ),
+      );
 
       // Store original lists for rollback
       if (sections[sectionName] != null) {
         originalSections[sectionName] = List.from(sections[sectionName]!);
+
+        // If this is a project section, collect tasks that need syncing
+        if (section.type == SectionType.projectLinked &&
+            section.projectId != null) {
+          final tasksInSection = sections[sectionName]!;
+          for (final taskId in taskIds) {
+            try {
+              final task = tasksInSection.firstWhere((t) => t.id == taskId);
+              projectTasksToSync.add(task);
+            } catch (e) {
+              // Task might not be found in this section, continue
+            }
+          }
+        }
       }
       if (completedSections[sectionName] != null) {
         originalCompletedSections[sectionName] = List.from(
           completedSections[sectionName]!,
         );
+
+        // If this is a project section, collect completed tasks that need syncing
+        if (section.type == SectionType.projectLinked &&
+            section.projectId != null) {
+          final tasksInSection = completedSections[sectionName]!;
+          for (final taskId in taskIds) {
+            try {
+              final task = tasksInSection.firstWhere((t) => t.id == taskId);
+              projectTasksToSync.add(task);
+            } catch (e) {
+              // Task might not be found in this section, continue
+            }
+          }
+        }
       }
     }
 
@@ -1330,6 +1371,21 @@ class _TasksState extends State<Tasks> {
 
       if (!success) {
         throw Exception('Database operation failed');
+      }
+
+      // Step 2.5: Sync deletions back to projects for project tasks
+      for (final task in projectTasksToSync) {
+        if (task.projectId != null && task.projectId!.isNotEmpty) {
+          try {
+            await ProjectTasksSync.syncTaskDeletionToProject(
+              taskId: task.id,
+              projectId: task.projectId!,
+            );
+          } catch (e) {
+            print('Error syncing task deletion to project: $e');
+            // Continue with other tasks even if one fails
+          }
+        }
       }
 
       // Step 3: Show success message
@@ -1587,8 +1643,7 @@ class _TasksState extends State<Tasks> {
   Widget _buildSectionSeparator() {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-      child: Row(
-        children: [
+      child: Row(        children: [
           Expanded(
             child: Container(
               height: 1,
@@ -1597,7 +1652,7 @@ class _TasksState extends State<Tasks> {
                   width: 1,
                   color: Theme.of(
                     context,
-                  ).colorScheme.onPrimary.withOpacity(0.3),
+                  ).colorScheme.onPrimary.withValues(alpha: 0.3),
                 ),
               ),
             ),
@@ -1607,7 +1662,7 @@ class _TasksState extends State<Tasks> {
             child: Text(
               'PROJECTS',
               style: TextStyle(
-                color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.6),
+                color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.6),
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
                 letterSpacing: 1.2,
@@ -1622,7 +1677,7 @@ class _TasksState extends State<Tasks> {
                   width: 1,
                   color: Theme.of(
                     context,
-                  ).colorScheme.onPrimary.withOpacity(0.3),
+                  ).colorScheme.onPrimary.withValues(alpha: 0.3),
                 ),
               ),
             ),
