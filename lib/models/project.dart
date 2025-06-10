@@ -13,6 +13,7 @@ class Project {
   bool isCompleted; // For greying out completed projects
   String? lastCompletedTask; // Store the last completed task text
   List<String>? completedTasksHistory; // History of completed tasks for undo
+  DateTime? lastCrossedOff; // When the last task was crossed off
   Project({
     required this.id,
     required this.title,

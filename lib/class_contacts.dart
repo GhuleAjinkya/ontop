@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:convert'; // For JSON encoding/decoding
 import 'user_session.dart';
 import 'services/contacts_adapter.dart'; // Add our new adapter
+import 'services/optimistic_updates.dart'; // Add optimistic updates
+
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'main.dart';
@@ -301,33 +303,50 @@ class _ContactsState extends State<Contacts> {
       return;
     }
 
-    try {
-      updatingSnackBar(context);
-      // Use string comparison for MongoDB ObjectId comparison
-      for (var contact in contacts.where(
-        (c) => selectedIDs.any((id) => id.toString() == c.id.toString()),
-      )) {
-        // Update star status using our adapter which tries Node.js API first
-        bool success = await ContactsAdapter.toggleStarContact(
-          contact.id,
-          true,
-        );
+    if (selectedIDs.isEmpty) return;
 
-        if (success) {
-          print("Contact starred successfully!");
-        } else {
-          print("Failed to star contact");
+    // Get contacts to be starred for optimistic update
+    final contactsToStar =
+        contacts
+            .where(
+              (c) => selectedIDs.any((id) => id.toString() == c.id.toString()),
+            )
+            .toList();
+
+    // Use optimistic updates for bulk starring
+    await OptimisticUpdates.perform(
+      updateLocalState: () {
+        setState(() {
+          for (var contact in contactsToStar) {
+            contact.starred = 1;
+          }
+        });
+      },
+      databaseOperation: () async {
+        bool allSuccess = true;
+        for (var contact in contactsToStar) {
+          bool success = await ContactsAdapter.toggleStarContact(
+            contact.id,
+            true,
+          );
+          if (!success) allSuccess = false;
         }
-      }
-      await begin(); // Reload contacts
-    } catch (e) {
-      print("Error starring contacts: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error starring contacts: $e')));
-      }
-    }
+        return allSuccess;
+      },
+      revertLocalState: () {
+        setState(() {
+          for (var contact in contactsToStar) {
+            contact.starred = 0;
+          }
+        });
+      },
+      showSuccessMessage: 'Contacts starred successfully!',
+      showErrorMessage: 'Failed to star some contacts',
+      context: context,
+      onSuccess: () async {
+        await begin(); // Reload to ensure consistency
+      },
+    );
   }
 
   void deStarSelected() async {
@@ -336,33 +355,50 @@ class _ContactsState extends State<Contacts> {
       return;
     }
 
-    try {
-      updatingSnackBar(context);
-      // Use string comparison for MongoDB ObjectId comparison
-      for (var contact in contacts.where(
-        (c) => selectedIDs.any((id) => id.toString() == c.id.toString()),
-      )) {
-        // Update star status using our adapter which tries Node.js API first
-        bool success = await ContactsAdapter.toggleStarContact(
-          contact.id,
-          false,
-        );
+    if (selectedIDs.isEmpty) return;
 
-        if (success) {
-          print("Contact unstarred successfully!");
-        } else {
-          print("Failed to unstar contact");
+    // Get contacts to be unstarred for optimistic update
+    final contactsToUnstar =
+        contacts
+            .where(
+              (c) => selectedIDs.any((id) => id.toString() == c.id.toString()),
+            )
+            .toList();
+
+    // Use optimistic updates for bulk unstarring
+    await OptimisticUpdates.perform(
+      updateLocalState: () {
+        setState(() {
+          for (var contact in contactsToUnstar) {
+            contact.starred = 0;
+          }
+        });
+      },
+      databaseOperation: () async {
+        bool allSuccess = true;
+        for (var contact in contactsToUnstar) {
+          bool success = await ContactsAdapter.toggleStarContact(
+            contact.id,
+            false,
+          );
+          if (!success) allSuccess = false;
         }
-      }
-      await begin(); // Reload contacts
-    } catch (e) {
-      print("Error unstarring contacts: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error unstarring contacts: $e')),
-        );
-      }
-    }
+        return allSuccess;
+      },
+      revertLocalState: () {
+        setState(() {
+          for (var contact in contactsToUnstar) {
+            contact.starred = 1;
+          }
+        });
+      },
+      showSuccessMessage: 'Contacts unstarred successfully!',
+      showErrorMessage: 'Failed to unstar some contacts',
+      context: context,
+      onSuccess: () async {
+        await begin(); // Reload to ensure consistency
+      },
+    );
   }
 
   void deleteSelected() async {
@@ -371,47 +407,49 @@ class _ContactsState extends State<Contacts> {
       return;
     }
 
-    try {
-      updatingSnackBar(context);
-      // Use string comparison for MongoDB ObjectId comparison
-      for (var contact in contacts.where(
-        (c) => selectedIDs.any((id) => id.toString() == c.id.toString()),
-      )) {
-        // Delete using our adapter which tries Node.js API first
-        bool success = await ContactsAdapter.deleteContact(contact.id);
+    if (selectedIDs.isEmpty) return;
 
-        if (success) {
-          print("Contact deleted successfully!");
-        } else {
-          print("Failed to delete contact");
+    // Get contacts to be deleted for optimistic update
+    final contactsToDelete =
+        contacts
+            .where(
+              (c) => selectedIDs.any((id) => id.toString() == c.id.toString()),
+            )
+            .toList();
+
+    // Use optimistic updates for bulk deletion
+    await OptimisticUpdates.perform(
+      updateLocalState: () {
+        setState(() {
+          // Remove contacts from the list immediately
+          contacts.removeWhere(
+            (c) => selectedIDs.any((id) => id.toString() == c.id.toString()),
+          );
+          selectedIDs.clear();
+        });
+      },
+      databaseOperation: () async {
+        bool allSuccess = true;
+        for (var contact in contactsToDelete) {
+          bool success = await ContactsAdapter.deleteContact(contact.id);
+          if (!success) allSuccess = false;
         }
-      }
-
-      selectedIDs.clear();
-      await begin(); // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Contacts deleted successfully'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      print("Error deleting contacts: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error deleting contacts'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-
-      // Just clear the UI selection
-      selectedIDs.clear();
-      setState(() {});
-    }
+        return allSuccess;
+      },
+      revertLocalState: () {
+        setState(() {
+          // Re-add the contacts if deletion failed
+          contacts.addAll(contactsToDelete);
+          selectedIDs.clear();
+        });
+      },
+      showSuccessMessage: 'Contacts deleted successfully!',
+      showErrorMessage: 'Failed to delete some contacts',
+      context: context,
+      onSuccess: () async {
+        await begin(); // Reload to ensure consistency
+      },
+    );
   }
 
   void selectAll() {
@@ -569,7 +607,8 @@ class _ContactsState extends State<Contacts> {
                                         Theme.of(context).colorScheme.onPrimary,
                                   ),
                                   cursorColor:
-                                      Theme.of(context).colorScheme.tertiary,                                  decoration: InputDecoration(
+                                      Theme.of(context).colorScheme.tertiary,
+                                  decoration: InputDecoration(
                                     hintText: 'Search',
                                     labelText: 'Search contacts',
                                     labelStyle: TextStyle(
@@ -1085,9 +1124,7 @@ class _ContactsState extends State<Contacts> {
                             ),
                           );
                           return;
-                        }
-
-                        // Create contact data
+                        } // Create contact data
                         final contactData = {
                           'name': nameController.text.trim(),
                           'organization': organizationController.text.trim(),
@@ -1097,40 +1134,43 @@ class _ContactsState extends State<Contacts> {
                           'type': 'contact', // Add type field
                           'created_at':
                               DateTime.now(), // Store as Date type in MongoDB
-                        };
-                        clearForm(); // Clear the form first for better UX
-
-                        // Store messenger reference before async operation
-                        final messenger = ScaffoldMessenger.of(context);
-
-                        // Insert using our adapter (Node.js API first, then MongoDB fallback)
-                        bool success = await ContactsAdapter.addContact(
-                          contactData,
+                        }; // Create temporary contact for optimistic update
+                        final tempContact = Contact(
+                          id:
+                              DateTime.now().millisecondsSinceEpoch
+                                  .toString(), // Temporary ID
+                          name: contactData['name'] as String,
+                          organization: contactData['organization'] as String,
+                          phoneNumber: contactData['phoneNumber'] as String,
+                          position: contactData['position'] as String,
+                          starred: 0,
                         );
 
-                        if (success) {
-                          if (mounted) {
-                            messenger.showSnackBar(
-                              const SnackBar(
-                                content: Text('Contact added successfully!'),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                          }
-                          print("Contact successfully added to MongoDB!");
-                        } else {
-                          if (mounted) {
-                            messenger.showSnackBar(
-                              const SnackBar(
-                                content: Text('Failed to add contact'),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                          }
-                          print("Failed to add contact to MongoDB");
-                        }
+                        clearForm(); // Clear the form first for better UX
 
-                        await begin();
+                        // Use optimistic updates for contact creation
+                        await OptimisticUpdates.performListOperation<Contact>(
+                          list: contacts,
+                          operation: 'add',
+                          item: tempContact,
+                          databaseOperation: () async {
+                            return await ContactsAdapter.addContact(
+                              contactData,
+                            );
+                          },
+                          showSuccessMessage: 'Contact added successfully!',
+                          showErrorMessage: 'Failed to add contact',
+                          context: context,
+                          onSuccess: () async {
+                            // Reload contacts to get the real contact with database ID
+                            await begin();
+                          },
+                          onError: (error) {
+                            setState(
+                              () {},
+                            ); // Trigger rebuild to remove optimistic contact
+                          },
+                        );
                       },
                       icon: Icon(
                         Icons.check,
@@ -1140,7 +1180,7 @@ class _ContactsState extends State<Contacts> {
                     ),
                   ),
                 ),
-              ],              
+              ],
               Expanded(
                 child: ListView(
                   children: [
@@ -1859,89 +1899,60 @@ class _ContactDetailsState extends State<ContactDetails> {
                                 );
                                 return;
                               }
-
-                              // Store messenger reference before async operations
-                              final messenger = ScaffoldMessenger.of(context);
-
-                              setState(() {
-                                localContact = Contact(
-                                  id: localContact.id,
-                                  name: nameController.text.trim(),
-                                  organization:
-                                      organizationController.text.trim(),
-                                  phoneNumber: phoneController.text.trim(),
-                                  position: positionController.text.trim(),
-                                  starred: starred ? 1 : 0,
+                              if (userId.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Please log in to update contacts',
+                                    ),
+                                    duration: Duration(seconds: 2),
+                                  ),
                                 );
-                                editingContact = false;
-                              });
-
-                              try {
-                                updatingSnackBar(context);
-                                if (userId.isEmpty) {
-                                  messenger.showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Please log in to update contacts',
-                                      ),
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
-                                  return;
-                                }
-
-                                // Update contact using our adapter (Node.js API first, then MongoDB fallback)
-                                bool
-                                success = await ContactsAdapter.updateContact({
-                                  '_id': localContact.id, // Original ObjectId
-                                  'name': localContact.name,
-                                  'organization': localContact.organization,
-                                  'phoneNumber': localContact.phoneNumber,
-                                  'position': localContact.position,
-                                  'starred': localContact.starred,
-                                  'type': 'contact', // Add type field
-                                });
-                                
-                                if (success) {
-                                  widget.onUpdate(localContact);
-                                  if (mounted) {
-                                    messenger.showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Contact updated successfully!',
-                                        ),
-                                        duration: Duration(seconds: 2),
-                                      ),
-                                    );
-                                  }
-                                  print(
-                                    "Contact updated in MongoDB successfully!",
-                                  );
-                                } else {
-                                  if (mounted) {
-                                    messenger.showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Failed to update contact',
-                                        ),
-                                        duration: Duration(seconds: 2),
-                                      ),
-                                    );
-                                  }
-                                }
-                              } catch (e) {
-                                print("Error updating contact: $e");
-                                if (mounted) {
-                                  messenger.showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Error updating contact: $e',
-                                      ),
-                                      duration: Duration(seconds: 2),
-                                    ),
-                                  );
-                                }
+                                return;
                               }
+
+                              // Store original contact for potential rollback
+                              final originalContact = localContact.copyWith();
+
+                              // Use optimistic updates for contact editing
+                              await OptimisticUpdates.perform(
+                                updateLocalState: () {
+                                  setState(() {
+                                    localContact = Contact(
+                                      id: localContact.id,
+                                      name: nameController.text.trim(),
+                                      organization:
+                                          organizationController.text.trim(),
+                                      phoneNumber: phoneController.text.trim(),
+                                      position: positionController.text.trim(),
+                                      starred: starred ? 1 : 0,
+                                    );
+                                    editingContact = false;
+                                  });
+                                },
+                                databaseOperation: () async {
+                                  return await ContactsAdapter.updateContact({
+                                    '_id': localContact.id,
+                                    'name': nameController.text.trim(),
+                                    'organization':
+                                        organizationController.text.trim(),
+                                    'phoneNumber': phoneController.text.trim(),
+                                    'position': positionController.text.trim(),
+                                    'starred': starred ? 1 : 0,
+                                    'type': 'contact',
+                                  });
+                                },
+                                revertLocalState: () {
+                                  setState(() {
+                                    localContact = originalContact;
+                                    editingContact = true;
+                                  });
+                                },
+                                showSuccessMessage:
+                                    'Contact updated successfully!',
+                                showErrorMessage: 'Failed to update contact',
+                                context: context,
+                              );
                             },
 
                             icon: Icon(
@@ -2097,55 +2108,35 @@ class _ContactDetailsState extends State<ContactDetails> {
                           ),
                         );
                         return;
-                      }
-
-                      // Store messenger reference before async operation
-                      final messenger = ScaffoldMessenger.of(context);
-
-                      setState(() {
-                        starred = !starred;
-                        localContact = Contact(
-                          id: localContact.id,
-                          name: localContact.name,
-                          organization: localContact.organization,
-                          phoneNumber: localContact.phoneNumber,
-                          position: localContact.position,
-                          starred: starred ? 1 : 0,
-                        );
-                      });
-                      try {
-                        updatingSnackBar(context);
-                        // Update star status using our adapter (Node.js API first, then MongoDB fallback)
-                        bool success = await ContactsAdapter.toggleStarContact(
-                          localContact.id, // Use the original ObjectId
-                          starred,
-                        );
-
-                        if (success) {
-                          widget.onUpdate(localContact);
-                          print(
-                            "Contact star status updated in MongoDB successfully!",
-                          );
-                        } else {
-                          print("Failed to update star status in MongoDB");
-                          if (mounted) {
-                            messenger.showSnackBar(
-                              SnackBar(
-                                content: Text('Failed to update star status'),
-                              ),
+                      } // Use optimistic updates for star toggle
+                      await OptimisticUpdates.perform(
+                        updateLocalState: () {
+                          setState(() {
+                            starred = !starred;
+                            localContact = localContact.copyWith(
+                              starred: starred ? 1 : 0,
                             );
-                          }
-                        }
-                      } catch (e) {
-                        print("Error updating contact star status: $e");
-                        if (mounted) {
-                          messenger.showSnackBar(
-                            SnackBar(
-                              content: Text('Error updating star status: $e'),
-                            ),
+                          });
+                        },
+                        databaseOperation: () async {
+                          return await ContactsAdapter.toggleStarContact(
+                            localContact.id,
+                            starred,
                           );
-                        }
-                      }
+                        },
+                        revertLocalState: () {
+                          setState(() {
+                            starred = !starred;
+                            localContact = localContact.copyWith(
+                              starred: starred ? 1 : 0,
+                            );
+                          });
+                        },
+                        showSuccessMessage:
+                            starred ? 'Contact starred!' : 'Contact unstarred!',
+                        showErrorMessage: 'Failed to update star status',
+                        context: context,
+                      );
                     },
                     icon: Icon(
                       starred ? Icons.star_rounded : Icons.star_outline_rounded,

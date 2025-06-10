@@ -2,15 +2,23 @@ import 'dart:developer';
 import '../mongodb.dart';
 import '../user_session.dart';
 
+enum SectionType { userCreated, projectLinked }
+
 class TaskSection {
   final String id;
   final String name;
   final bool isCompleted;
+  final String? projectId; // Optional - identifies project sections
+  final DateTime? lastInteracted; // For sorting
+  final SectionType type; // userCreated or projectLinked
 
   TaskSection({
     required this.id,
     required this.name,
     required this.isCompleted,
+    this.projectId,
+    this.lastInteracted,
+    this.type = SectionType.userCreated,
   });
 
   Map<String, dynamic> toMap() {
@@ -18,7 +26,10 @@ class TaskSection {
       'id': id,
       'name': name,
       'isCompleted': isCompleted,
+      'projectId': projectId,
+      'lastInteracted': lastInteracted?.toIso8601String(),
       'type': 'task_section',
+      'sectionType': type.toString().split('.').last,
     };
   }
 
@@ -27,6 +38,33 @@ class TaskSection {
       id: map['id'] ?? '',
       name: map['name'] ?? '',
       isCompleted: map['isCompleted'] ?? false,
+      projectId: map['projectId'],
+      lastInteracted:
+          map['lastInteracted'] != null
+              ? DateTime.parse(map['lastInteracted'])
+              : null,
+      type:
+          map['sectionType'] == 'projectLinked'
+              ? SectionType.projectLinked
+              : SectionType.userCreated,
+    );
+  }
+
+  TaskSection copyWith({
+    String? id,
+    String? name,
+    bool? isCompleted,
+    String? projectId,
+    DateTime? lastInteracted,
+    SectionType? type,
+  }) {
+    return TaskSection(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      isCompleted: isCompleted ?? this.isCompleted,
+      projectId: projectId ?? this.projectId,
+      lastInteracted: lastInteracted ?? this.lastInteracted,
+      type: type ?? this.type,
     );
   }
 }
@@ -34,6 +72,7 @@ class TaskSection {
 class ToDoItem {
   final String id;
   final String sectionId;
+  final String? projectId; // Optional - links task to project
   String text;
   DateTime deadlineDate;
   final bool isCompleted;
@@ -45,12 +84,15 @@ class ToDoItem {
     required this.text,
     required this.deadlineDate,
     required this.isCompleted,
+    this.projectId, // Optional
     this.completedAt,
   });
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,
       'sectionId': sectionId,
+      'projectId': projectId,
       'text': text,
       'deadlineDate': deadlineDate.toIso8601String(),
       'isCompleted': isCompleted,
@@ -63,6 +105,7 @@ class ToDoItem {
     return ToDoItem(
       id: map['id'] ?? '',
       sectionId: map['sectionId'] ?? '',
+      projectId: map['projectId'], // Can be null
       text: map['text'] ?? '',
       deadlineDate: DateTime.parse(
         map['deadlineDate'] ?? DateTime.now().toIso8601String(),
@@ -76,6 +119,27 @@ class ToDoItem {
   }
 
   bool get isPastDeadline => deadlineDate.isBefore(DateTime.now());
+
+  /// Create a copy of this task with updated fields
+  ToDoItem copyWith({
+    String? id,
+    String? sectionId,
+    String? projectId,
+    String? text,
+    DateTime? deadlineDate,
+    bool? isCompleted,
+    DateTime? completedAt,
+  }) {
+    return ToDoItem(
+      id: id ?? this.id,
+      sectionId: sectionId ?? this.sectionId,
+      projectId: projectId ?? this.projectId,
+      text: text ?? this.text,
+      deadlineDate: deadlineDate ?? this.deadlineDate,
+      isCompleted: isCompleted ?? this.isCompleted,
+      completedAt: completedAt ?? this.completedAt,
+    );
+  }
 }
 
 class TasksAdapter {
@@ -134,13 +198,14 @@ class TasksAdapter {
       log("TasksAdapter.createSection: No user ID available");
       return false;
     }
-
     try {
       final sectionId = DateTime.now().millisecondsSinceEpoch.toString();
       final section = TaskSection(
         id: sectionId,
         name: sectionName,
         isCompleted: isCompleted,
+        lastInteracted: DateTime.now(),
+        type: SectionType.userCreated,
       );
 
       final success = await MongoDatabase.insertData(
@@ -205,6 +270,7 @@ class TasksAdapter {
     String text,
     DateTime deadlineDate, {
     bool isCompleted = false,
+    String? projectId, // Optional project linking
   }) async {
     if (userId == null) {
       log("TasksAdapter.createTask: No user ID available");
@@ -216,6 +282,7 @@ class TasksAdapter {
       final task = ToDoItem(
         id: taskId,
         sectionId: sectionId,
+        projectId: projectId,
         text: text,
         deadlineDate: deadlineDate,
         isCompleted: isCompleted,
@@ -228,6 +295,9 @@ class TasksAdapter {
       );
 
       if (success) {
+        // Update section interaction time
+        await updateSectionInteraction(sectionId);
+
         log(
           "TasksAdapter.createTask: Created task '$text' in section $sectionId",
         );
@@ -251,7 +321,6 @@ class TasksAdapter {
       log("TasksAdapter.updateTaskCompletion: No user ID available");
       return false;
     }
-
     try {
       final updateData = {
         'isCompleted': isCompleted,
@@ -265,6 +334,14 @@ class TasksAdapter {
       );
 
       if (success) {
+        // Get task to find its section and update section interaction
+        final tasks = await loadTasks();
+        final task = tasks.firstWhere(
+          (t) => t.id == taskId,
+          orElse: () => throw StateError('Task not found'),
+        );
+        await updateSectionInteraction(task.sectionId);
+
         log(
           "TasksAdapter.updateTaskCompletion: Updated task $taskId completion to $isCompleted",
         );
@@ -362,5 +439,169 @@ class TasksAdapter {
     return allTasks
         .where((task) => task.sectionId == sectionId && !task.isCompleted)
         .toList();
+  }
+
+  /// Create or update a project-linked section
+  static Future<bool> createOrUpdateProjectSection({
+    required String projectId,
+    required String projectTitle,
+  }) async {
+    if (userId == null) {
+      log("TasksAdapter.createOrUpdateProjectSection: No user ID available");
+      return false;
+    }
+
+    try {
+      // Check if project section already exists
+      final existingSection = await getProjectSection(projectId);
+
+      if (existingSection != null) {
+        // Update last interacted time
+        final updatedSection = existingSection.copyWith(
+          lastInteracted: DateTime.now(),
+          name: projectTitle, // Update name in case project was renamed
+        );
+
+        return await MongoDatabase.updateDataByQuery(
+          {'id': existingSection.id, 'type': 'task_section'},
+          updatedSection.toMap(),
+          userId: userId,
+        );
+      } else {
+        // Create new project section
+        final sectionId = DateTime.now().millisecondsSinceEpoch.toString();
+        final newSection = TaskSection(
+          id: sectionId,
+          name: projectTitle,
+          isCompleted: false,
+          projectId: projectId,
+          lastInteracted: DateTime.now(),
+          type: SectionType.projectLinked,
+        );
+
+        return await MongoDatabase.insertData(
+          newSection.toMap(),
+          userId: userId,
+          type: 'task_section',
+        );
+      }
+    } catch (e) {
+      log("TasksAdapter.createOrUpdateProjectSection: Error: $e");
+      return false;
+    }
+  }
+
+  /// Get project section by project ID
+  static Future<TaskSection?> getProjectSection(String projectId) async {
+    if (userId == null) return null;
+
+    try {
+      final docs = await MongoDatabase.getContacts(
+        userId: userId,
+        type: 'task_section',
+      );
+
+      final sections = docs.map((doc) => TaskSection.fromMap(doc)).toList();
+      return sections.firstWhere(
+        (section) => section.projectId == projectId,
+        orElse: () => throw StateError('Not found'),
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Sync project tasks to task section
+  static Future<bool> syncProjectTasks({
+    required String projectId,
+    required List<Map<String, dynamic>> projectTasks,
+  }) async {
+    if (userId == null) return false;
+
+    try {
+      final projectSection = await getProjectSection(projectId);
+      if (projectSection == null) return false;
+
+      // Delete existing tasks for this project
+      await MongoDatabase.deleteDataByQuery({
+        'sectionId': projectSection.id,
+        'type': 'task_item',
+      }, userId: userId);
+
+      // Insert new tasks
+      for (final taskData in projectTasks) {
+        final task = ToDoItem(
+          id:
+              taskData['id'] ??
+              DateTime.now().millisecondsSinceEpoch.toString(),
+          sectionId: projectSection.id,
+          projectId: projectId,
+          text: taskData['text'] ?? '',
+          deadlineDate:
+              taskData['deadlineDate'] is DateTime
+                  ? taskData['deadlineDate']
+                  : DateTime.parse(
+                    taskData['deadlineDate'] ??
+                        DateTime.now().toIso8601String(),
+                  ),
+          isCompleted: taskData['isCompleted'] ?? false,
+          completedAt:
+              taskData['completedAt'] != null
+                  ? (taskData['completedAt'] is DateTime
+                      ? taskData['completedAt']
+                      : DateTime.parse(taskData['completedAt']))
+                  : null,
+        );
+
+        await MongoDatabase.insertData(
+          task.toMap(),
+          userId: userId,
+          type: 'task_item',
+        );
+      }
+
+      // Update section last interacted time
+      await MongoDatabase.updateDataByQuery(
+        {'id': projectSection.id, 'type': 'task_section'},
+        {'lastInteracted': DateTime.now().toIso8601String()},
+        userId: userId,
+      );
+
+      return true;
+    } catch (e) {
+      log("TasksAdapter.syncProjectTasks: Error: $e");
+      return false;
+    }
+  }
+
+  /// Delete project section when project is deleted
+  static Future<bool> deleteProjectSection(String projectId) async {
+    if (userId == null) return false;
+
+    try {
+      final projectSection = await getProjectSection(projectId);
+      if (projectSection == null) return true; // Already doesn't exist
+
+      return await deleteSection(projectSection.id);
+    } catch (e) {
+      log("TasksAdapter.deleteProjectSection: Error: $e");
+      return false;
+    }
+  }
+
+  /// Update section interaction time
+  static Future<bool> updateSectionInteraction(String sectionId) async {
+    if (userId == null) return false;
+
+    try {
+      return await MongoDatabase.updateDataByQuery(
+        {'id': sectionId, 'type': 'task_section'},
+        {'lastInteracted': DateTime.now().toIso8601String()},
+        userId: userId,
+      );
+    } catch (e) {
+      log("TasksAdapter.updateSectionInteraction: Error: $e");
+      return false;
+    }
   }
 }
