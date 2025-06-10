@@ -30,10 +30,11 @@ class UserSession {
       final userJson = prefs.getString('user_data');
       print(
         '📄 UserSession: Retrieved user_data from storage: ${userJson != null ? "Data found" : "No data found"}',
-      );      if (userJson != null) {
+      );
+      if (userJson != null) {
         print('🔍 UserSession: Parsing JSON data...');
         final Map<String, dynamic> userData = json.decode(userJson);
-        
+
         // Convert string DateTime fields back to DateTime objects if needed
         if (userData['created_at'] is String) {
           try {
@@ -43,7 +44,7 @@ class UserSession {
             print('⚠️ UserSession: Could not parse created_at as DateTime: $e');
           }
         }
-        
+
         _currentUser = userData;
         print('✅ UserSession: User data parsed successfully');
         print('👤 UserSession: User ID: ${_currentUser?['_id']}');
@@ -59,6 +60,7 @@ class UserSession {
       return false;
     }
   }
+
   // Set current user and save to SharedPreferences
   Future<void> setUser(Map<String, dynamic> userData) async {
     print('💾 UserSession: Setting user data...');
@@ -68,16 +70,18 @@ class UserSession {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // Convert DateTime objects to strings for JSON serialization
-      final Map<String, dynamic> serializableData = Map<String, dynamic>.from(userData);
+      final Map<String, dynamic> serializableData = Map<String, dynamic>.from(
+        userData,
+      );
       serializableData.forEach((key, value) {
         if (value is DateTime) {
           serializableData[key] = value.toIso8601String();
           print('🔄 UserSession: Converted DateTime field "$key" to string');
         }
       });
-      
+
       final userJsonString = json.encode(serializableData);
       await prefs.setString('user_data', userJsonString);
 
