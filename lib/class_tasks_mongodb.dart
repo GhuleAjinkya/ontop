@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'main.dart';
 import 'services/tasks_adapter.dart';
+import 'services/optimistic_updates.dart';
 
 class TasksWithMongoDB extends StatefulWidget {
   const TasksWithMongoDB({super.key});
@@ -172,66 +173,127 @@ class _TasksWithMongoDBState extends State<TasksWithMongoDB> {
     );
   }
 
-  /// Create a new section in MongoDB
+  /// Create a new section in MongoDB with optimistic updates
   Future<void> _createSection(String sectionName) async {
+    // Create temporary section for optimistic update
+    final tempSection = TaskSection(
+      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+      name: sectionName,
+      isCompleted: false,
+    );
+
+    // Step 1: Update local state immediately
+    setState(() {
+      taskSections.add(tempSection);
+      sections[sectionName] = []; // Create empty section
+    });
+
+    // Step 2: Perform database operation
     try {
       final success = await TasksAdapter.createSection(sectionName);
-      if (success) {
-        await _loadTasksFromDatabase(); // Refresh data
-        if (!mounted) return;
+
+      if (!success) {
+        throw Exception('Database operation failed');
+      }
+
+      // Step 3: Reload data to get real section ID
+      await _loadTasksFromDatabase();
+
+      // Step 4: Show success message
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Section "$sectionName" created successfully'),
             backgroundColor: Theme.of(context).colorScheme.tertiary,
           ),
         );
-      } else {
-        throw Exception('Failed to create section');
       }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to create section: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      // Step 5: Revert local state if database operation failed
+      setState(() {
+        taskSections.removeWhere((section) => section.id == tempSection.id);
+        sections.remove(sectionName);
+      });
+
+      // Step 6: Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to create section: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 
-  /// Delete a section and all its tasks from MongoDB
+  /// Delete a section and all its tasks from MongoDB with optimistic updates
   Future<void> _deleteSection(String sectionName) async {
+    // Store original state for rollback
+    final originalTaskSections = List<TaskSection>.from(taskSections);
+    final originalSections = Map<String, List<ToDoItem>>.from(sections);
+    final originalCompletedSections = Map<String, List<ToDoItem>>.from(
+      completedSections,
+    );
+
     try {
       // Find the section ID by name
       final section = taskSections.firstWhere(
         (s) => s.name == sectionName,
         orElse: () => throw Exception('Section not found'),
       );
+
+      // Step 1: Update local state immediately (remove section)
+      setState(() {
+        taskSections.removeWhere((s) => s.id == section.id);
+        sections.remove(sectionName);
+        completedSections.remove(sectionName);
+      });
+
+      // Step 2: Perform database operation
       final success = await TasksAdapter.deleteSection(section.id);
-      if (success) {
-        await _loadTasksFromDatabase(); // Refresh data
-        if (!mounted) return;
+
+      if (!success) {
+        throw Exception('Database operation failed');
+      }
+
+      // Step 3: Show success message
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Section "$sectionName" deleted successfully'),
             backgroundColor: Theme.of(context).colorScheme.tertiary,
           ),
         );
-      } else {
-        throw Exception('Failed to delete section');
       }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to delete section: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      // Step 4: Revert local state if database operation failed
+      setState(() {
+        // Restore original state
+        taskSections.clear();
+        taskSections.addAll(originalTaskSections);
+        sections.clear();
+        sections.addAll(originalSections);
+        completedSections.clear();
+        completedSections.addAll(originalCompletedSections);
+      });
+
+      // Step 5: Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete section: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+
+      // Reload data to ensure consistency
+      _loadTasksFromDatabase();
     }
   }
 
-  /// Create a new task in MongoDB
+  /// Create a new task in MongoDB with optimistic updates
   Future<void> _createTask(
     String sectionName,
     String text,
@@ -243,19 +305,49 @@ class _TasksWithMongoDBState extends State<TasksWithMongoDB> {
         (s) => s.name == sectionName,
         orElse: () => throw Exception('Section not found'),
       );
-      final success = await TasksAdapter.createTask(section.id, text, deadline);
-      if (success) {
-        await _loadTasksFromDatabase(); // Refresh data
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Task "$text" created successfully'),
-            backgroundColor: Theme.of(context).colorScheme.tertiary,
-          ),
-        );
-      } else {
-        throw Exception('Failed to create task');
-      }
+
+      // Create temporary task with optimistic ID
+      final tempTask = ToDoItem(
+        id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+        sectionId: section.id,
+        text: text,
+        deadlineDate: deadline,
+        isCompleted: false,
+        completedAt: null,
+      );
+
+      // Ensure the section exists in our local state
+      if (sections[sectionName] == null) {
+        sections[sectionName] = [];
+      } // Use optimistic updates for task creation
+      await OptimisticUpdates.performListOperation<ToDoItem>(
+        list: sections[sectionName]!,
+        item: tempTask,
+        operation: 'add',
+        databaseOperation: () async {
+          final success = await TasksAdapter.createTask(
+            section.id,
+            text,
+            deadline,
+          );
+          return success;
+        },
+        onSuccess: () {
+          // Sort the list after adding
+          setState(() {
+            sections[sectionName]!.sort((a, b) {
+              if (a.deadlineDate.isBefore(b.deadlineDate)) return -1;
+              if (a.deadlineDate.isAfter(b.deadlineDate)) return 1;
+              return 0;
+            });
+          });
+          // Reload data to get the real task ID from database
+          _loadTasksFromDatabase();
+        },
+        showSuccessMessage: 'Task "$text" created successfully',
+        showErrorMessage: 'Failed to create task',
+        context: context,
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -267,67 +359,204 @@ class _TasksWithMongoDBState extends State<TasksWithMongoDB> {
     }
   }
 
-  /// Toggle task completion status in MongoDB
+  /// Toggle task completion status in MongoDB with optimistic updates
   Future<void> _toggleTaskCompletion(ToDoItem task) async {
+    // Store original state for rollback
+    String? originalSectionName;
+    List<ToDoItem>? originalSourceList;
+    int originalIndex = -1;
+
+    // Find which section contains this task
+    for (final entry in sections.entries) {
+      final index = entry.value.indexWhere((t) => t.id == task.id);
+      if (index != -1) {
+        originalSectionName = entry.key;
+        originalSourceList = List.from(entry.value);
+        originalIndex = index;
+        break;
+      }
+    }
+
+    if (originalSectionName == null) {
+      for (final entry in completedSections.entries) {
+        final index = entry.value.indexWhere((t) => t.id == task.id);
+        if (index != -1) {
+          originalSectionName = entry.key;
+          originalSourceList = List.from(entry.value);
+          originalIndex = index;
+          break;
+        }
+      }
+    }
+
+    if (originalSectionName == null || originalIndex == -1) {
+      _showSnackBar('Task not found', isError: true);
+      return;
+    }
+
+    final sectionName =
+        originalSectionName; // Make non-nullable for use in setState
+
+    // Step 1: Update local state immediately
+    setState(() {
+      if (task.isCompleted) {
+        // Moving from completed to todo
+        completedSections[sectionName]?.removeAt(originalIndex);
+        if (sections[sectionName] == null) {
+          sections[sectionName] = [];
+        }
+        final updatedTask = task.copyWith(
+          isCompleted: false,
+          completedAt: null,
+        );
+        sections[sectionName]!.add(updatedTask);
+
+        // Sort the todo tasks by deadline
+        sections[sectionName]!.sort((a, b) {
+          if (a.deadlineDate.isBefore(b.deadlineDate)) return -1;
+          if (a.deadlineDate.isAfter(b.deadlineDate)) return 1;
+          return 0;
+        });
+      } else {
+        // Moving from todo to completed
+        sections[sectionName]?.removeAt(originalIndex);
+        if (completedSections[sectionName] == null) {
+          completedSections[sectionName] = [];
+        }
+        final updatedTask = task.copyWith(
+          isCompleted: true,
+          completedAt: DateTime.now(),
+        );
+        completedSections[sectionName]!.insert(
+          0,
+          updatedTask,
+        ); // Add to front (most recent)
+      }
+    });
+
+    // Step 2: Perform database operation
     try {
       final success = await TasksAdapter.updateTaskCompletion(
         task.id,
         !task.isCompleted,
       );
-      if (success) {
-        await _loadTasksFromDatabase(); // Refresh data
-      } else {
-        throw Exception('Failed to update task');
+
+      if (!success) {
+        throw Exception('Database operation failed');
       }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to update task: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
+
+      // Step 3: Show success message
+      _showSnackBar(
+        task.isCompleted
+            ? 'Task marked as incomplete'
+            : 'Task marked as complete',
+        isError: false,
       );
+    } catch (error) {
+      // Step 4: Revert local state if database operation failed
+      setState(() {
+        if (task.isCompleted) {
+          // Revert: put task back in completed list
+          sections[sectionName]?.removeWhere((t) => t.id == task.id);
+          if (originalSourceList != null) {
+            completedSections[sectionName] = originalSourceList;
+          }
+        } else {
+          // Revert: put task back in todo list
+          completedSections[sectionName]?.removeWhere((t) => t.id == task.id);
+          if (originalSourceList != null) {
+            sections[sectionName] = originalSourceList;
+          }
+        }
+      });
+
+      // Step 5: Show error message
+      _showSnackBar('Failed to update task completion', isError: true);
+
+      // Reload data to ensure consistency
+      _loadTasksFromDatabase();
     }
   }
 
-  /// Delete selected tasks from MongoDB
+  /// Delete selected tasks from MongoDB with optimistic updates
   Future<void> _deleteSelectedTasks() async {
-    try {
-      List<String> taskIdsToDelete = [];
+    // Collect tasks to delete and store original state
+    List<String> taskIdsToDelete = [];
+    Map<String, List<ToDoItem>> originalSections = {};
+    Map<String, List<ToDoItem>> originalCompletedSections = {};
 
+    // Store original state and collect task IDs
+    for (final sectionName in selectedTaskIDs.keys) {
+      final taskIds = selectedTaskIDs[sectionName] ?? {};
+      taskIdsToDelete.addAll(taskIds);
+
+      // Store original lists for rollback
+      if (sections[sectionName] != null) {
+        originalSections[sectionName] = List.from(sections[sectionName]!);
+      }
+      if (completedSections[sectionName] != null) {
+        originalCompletedSections[sectionName] = List.from(
+          completedSections[sectionName]!,
+        );
+      }
+    }
+
+    if (taskIdsToDelete.isEmpty) return;
+
+    // Step 1: Update local state immediately (remove tasks)
+    setState(() {
       for (final sectionName in selectedTaskIDs.keys) {
         final taskIds = selectedTaskIDs[sectionName] ?? {};
-        taskIdsToDelete.addAll(taskIds);
+
+        // Remove from both todo and completed sections
+        sections[sectionName]?.removeWhere((task) => taskIds.contains(task.id));
+        completedSections[sectionName]?.removeWhere(
+          (task) => taskIds.contains(task.id),
+        );
+      }
+      selectedTaskIDs.clear();
+    });
+
+    // Step 2: Perform database operation
+    try {
+      final success = await TasksAdapter.deleteTasks(taskIdsToDelete);
+
+      if (!success) {
+        throw Exception('Database operation failed');
       }
 
-      if (taskIdsToDelete.isNotEmpty) {
-        final success = await TasksAdapter.deleteTasks(taskIdsToDelete);
-        if (success) {
-          await _loadTasksFromDatabase(); // Refresh data
-          setState(() {
-            selectedTaskIDs.clear();
-          });
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '${taskIdsToDelete.length} tasks deleted successfully',
-              ),
-              backgroundColor: Theme.of(context).colorScheme.tertiary,
+      // Step 3: Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${taskIdsToDelete.length} tasks deleted successfully',
             ),
-          );
-        } else {
-          throw Exception('Failed to delete tasks');
-        }
+            backgroundColor: Theme.of(context).colorScheme.tertiary,
+          ),
+        );
       }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to delete tasks: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      // Step 4: Revert local state if database operation failed
+      setState(() {
+        // Restore original lists
+        sections.addAll(originalSections);
+        completedSections.addAll(originalCompletedSections);
+        selectedTaskIDs.clear();
+      });
+
+      // Step 5: Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete tasks: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+
+      // Reload data to ensure consistency
+      _loadTasksFromDatabase();
     }
   }
 

@@ -7,6 +7,7 @@ import 'class_contacts.dart';
 import 'user_session.dart';
 import 'services/projects_adapter.dart';
 import 'services/contacts_adapter.dart';
+import 'services/optimistic_updates.dart';
 
 class Projects extends StatefulWidget {
   const Projects({super.key});
@@ -304,41 +305,51 @@ class _ProjectsState extends State<Projects> {
   Widget buildEnhancedProjectTiles(List<Project> allProjects) {
     // Filter projects based on search query if searching
     List<Project> filteredProjects = allProjects;
-    
+
     if (searching && searchQuery.isNotEmpty) {
-      filteredProjects = allProjects.where((project) {
-        // Search in project title, description, and collaborator names
-        final titleMatch = project.title.toLowerCase().contains(searchQuery.toLowerCase());
-        final descriptionMatch = project.description.toLowerCase().contains(searchQuery.toLowerCase());
-        
-        // Search in collaborator names
-        final collaboratorMatch = project.collaborators.any((phone) {
-          final contact = globalContacts.firstWhere(
-            (c) => c.phoneNumber == phone,
-            orElse: () => Contact(
-              id: 0,
-              name: "Unknown",
-              organization: "",
-              phoneNumber: phone,
-              position: "",
-              starred: 0,
-            ),
-          );
-          return contact.name.toLowerCase().contains(searchQuery.toLowerCase());
-        });
-        
-        return titleMatch || descriptionMatch || collaboratorMatch;
-      }).toList();
+      filteredProjects =
+          allProjects.where((project) {
+            // Search in project title, description, and collaborator names
+            final titleMatch = project.title.toLowerCase().contains(
+              searchQuery.toLowerCase(),
+            );
+            final descriptionMatch = project.description.toLowerCase().contains(
+              searchQuery.toLowerCase(),
+            );
+
+            // Search in collaborator names
+            final collaboratorMatch = project.collaborators.any((phone) {
+              final contact = globalContacts.firstWhere(
+                (c) => c.phoneNumber == phone,
+                orElse:
+                    () => Contact(
+                      id: 0,
+                      name: "Unknown",
+                      organization: "",
+                      phoneNumber: phone,
+                      position: "",
+                      starred: 0,
+                    ),
+              );
+              return contact.name.toLowerCase().contains(
+                searchQuery.toLowerCase(),
+              );
+            });
+
+            return titleMatch || descriptionMatch || collaboratorMatch;
+          }).toList();
     }
-    
+
     // Filter projects based on selected tab (Ongoing vs Completed)
     List<Project> tabFilteredProjects;
     if (selectedTab == 'Ongoing') {
-      tabFilteredProjects = filteredProjects.where((p) => p.isCompleted != true).toList();
+      tabFilteredProjects =
+          filteredProjects.where((p) => p.isCompleted != true).toList();
     } else {
-      tabFilteredProjects = filteredProjects.where((p) => p.isCompleted == true).toList();
+      tabFilteredProjects =
+          filteredProjects.where((p) => p.isCompleted == true).toList();
     }
-    
+
     // Sort projects: for completed projects, show recently completed first
     // For ongoing projects, sort by creation date (most recent first)
     tabFilteredProjects.sort((a, b) {
@@ -347,10 +358,16 @@ class _ProjectsState extends State<Projects> {
         // 1. Recently checked off (isCompleted true but completedAt null)
         // 2. Most recently completed (by completedAt)
         // 3. Fall back to creation date if needed
-        if (a.isCompleted == true && a.completedAt == null && b.isCompleted == true && b.completedAt != null) {
+        if (a.isCompleted == true &&
+            a.completedAt == null &&
+            b.isCompleted == true &&
+            b.completedAt != null) {
           return -1; // a was just checked off, should come before b
         }
-        if (a.isCompleted == true && a.completedAt != null && b.isCompleted == true && b.completedAt == null) {
+        if (a.isCompleted == true &&
+            a.completedAt != null &&
+            b.isCompleted == true &&
+            b.completedAt == null) {
           return 1; // b was just checked off, should come before a
         }
         if (a.completedAt == null && b.completedAt == null) {
@@ -371,7 +388,7 @@ class _ProjectsState extends State<Projects> {
         return b.createdAt!.compareTo(a.createdAt!);
       }
     });
-    
+
     // If no projects found for the selected tab, show empty state
     if (tabFilteredProjects.isEmpty) {
       return Center(
@@ -387,9 +404,13 @@ class _ProjectsState extends State<Projects> {
               ),
               SizedBox(height: 16),
               Text(
-                selectedTab == 'Ongoing' 
-                  ? (searching && searchQuery.isNotEmpty ? 'No ongoing projects found' : 'No ongoing projects')
-                  : (searching && searchQuery.isNotEmpty ? 'No completed projects found' : 'No completed projects'),
+                selectedTab == 'Ongoing'
+                    ? (searching && searchQuery.isNotEmpty
+                        ? 'No ongoing projects found'
+                        : 'No ongoing projects')
+                    : (searching && searchQuery.isNotEmpty
+                        ? 'No completed projects found'
+                        : 'No completed projects'),
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.tertiary,
                   fontSize: 18,
@@ -403,7 +424,9 @@ class _ProjectsState extends State<Projects> {
                 Text(
                   'Tap the + button to add your first project',
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.7),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.tertiary.withValues(alpha: 0.7),
                     fontSize: 14,
                     fontFamily: 'Poppins',
                   ),
@@ -415,36 +438,28 @@ class _ProjectsState extends State<Projects> {
         ),
       );
     }
-    
+
     return ListView.builder(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 27, vertical: 20),
       itemCount: tabFilteredProjects.length,
       itemBuilder: (context, index) {
         final project = tabFilteredProjects[index];
-        
+
         // Get collaborators display text using NAMES instead of phone numbers
-        String collaboratorsText = project.collaborators.isEmpty
-            ? "No collaborators"
-            : "Collaborators: ${project.collaborators.map((phone) {
-                final contact = globalContacts.firstWhere(
-                  (c) => c.phoneNumber == phone,
-                  orElse: () => Contact(
-                    id: 0,
-                    name: "Unknown",
-                    organization: "",
-                    phoneNumber: phone,
-                    position: "",
-                    starred: 0,
-                  ),
-                );
-                return contact.name;
-              }).take(2).join(", ")}${project.collaborators.length > 2 ? "..." : ""}";
+        String collaboratorsText =
+            project.collaborators.isEmpty
+                ? "No collaborators"
+                : "Collaborators: ${project.collaborators.map((phone) {
+                  final contact = globalContacts.firstWhere((c) => c.phoneNumber == phone, orElse: () => Contact(id: 0, name: "Unknown", organization: "", phoneNumber: phone, position: "", starred: 0));
+                  return contact.name;
+                }).take(2).join(", ")}${project.collaborators.length > 2 ? "..." : ""}";
 
         // Get description display text
-        String descriptionText = project.description.isEmpty
-            ? "No description"
-            : "Description: ${project.description.length > 40 ? "${project.description.substring(0, 40)}..." : project.description}";
+        String descriptionText =
+            project.description.isEmpty
+                ? "No description"
+                : "Description: ${project.description.length > 40 ? "${project.description.substring(0, 40)}..." : project.description}";
 
         // Get formatted creation date
         String creationDate = "";
@@ -453,18 +468,40 @@ class _ProjectsState extends State<Projects> {
           if (project.createdAt != null) {
             final date = project.createdAt!;
             final months = [
-              '', 'January', 'February', 'March', 'April', 'May', 'June',
-              'July', 'August', 'September', 'October', 'November', 'December'
+              '',
+              'January',
+              'February',
+              'March',
+              'April',
+              'May',
+              'June',
+              'July',
+              'August',
+              'September',
+              'October',
+              'November',
+              'December',
             ];
             creationDate = "${date.day} ${months[date.month]}, ${date.year}";
           }
-          
+
           // Add completion date if project is completed
           if (project.isCompleted == true && project.completedAt != null) {
             final date = project.completedAt!;
             final months = [
-              '', 'January', 'February', 'March', 'April', 'May', 'June',
-              'July', 'August', 'September', 'October', 'November', 'December'
+              '',
+              'January',
+              'February',
+              'March',
+              'April',
+              'May',
+              'June',
+              'July',
+              'August',
+              'September',
+              'October',
+              'November',
+              'December',
             ];
             completionDate = "${date.day} ${months[date.month]}, ${date.year}";
           }
@@ -487,14 +524,24 @@ class _ProjectsState extends State<Projects> {
                       minHeight: 179, // Minimum height
                     ),
                     decoration: BoxDecoration(
-                      color: (project.isCompleted == true) 
-                        ? Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.05)
-                        : Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.1),
+                      color:
+                          (project.isCompleted == true)
+                              ? Theme.of(
+                                context,
+                              ).colorScheme.onPrimary.withValues(alpha: 0.05)
+                              : Theme.of(
+                                context,
+                              ).colorScheme.onPrimary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(15),
                       border: Border.all(
-                        color: (project.isCompleted == true)
-                          ? Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.1)
-                          : Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.2),
+                        color:
+                            (project.isCompleted == true)
+                                ? Theme.of(
+                                  context,
+                                ).colorScheme.onPrimary.withValues(alpha: 0.1)
+                                : Theme.of(
+                                  context,
+                                ).colorScheme.onPrimary.withValues(alpha: 0.2),
                         width: 1,
                       ),
                     ),
@@ -519,15 +566,20 @@ class _ProjectsState extends State<Projects> {
                                 children: [
                                   // Title row with checkbox
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
                                     children: [
                                       Expanded(
                                         flex: 4,
                                         child: Text(
                                           project.title,
                                           style: TextStyle(
-                                            color: (project.isCompleted == true) ? Colors.white60 : Colors.white,
+                                            color:
+                                                (project.isCompleted == true)
+                                                    ? Colors.white60
+                                                    : Colors.white,
                                             fontSize: 24,
                                             fontFamily: 'Poppins',
                                             fontWeight: FontWeight.w700,
@@ -537,87 +589,93 @@ class _ProjectsState extends State<Projects> {
                                           softWrap: true,
                                         ),
                                       ),
-                                      const SizedBox(width: 12),
-                                      // Functional checkbox for project completion status (top right)
+                                      const SizedBox(
+                                        width: 12,
+                                      ), // Functional checkbox for project completion status (top right)
                                       Flexible(
                                         flex: 0,
                                         child: GestureDetector(
                                           onTap: () async {
-                                            // Toggle project completion status
-                                            final newCompletionStatus = project.isCompleted != true;
-                                            
-                                            try {
-                                              // Update project completion status in database
-                                              final now = DateTime.now();
-                                              final updatedProject = project.copyWith(
-                                                isCompleted: newCompletionStatus,
-                                                completedAt: newCompletionStatus ? now : null,
-                                              );
-                                              final projectData = updatedProject.toMap();
-                                              projectData['_id'] = project.id;
-                                              
-                                              bool success = await ProjectsAdapter.updateProject(projectData);
-                                              if (success) {
-                                                // Update local state
-                                                setState(() {
-                                                  // Find and update the project in the main projects list
-                                                  final projectIndex = projects.indexWhere((p) => p.id == project.id);
-                                                  if (projectIndex != -1) {
-                                                    projects[projectIndex] = project.copyWith(
-                                                      isCompleted: newCompletionStatus,
-                                                      completedAt: newCompletionStatus ? now : null,
+                                            // Toggle project completion status using optimistic updates
+                                            final newCompletionStatus =
+                                                project.isCompleted != true;
+                                            final now = DateTime.now();
+
+                                            await OptimisticUpdates.performItemUpdate<
+                                              Project
+                                            >(
+                                              list: projects,
+                                              findItem:
+                                                  (p) => p.id == project.id,
+                                              updateItem:
+                                                  (p) => p.copyWith(
+                                                    isCompleted:
+                                                        newCompletionStatus,
+                                                    completedAt:
+                                                        newCompletionStatus
+                                                            ? now
+                                                            : null,
+                                                  ),
+                                              databaseOperation: () async {
+                                                final updatedProject = project
+                                                    .copyWith(
+                                                      isCompleted:
+                                                          newCompletionStatus,
+                                                      completedAt:
+                                                          newCompletionStatus
+                                                              ? now
+                                                              : null,
                                                     );
-                                                  }
-                                                });
-                                                
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      newCompletionStatus 
-                                                        ? 'Project "${project.title}" marked as completed!' 
-                                                        : 'Project "${project.title}" marked as incomplete!',
-                                                    ),
-                                                    duration: const Duration(seconds: 2),
-                                                  ),
+                                                final projectData =
+                                                    updatedProject.toMap();
+                                                projectData['_id'] = project.id;
+
+                                                return await ProjectsAdapter.updateProject(
+                                                  projectData,
                                                 );
-                                              } else {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text('Failed to update project status'),
-                                                    duration: Duration(seconds: 2),
-                                                  ),
-                                                );
-                                              }
-                                            } catch (e) {
-                                              print('Error updating project completion status: $e');
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(
-                                                  content: Text('Error updating project: $e'),
-                                                  duration: const Duration(seconds: 2),
-                                                ),
-                                              );
-                                            }
+                                              },
+                                              showSuccessMessage:
+                                                  newCompletionStatus
+                                                      ? 'Project "${project.title}" marked as completed!'
+                                                      : 'Project "${project.title}" marked as incomplete!',
+                                              showErrorMessage:
+                                                  'Failed to update project status',
+                                              context: context,
+                                              onSuccess: () {
+                                                setState(
+                                                  () {},
+                                                ); // Trigger rebuild to update UI
+                                              },
+                                              onError: (error) {
+                                                setState(
+                                                  () {},
+                                                ); // Trigger rebuild to revert UI
+                                              },
+                                            );
                                           },
                                           child: Container(
                                             width: 26,
                                             height: 26,
                                             decoration: BoxDecoration(
-                                              color: (project.isCompleted == true) 
-                                                ? const Color(0xFFF2F2F2)
-                                                : Colors.transparent,
-                                              borderRadius: BorderRadius.circular(4),
+                                              color:
+                                                  (project.isCompleted == true)
+                                                      ? const Color(0xFFF2F2F2)
+                                                      : Colors.transparent,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
                                               border: Border.all(
                                                 color: const Color(0xFFF2F2F2),
                                                 width: 2,
                                               ),
                                             ),
-                                            child: (project.isCompleted == true)
-                                              ? const Icon(
-                                                  Icons.check,
-                                                  size: 16,
-                                                  color: Color(0xFF1A1A1A),
-                                                )
-                                              : null,
+                                            child:
+                                                (project.isCompleted == true)
+                                                    ? const Icon(
+                                                      Icons.check,
+                                                      size: 16,
+                                                      color: Color(0xFF1A1A1A),
+                                                    )
+                                                    : null,
                                           ),
                                         ),
                                       ),
@@ -629,7 +687,12 @@ class _ProjectsState extends State<Projects> {
                                     Text(
                                       "Created: $creationDate",
                                       style: TextStyle(
-                                        color: (project.isCompleted == true) ? Colors.white.withValues(alpha: 0.4) : Colors.white70,
+                                        color:
+                                            (project.isCompleted == true)
+                                                ? Colors.white.withValues(
+                                                  alpha: 0.4,
+                                                )
+                                                : Colors.white70,
                                         fontSize: 12,
                                         fontFamily: 'Poppins',
                                         fontWeight: FontWeight.w400,
@@ -637,12 +700,15 @@ class _ProjectsState extends State<Projects> {
                                     ),
                                   ],
                                   // Completion date for completed projects
-                                  if (project.isCompleted == true && completionDate.isNotEmpty) ...[
+                                  if (project.isCompleted == true &&
+                                      completionDate.isNotEmpty) ...[
                                     const SizedBox(height: 2),
                                     Text(
                                       "Completed: $completionDate",
                                       style: TextStyle(
-                                        color: Colors.white.withValues(alpha: 0.5),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.5,
+                                        ),
                                         fontSize: 12,
                                         fontFamily: 'Poppins',
                                         fontWeight: FontWeight.w400,
@@ -651,14 +717,17 @@ class _ProjectsState extends State<Projects> {
                                   ],
                                 ],
                               ),
-                              
+
                               const SizedBox(height: 20),
-                              
+
                               // Collaborators text with Figma styling
                               Text(
                                 collaboratorsText,
                                 style: TextStyle(
-                                  color: (project.isCompleted == true) ? Colors.white60 : Colors.white,
+                                  color:
+                                      (project.isCompleted == true)
+                                          ? Colors.white60
+                                          : Colors.white,
                                   fontSize: 14,
                                   fontFamily: 'Poppins',
                                   fontWeight: FontWeight.w500,
@@ -666,14 +735,17 @@ class _ProjectsState extends State<Projects> {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              
+
                               const SizedBox(height: 4),
-                              
+
                               // Description text with Figma styling
                               Text(
                                 descriptionText,
                                 style: TextStyle(
-                                  color: (project.isCompleted == true) ? Colors.white60 : Colors.white,
+                                  color:
+                                      (project.isCompleted == true)
+                                          ? Colors.white60
+                                          : Colors.white,
                                   fontSize: 14,
                                   fontFamily: 'Poppins',
                                   fontWeight: FontWeight.w500,
@@ -681,7 +753,7 @@ class _ProjectsState extends State<Projects> {
                                 maxLines: 3,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              
+
                               // Add some bottom padding to ensure delete button doesn't overlap
                               const SizedBox(height: 45),
                             ],
@@ -692,7 +764,7 @@ class _ProjectsState extends State<Projects> {
                   ),
                 ),
               ),
-              
+
               // Delete button positioned at bottom right with tertiary color
               Positioned(
                 bottom: 25, // Same distance from bottom as checkbox is from top
@@ -701,7 +773,9 @@ class _ProjectsState extends State<Projects> {
                   width: 26,
                   height: 26,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.8),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.tertiary.withValues(alpha: 0.8),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: IconButton(
@@ -710,92 +784,90 @@ class _ProjectsState extends State<Projects> {
                       // Show confirmation dialog for project deletion
                       final confirmed = await showDialog<bool>(
                         context: context,
-                        builder: (context) => AlertDialog(
-                          backgroundColor: Theme.of(context).colorScheme.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            side: BorderSide(
-                              color: Theme.of(context).colorScheme.onSecondary,
-                              width: 1.5,
-                            ),
-                          ),
-                          title: Text(
-                            'Delete Project?',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                          ),
-                          content: Text(
-                            'Project "${project.title}" will be permanently deleted.',
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                          ),
-                          actions: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                IconButton(
-                                  onPressed: () => Navigator.pop(context, false),
-                                  icon: Icon(
-                                    Icons.close,
-                                    color: Theme.of(context).colorScheme.onPrimary,
-                                    size: 30,
-                                  ),
+                        builder:
+                            (context) => AlertDialog(
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.primary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                side: BorderSide(
+                                  color:
+                                      Theme.of(context).colorScheme.onSecondary,
+                                  width: 1.5,
                                 ),
-                                IconButton(
-                                  onPressed: () => Navigator.pop(context, true),
-                                  icon: Icon(
-                                    Icons.check,
-                                    color: Theme.of(context).colorScheme.error,
-                                    size: 30,
-                                  ),
+                              ),
+                              title: Text(
+                                'Delete Project?',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                ),
+                              ),
+                              content: Text(
+                                'Project "${project.title}" will be permanently deleted.',
+                                style: TextStyle(
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                ),
+                              ),
+                              actions: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    IconButton(
+                                      onPressed:
+                                          () => Navigator.pop(context, false),
+                                      icon: Icon(
+                                        Icons.close,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimary,
+                                        size: 30,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      onPressed:
+                                          () => Navigator.pop(context, true),
+                                      icon: Icon(
+                                        Icons.check,
+                                        color:
+                                            Theme.of(context).colorScheme.error,
+                                        size: 30,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ],
-                        ),
                       );
-
                       if (confirmed == true) {
-                        try {
-                          // Delete project from database
-                          bool success = await ProjectsAdapter.deleteProject(project.id!);
-                          if (success) {
-                            // Remove from local list
-                            setState(() {
-                              projects.removeWhere((p) => p.id == project.id);
-                            });
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Project "${project.title}" deleted successfully'),
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
-                            }
-                          } else {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Failed to delete project'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                            }
-                          }
-                        } catch (e) {
-                          print('Error deleting project: $e');
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error deleting project: $e'),
-                                duration: const Duration(seconds: 2),
-                              ),
+                        // Use optimistic updates for project deletion
+                        await OptimisticUpdates.performListOperation<Project>(
+                          list: projects,
+                          operation: 'remove',
+                          item: project,
+                          databaseOperation: () async {
+                            return await ProjectsAdapter.deleteProject(
+                              project.id!,
                             );
-                          }
-                        }
+                          },
+                          showSuccessMessage:
+                              'Project "${project.title}" deleted successfully',
+                          showErrorMessage: 'Failed to delete project',
+                          context: context,
+                          onSuccess: () {
+                            setState(() {}); // Trigger rebuild
+                          },
+                          onError: (error) {
+                            setState(
+                              () {},
+                            ); // Trigger rebuild to restore deleted item
+                            print('Error deleting project: $error');
+                          },
+                        );
                       }
                     },
                     icon: Icon(
@@ -824,14 +896,18 @@ class _ProjectsState extends State<Projects> {
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 12), // Match Events exactly
         decoration: BoxDecoration(
-          color: isSelected 
-            ? Colors.grey[700]
-            : Theme.of(context).colorScheme.primary,
+          color:
+              isSelected
+                  ? Colors.grey[700]
+                  : Theme.of(context).colorScheme.primary,
           borderRadius: BorderRadius.circular(25),
           border: Border.all(
-            color: isSelected
-                ? Colors.grey[700]!
-                : Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.3), // Light purple
+            color:
+                isSelected
+                    ? Colors.grey[700]!
+                    : Theme.of(context).colorScheme.tertiary.withValues(
+                      alpha: 0.3,
+                    ), // Light purple
             width: 1,
           ),
         ),
@@ -839,9 +915,10 @@ class _ProjectsState extends State<Projects> {
           child: Text(
             label,
             style: TextStyle(
-              color: isSelected 
-                ? Colors.white
-                : Theme.of(context).colorScheme.tertiary, // Light purple
+              color:
+                  isSelected
+                      ? Colors.white
+                      : Theme.of(context).colorScheme.tertiary, // Light purple
               fontWeight: FontWeight.w500,
               fontFamily: 'Poppins',
               fontSize: 14, // Match Events exactly
@@ -955,7 +1032,9 @@ class _ProjectsState extends State<Projects> {
                         ),
                       ],
                       Container(
-                        margin: EdgeInsets.only(right: 10), // Reduced margin to push buttons right
+                        margin: EdgeInsets.only(
+                          right: 10,
+                        ), // Reduced margin to push buttons right
                         child: Row(
                           children: [
                             IconButton(
@@ -963,8 +1042,7 @@ class _ProjectsState extends State<Projects> {
                                 !searching
                                     ? Icons.search
                                     : Icons.cancel_outlined,
-                                color:
-                                    Theme.of(context).colorScheme.onPrimary,
+                                color: Theme.of(context).colorScheme.onPrimary,
                                 size: !searching ? 30 : 25,
                               ),
                               onPressed: () {
@@ -1009,7 +1087,7 @@ class _ProjectsState extends State<Projects> {
                   ),
                 ),
               ),
-              
+
               // Add project input field
               if (addingProject) ...[
                 Container(
@@ -1074,53 +1152,62 @@ class _ProjectsState extends State<Projects> {
                           );
                           return;
                         }
+                        final projectTitleText = projectTitle.text.trim();
+                        final now = DateTime.now();
+                        // Create temporary project for optimistic update
+                        final tempProject = Project(
+                          id:
+                              now.millisecondsSinceEpoch
+                                  .toString(), // Temporary ID
+                          title: projectTitleText,
+                          description: '',
+                          collaborators: [],
+                          projectTasks: [],
+                          createdAt: now,
+                          isCompleted: false,
+                        );
 
-                        // Create project data
-                        final projectData = {
-                          'title': projectTitle.text.trim(),
-                          'description': '',
-                          'collaborators':
-                              [], // Empty array of Contact ObjectIds
-                          'project_tasks': [],
-                          'type': 'project',
-                          'created_at': DateTime.now().toIso8601String(),
-                        };
-
+                        // Clear form immediately
                         setState(() {
                           addingProject = false;
                         });
                         projectTitle.clear();
 
-                        // Store messenger reference before async operation
-                        final messenger = ScaffoldMessenger.of(context);
+                        // Use optimistic updates for project creation
+                        await OptimisticUpdates.performListOperation<Project>(
+                          list: projects,
+                          operation: 'add',
+                          item: tempProject,
+                          databaseOperation: () async {
+                            // Create project data for database
+                            final projectData = {
+                              'title': projectTitleText,
+                              'description': '',
+                              'collaborators': [],
+                              'project_tasks': [],
+                              'type': 'project',
+                              'created_at': now.toIso8601String(),
+                            };
 
-                        // Insert using our adapter (Node.js API first, then MongoDB fallback)
-                        bool success = await ProjectsAdapter.addProject(
-                          projectData,
+                            // Insert using our adapter
+                            return await ProjectsAdapter.addProject(
+                              projectData,
+                            );
+                          },
+                          showSuccessMessage: 'Project created successfully!',
+                          showErrorMessage: 'Failed to create project',
+                          context: context,
+                          onSuccess: () async {
+                            // Reload projects to get the real project with database ID
+                            await loadProjects();
+                          },
+                          onError: (error) {
+                            setState(
+                              () {},
+                            ); // Trigger rebuild to remove optimistic project
+                            print('Error creating project: $error');
+                          },
                         );
-
-                        if (success) {
-                          if (mounted) {
-                            messenger.showSnackBar(
-                              const SnackBar(
-                                content: Text('Project created successfully!'),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                          }
-                          print("Project successfully added to MongoDB!");
-                          await loadProjects(); // Reload projects
-                        } else {
-                          if (mounted) {
-                            messenger.showSnackBar(
-                              const SnackBar(
-                                content: Text('Failed to create project'),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                          }
-                          print("Failed to add project to MongoDB");
-                        }
                       },
                       icon: Icon(
                         Icons.check,
@@ -1131,7 +1218,7 @@ class _ProjectsState extends State<Projects> {
                   ),
                 ),
               ],
-              
+
               // Tab selector for Ongoing vs Completed projects (exact copy from Events)
               Container(
                 margin: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -1163,7 +1250,7 @@ class _ProjectsState extends State<Projects> {
                   ],
                 ),
               ),
-              
+
               // Enhanced project tiles list
               Expanded(child: buildEnhancedProjectTiles(projects)),
             ],
@@ -1403,9 +1490,10 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                         try {
                                           final updatedDescription =
                                               descriptionController.text.trim();
-                                          final updatedProject = project.copyWith(
-                                            description: updatedDescription,
-                                          );
+                                          final updatedProject = project
+                                              .copyWith(
+                                                description: updatedDescription,
+                                              );
 
                                           // Update in database - convert to Map for the adapter
                                           final projectData =
@@ -1433,7 +1521,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                   content: Text(
                                                     'Description updated successfully',
                                                   ),
-                                                  duration: Duration(seconds: 2),
+                                                  duration: Duration(
+                                                    seconds: 2,
+                                                  ),
                                                 ),
                                               );
                                             }
@@ -1446,7 +1536,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                   content: Text(
                                                     'Failed to update description',
                                                   ),
-                                                  duration: Duration(seconds: 2),
+                                                  duration: Duration(
+                                                    seconds: 2,
+                                                  ),
                                                 ),
                                               );
                                             }
@@ -1860,30 +1952,46 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                               ),
                             ],
                             // Show only incomplete tasks
-                            if (project.projectTasks.where((task) => !completedTasks.contains(task.id)).isEmpty) ...[
+                            if (project.projectTasks
+                                .where(
+                                  (task) => !completedTasks.contains(task.id),
+                                )
+                                .isEmpty) ...[
                               Container(
                                 margin: EdgeInsets.symmetric(vertical: 10),
                                 child: Text(
-                                  project.projectTasks.isEmpty ? "No tasks yet." : "All tasks completed! 🎉",
+                                  project.projectTasks.isEmpty
+                                      ? "No tasks yet."
+                                      : "All tasks completed! 🎉",
                                   style: TextStyle(
-                                    color: Theme.of(context).colorScheme.onSecondary,
+                                    color:
+                                        Theme.of(
+                                          context,
+                                        ).colorScheme.onSecondary,
                                     fontSize: 14,
                                   ),
                                 ),
                               ),
                             ] else ...[
                               // Show only incomplete tasks
-                              ...project.projectTasks.where((task) => !completedTasks.contains(task.id)).map<Widget>((item) {
+                              ...project.projectTasks.where((task) => !completedTasks.contains(task.id)).map<
+                                Widget
+                              >((item) {
                                 return Row(
                                   children: [
                                     Checkbox(
-                                      value: false, // Always false since we're only showing incomplete tasks
+                                      value:
+                                          false, // Always false since we're only showing incomplete tasks
                                       onChanged: (bool? changed) async {
                                         setState(() {
                                           completedTasks.add(item.id);
                                           // Add to history to track completion order
-                                          completedTasksHistory.remove(item.id); // Remove if already exists
-                                          completedTasksHistory.add(item.id); // Add to end (most recent)
+                                          completedTasksHistory.remove(
+                                            item.id,
+                                          ); // Remove if already exists
+                                          completedTasksHistory.add(
+                                            item.id,
+                                          ); // Add to end (most recent)
                                         });
 
                                         // Update project in database with completed tasks and history
@@ -1910,7 +2018,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                             // Revert the local change if database update failed
                                             setState(() {
                                               completedTasks.remove(item.id);
-                                              completedTasksHistory.remove(item.id);
+                                              completedTasksHistory.remove(
+                                                item.id,
+                                              );
                                             });
                                             if (mounted) {
                                               ScaffoldMessenger.of(
@@ -1934,7 +2044,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                           // Revert the local change
                                           setState(() {
                                             completedTasks.remove(item.id);
-                                            completedTasksHistory.remove(item.id);
+                                            completedTasksHistory.remove(
+                                              item.id,
+                                            );
                                           });
                                         }
                                       },
@@ -2067,15 +2179,21 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                           final originalCompletedTasks =
                                               List<String>.from(completedTasks);
                                           final originalCompletedTasksHistory =
-                                              List<String>.from(completedTasksHistory);
+                                              List<String>.from(
+                                                completedTasksHistory,
+                                              );
 
                                           // Remove task from local state
                                           setState(() {
                                             project.projectTasks.removeWhere(
                                               (task) => task.id == item.id,
                                             );
-                                            completedTasks.remove(item.id); // Also remove from completed tasks if present
-                                            completedTasksHistory.remove(item.id); // Also remove from history
+                                            completedTasks.remove(
+                                              item.id,
+                                            ); // Also remove from completed tasks if present
+                                            completedTasksHistory.remove(
+                                              item.id,
+                                            ); // Also remove from history
                                           });
 
                                           // Update project in database
@@ -2186,17 +2304,24 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                 );
                               }),
                             ],
-                            
+
                             // Latest Update section (show most recently completed task with undo option)
                             if (completedTasksHistory.isNotEmpty) ...[
                               Container(
-                                margin: EdgeInsets.symmetric(vertical: 8, horizontal: 5),
+                                margin: EdgeInsets.symmetric(
+                                  vertical: 8,
+                                  horizontal: 5,
+                                ),
                                 padding: EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.1),
+                                  color: Theme.of(context).colorScheme.onPrimary
+                                      .withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.2),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onPrimary
+                                        .withValues(alpha: 0.2),
                                     width: 1,
                                   ),
                                 ),
@@ -2207,14 +2332,20 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                       children: [
                                         Icon(
                                           Icons.update,
-                                          color: Theme.of(context).colorScheme.onPrimary,
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.onPrimary,
                                           size: 16,
                                         ),
                                         SizedBox(width: 6),
                                         Text(
                                           "Latest Update",
                                           style: TextStyle(
-                                            color: Theme.of(context).colorScheme.onPrimary,
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.onPrimary,
                                             fontSize: 14,
                                             fontWeight: FontWeight.w600,
                                           ),
@@ -2226,7 +2357,10 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                       children: [
                                         Icon(
                                           Icons.check_circle,
-                                          color: Theme.of(context).colorScheme.tertiary,
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.tertiary,
                                           size: 18,
                                         ),
                                         SizedBox(width: 8),
@@ -2234,15 +2368,30 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                           child: Builder(
                                             builder: (context) {
                                               // Get the most recently completed task
-                                              final latestCompletedId = completedTasksHistory.last;
-                                              final latestTask = project.projectTasks.firstWhere(
-                                                (task) => task.id == latestCompletedId,
-                                                orElse: () => ToDoItem(id: '', text: 'Task not found', deadlineDate: DateTime.now()),
-                                              );
+                                              final latestCompletedId =
+                                                  completedTasksHistory.last;
+                                              final latestTask = project
+                                                  .projectTasks
+                                                  .firstWhere(
+                                                    (task) =>
+                                                        task.id ==
+                                                        latestCompletedId,
+                                                    orElse:
+                                                        () => ToDoItem(
+                                                          id: '',
+                                                          text:
+                                                              'Task not found',
+                                                          deadlineDate:
+                                                              DateTime.now(),
+                                                        ),
+                                                  );
                                               return Text(
                                                 'Completed: ${latestTask.text}',
                                                 style: TextStyle(
-                                                  color: Theme.of(context).colorScheme.onPrimary,
+                                                  color:
+                                                      Theme.of(
+                                                        context,
+                                                      ).colorScheme.onPrimary,
                                                   fontSize: 14,
                                                 ),
                                                 maxLines: 2,
@@ -2255,59 +2404,99 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                         IconButton(
                                           icon: Icon(
                                             Icons.undo,
-                                            color: Theme.of(context).colorScheme.tertiary,
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.tertiary,
                                             size: 18,
                                           ),
                                           onPressed: () async {
-                                            if (completedTasksHistory.isNotEmpty) {
-                                              final taskToUndo = completedTasksHistory.last;
-                                              
+                                            if (completedTasksHistory
+                                                .isNotEmpty) {
+                                              final taskToUndo =
+                                                  completedTasksHistory.last;
+
                                               setState(() {
-                                                completedTasks.remove(taskToUndo);
-                                                completedTasksHistory.remove(taskToUndo);
+                                                completedTasks.remove(
+                                                  taskToUndo,
+                                                );
+                                                completedTasksHistory.remove(
+                                                  taskToUndo,
+                                                );
                                               });
 
                                               // Update database
                                               try {
-                                                final updatedProject = project.copyWith(
-                                                  projectTasks: project.projectTasks,
-                                                );
-                                                final projectData = updatedProject.toMap();
-                                                projectData['_id'] = updatedProject.id;
-                                                projectData['completed_tasks'] = completedTasks;
-                                                projectData['completed_tasks_history'] = completedTasksHistory;
+                                                final updatedProject = project
+                                                    .copyWith(
+                                                      projectTasks:
+                                                          project.projectTasks,
+                                                    );
+                                                final projectData =
+                                                    updatedProject.toMap();
+                                                projectData['_id'] =
+                                                    updatedProject.id;
+                                                projectData['completed_tasks'] =
+                                                    completedTasks;
+                                                projectData['completed_tasks_history'] =
+                                                    completedTasksHistory;
 
-                                                bool success = await ProjectsAdapter.updateProject(projectData);
+                                                bool success =
+                                                    await ProjectsAdapter.updateProject(
+                                                      projectData,
+                                                    );
                                                 if (!success) {
                                                   // Revert if database update failed
                                                   setState(() {
-                                                    completedTasks.add(taskToUndo);
-                                                    completedTasksHistory.add(taskToUndo);
+                                                    completedTasks.add(
+                                                      taskToUndo,
+                                                    );
+                                                    completedTasksHistory.add(
+                                                      taskToUndo,
+                                                    );
                                                   });
                                                   if (mounted) {
-                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
                                                       const SnackBar(
-                                                        content: Text('Failed to undo task completion'),
-                                                        duration: Duration(seconds: 2),
+                                                        content: Text(
+                                                          'Failed to undo task completion',
+                                                        ),
+                                                        duration: Duration(
+                                                          seconds: 2,
+                                                        ),
                                                       ),
                                                     );
                                                   }
                                                 } else {
                                                   if (mounted) {
-                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
                                                       const SnackBar(
-                                                        content: Text('Task completion undone'),
-                                                        duration: Duration(seconds: 2),
+                                                        content: Text(
+                                                          'Task completion undone',
+                                                        ),
+                                                        duration: Duration(
+                                                          seconds: 2,
+                                                        ),
                                                       ),
                                                     );
                                                   }
                                                 }
                                               } catch (e) {
-                                                print('Error undoing task completion: $e');
+                                                print(
+                                                  'Error undoing task completion: $e',
+                                                );
                                                 // Revert the local change
                                                 setState(() {
-                                                  completedTasks.add(taskToUndo);
-                                                  completedTasksHistory.add(taskToUndo);
+                                                  completedTasks.add(
+                                                    taskToUndo,
+                                                  );
+                                                  completedTasksHistory.add(
+                                                    taskToUndo,
+                                                  );
                                                 });
                                               }
                                             }
@@ -2341,80 +2530,151 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                 color: Theme.of(context).colorScheme.onPrimary,
                               ),
                               onPressed: () async {
-                                final selectedContacts = await showDialog<List<Contact>>(
+                                final selectedContacts = await showDialog<
+                                  List<Contact>
+                                >(
                                   context: context,
                                   builder: (context) {
                                     String search = '';
                                     List<Contact> filtered = globalContacts;
                                     List<Contact> selectedContacts = [];
-                                    TextEditingController searchController = TextEditingController();
-                                    
+                                    TextEditingController searchController =
+                                        TextEditingController();
+
                                     return StatefulBuilder(
                                       builder: (context, setDialogState) {
                                         // Filter contacts by search query with improved ordering
-                                        filtered = globalContacts
-                                            .where(
-                                              (c) =>
-                                                  c.name.toLowerCase().contains(search.toLowerCase()) ||
-                                                  c.phoneNumber.toLowerCase().contains(search.toLowerCase()),
-                                            )
-                                            .toList();
+                                        filtered =
+                                            globalContacts
+                                                .where(
+                                                  (c) =>
+                                                      c.name
+                                                          .toLowerCase()
+                                                          .contains(
+                                                            search
+                                                                .toLowerCase(),
+                                                          ) ||
+                                                      c.phoneNumber
+                                                          .toLowerCase()
+                                                          .contains(
+                                                            search
+                                                                .toLowerCase(),
+                                                          ),
+                                                )
+                                                .toList();
 
                                         // Sort filtered contacts: starts with query first, then contains query
                                         if (search.isNotEmpty) {
                                           filtered.sort((a, b) {
-                                            final aNameStartsWith = a.name.toLowerCase().startsWith(search.toLowerCase());
-                                            final bNameStartsWith = b.name.toLowerCase().startsWith(search.toLowerCase());
-                                            final aPhoneStartsWith = a.phoneNumber.toLowerCase().startsWith(search.toLowerCase());
-                                            final bPhoneStartsWith = b.phoneNumber.toLowerCase().startsWith(search.toLowerCase());
+                                            final aNameStartsWith = a.name
+                                                .toLowerCase()
+                                                .startsWith(
+                                                  search.toLowerCase(),
+                                                );
+                                            final bNameStartsWith = b.name
+                                                .toLowerCase()
+                                                .startsWith(
+                                                  search.toLowerCase(),
+                                                );
+                                            final aPhoneStartsWith = a
+                                                .phoneNumber
+                                                .toLowerCase()
+                                                .startsWith(
+                                                  search.toLowerCase(),
+                                                );
+                                            final bPhoneStartsWith = b
+                                                .phoneNumber
+                                                .toLowerCase()
+                                                .startsWith(
+                                                  search.toLowerCase(),
+                                                );
 
-                                            final aStartsWith = aNameStartsWith || aPhoneStartsWith;
-                                            final bStartsWith = bNameStartsWith || bPhoneStartsWith;
+                                            final aStartsWith =
+                                                aNameStartsWith ||
+                                                aPhoneStartsWith;
+                                            final bStartsWith =
+                                                bNameStartsWith ||
+                                                bPhoneStartsWith;
 
-                                            if (aStartsWith && !bStartsWith) return -1;
-                                            if (!aStartsWith && bStartsWith) return 1;
+                                            if (aStartsWith && !bStartsWith) {
+                                              return -1;
+                                            }
+                                            if (!aStartsWith && bStartsWith) {
+                                              return 1;
+                                            }
 
                                             // If both start with query, prioritize name matches over phone matches
                                             if (aStartsWith && bStartsWith) {
-                                              if (aNameStartsWith && !bNameStartsWith) return -1;
-                                              if (!aNameStartsWith && bNameStartsWith) return 1;
+                                              if (aNameStartsWith &&
+                                                  !bNameStartsWith) {
+                                                return -1;
+                                              }
+                                              if (!aNameStartsWith &&
+                                                  bNameStartsWith) {
+                                                return 1;
+                                              }
                                             }
 
                                             return a.name.compareTo(b.name);
                                           });
                                         }
-                                        
+
                                         return AlertDialog(
-                                          backgroundColor: Theme.of(context).colorScheme.primary,
+                                          backgroundColor:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(16),
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
                                             side: BorderSide(
-                                              color: Theme.of(context).colorScheme.onPrimary,
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onPrimary,
                                               width: 1,
                                             ),
                                           ),
                                           title: Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
                                             children: [
                                               Text(
                                                 'Add Collaborators',
                                                 style: TextStyle(
-                                                  color: Theme.of(context).colorScheme.onPrimary,
+                                                  color:
+                                                      Theme.of(
+                                                        context,
+                                                      ).colorScheme.onPrimary,
                                                   fontWeight: FontWeight.w600,
                                                 ),
                                               ),
                                               if (selectedContacts.isNotEmpty)
                                                 Container(
-                                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                  padding: EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 4,
+                                                  ),
                                                   decoration: BoxDecoration(
-                                                    color: Theme.of(context).colorScheme.tertiary,
-                                                    borderRadius: BorderRadius.circular(12),
+                                                    color:
+                                                        Theme.of(
+                                                          context,
+                                                        ).colorScheme.tertiary,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          12,
+                                                        ),
                                                   ),
                                                   child: Text(
                                                     '${selectedContacts.length}',
                                                     style: TextStyle(
-                                                      color: Theme.of(context).colorScheme.primary,
-                                                      fontWeight: FontWeight.bold,
+                                                      color:
+                                                          Theme.of(
+                                                            context,
+                                                          ).colorScheme.primary,
+                                                      fontWeight:
+                                                          FontWeight.bold,
                                                       fontSize: 12,
                                                     ),
                                                   ),
@@ -2431,29 +2691,63 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                   controller: searchController,
                                                   maxLines: 1,
                                                   style: TextStyle(
-                                                    color: Theme.of(context).colorScheme.onPrimary,
+                                                    color:
+                                                        Theme.of(
+                                                          context,
+                                                        ).colorScheme.onPrimary,
                                                   ),
                                                   decoration: InputDecoration(
-                                                    labelText: "Search in Contacts",
+                                                    labelText:
+                                                        "Search in Contacts",
                                                     labelStyle: TextStyle(
-                                                      color: Theme.of(context).colorScheme.tertiary,
+                                                      color:
+                                                          Theme.of(context)
+                                                              .colorScheme
+                                                              .tertiary,
                                                     ),
                                                     hintStyle: TextStyle(
-                                                      color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.7),
+                                                      color: Theme.of(context)
+                                                          .colorScheme
+                                                          .tertiary
+                                                          .withValues(
+                                                            alpha: 0.7,
+                                                          ),
                                                     ),
-                                                    enabledBorder: OutlineInputBorder(
-                                                      borderRadius: BorderRadius.circular(12),
-                                                      borderSide: BorderSide(
-                                                        color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.3),
-                                                      ),
-                                                    ),
-                                                    focusedBorder: OutlineInputBorder(
-                                                      borderRadius: BorderRadius.circular(12),
-                                                      borderSide: BorderSide(
-                                                        color: Theme.of(context).colorScheme.secondary,
-                                                        width: 2,
-                                                      ),
-                                                    ),
+                                                    enabledBorder:
+                                                        OutlineInputBorder(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                12,
+                                                              ),
+                                                          borderSide:
+                                                              BorderSide(
+                                                                color: Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .tertiary
+                                                                    .withValues(
+                                                                      alpha:
+                                                                          0.3,
+                                                                    ),
+                                                              ),
+                                                        ),
+                                                    focusedBorder:
+                                                        OutlineInputBorder(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                12,
+                                                              ),
+                                                          borderSide: BorderSide(
+                                                            color:
+                                                                Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .secondary,
+                                                            width: 2,
+                                                          ),
+                                                        ),
                                                   ),
                                                   onChanged: (val) {
                                                     setDialogState(() {
@@ -2463,97 +2757,193 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                 ),
                                                 SizedBox(height: 16),
                                                 Expanded(
-                                                  child: filtered.isEmpty
-                                                      ? Container(
-                                                          margin: EdgeInsets.only(top: 75),
-                                                          child: Text(
-                                                            "No contacts found.",
-                                                            style: TextStyle(
-                                                              color: Theme.of(context).colorScheme.tertiary,
-                                                            ),
-                                                          ),
-                                                        )
-                                                      : ListView.builder(
-                                                          itemCount: filtered.length,
-                                                          itemBuilder: (context, index) {
-                                                            final contact = filtered[index];
-                                                            final alreadyAdded = project.collaborators.any((c) => c == contact.phoneNumber);
-                                                            final isSelected = selectedContacts.any((c) => c.phoneNumber == contact.phoneNumber);
-                                                            
-                                                            return CheckboxListTile(
-                                                              value: isSelected,
-                                                              onChanged: alreadyAdded 
-                                                                  ? null 
-                                                                  : (bool? checked) {
-                                                                      setDialogState(() {
-                                                                        if (checked == true) {
-                                                                          selectedContacts.add(contact);
-                                                                        } else {
-                                                                          selectedContacts.removeWhere((c) => c.phoneNumber == contact.phoneNumber);
-                                                                        }
-                                                                      });
-                                                                    },
-                                                              title: Text(
-                                                                contact.name,
-                                                                style: TextStyle(
-                                                                  color: alreadyAdded 
-                                                                      ? Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.5)
-                                                                      : Theme.of(context).colorScheme.onPrimary,
+                                                  child:
+                                                      filtered.isEmpty
+                                                          ? Container(
+                                                            margin:
+                                                                EdgeInsets.only(
+                                                                  top: 75,
                                                                 ),
+                                                            child: Text(
+                                                              "No contacts found.",
+                                                              style: TextStyle(
+                                                                color:
+                                                                    Theme.of(
+                                                                          context,
+                                                                        )
+                                                                        .colorScheme
+                                                                        .tertiary,
                                                               ),
-                                                              subtitle: Row(
-                                                                children: [
-                                                                  Text(
-                                                                    contact.phoneNumber,
-                                                                    style: TextStyle(
-                                                                      color: alreadyAdded 
-                                                                          ? Theme.of(context).colorScheme.onSecondary.withValues(alpha: 0.5)
-                                                                          : Theme.of(context).colorScheme.onSecondary,
-                                                                    ),
+                                                            ),
+                                                          )
+                                                          : ListView.builder(
+                                                            itemCount:
+                                                                filtered.length,
+                                                            itemBuilder: (
+                                                              context,
+                                                              index,
+                                                            ) {
+                                                              final contact =
+                                                                  filtered[index];
+                                                              final alreadyAdded = project
+                                                                  .collaborators
+                                                                  .any(
+                                                                    (c) =>
+                                                                        c ==
+                                                                        contact
+                                                                            .phoneNumber,
+                                                                  );
+                                                              final isSelected =
+                                                                  selectedContacts.any(
+                                                                    (c) =>
+                                                                        c.phoneNumber ==
+                                                                        contact
+                                                                            .phoneNumber,
+                                                                  );
+
+                                                              return CheckboxListTile(
+                                                                value:
+                                                                    isSelected,
+                                                                onChanged:
+                                                                    alreadyAdded
+                                                                        ? null
+                                                                        : (
+                                                                          bool?
+                                                                          checked,
+                                                                        ) {
+                                                                          setDialogState(() {
+                                                                            if (checked ==
+                                                                                true) {
+                                                                              selectedContacts.add(
+                                                                                contact,
+                                                                              );
+                                                                            } else {
+                                                                              selectedContacts.removeWhere(
+                                                                                (
+                                                                                  c,
+                                                                                ) =>
+                                                                                    c.phoneNumber ==
+                                                                                    contact.phoneNumber,
+                                                                              );
+                                                                            }
+                                                                          });
+                                                                        },
+                                                                title: Text(
+                                                                  contact.name,
+                                                                  style: TextStyle(
+                                                                    color:
+                                                                        alreadyAdded
+                                                                            ? Theme.of(
+                                                                              context,
+                                                                            ).colorScheme.onPrimary.withValues(
+                                                                              alpha:
+                                                                                  0.5,
+                                                                            )
+                                                                            : Theme.of(
+                                                                              context,
+                                                                            ).colorScheme.onPrimary,
                                                                   ),
-                                                                  if (alreadyAdded) ...[
-                                                                    SizedBox(width: 8),
+                                                                ),
+                                                                subtitle: Row(
+                                                                  children: [
                                                                     Text(
-                                                                      "(Already added)",
+                                                                      contact
+                                                                          .phoneNumber,
                                                                       style: TextStyle(
-                                                                        color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.7),
-                                                                        fontSize: 12,
-                                                                        fontStyle: FontStyle.italic,
+                                                                        color:
+                                                                            alreadyAdded
+                                                                                ? Theme.of(
+                                                                                  context,
+                                                                                ).colorScheme.onSecondary.withValues(
+                                                                                  alpha:
+                                                                                      0.5,
+                                                                                )
+                                                                                : Theme.of(
+                                                                                  context,
+                                                                                ).colorScheme.onSecondary,
                                                                       ),
                                                                     ),
+                                                                    if (alreadyAdded) ...[
+                                                                      SizedBox(
+                                                                        width:
+                                                                            8,
+                                                                      ),
+                                                                      Text(
+                                                                        "(Already added)",
+                                                                        style: TextStyle(
+                                                                          color: Theme.of(
+                                                                            context,
+                                                                          ).colorScheme.tertiary.withValues(
+                                                                            alpha:
+                                                                                0.7,
+                                                                          ),
+                                                                          fontSize:
+                                                                              12,
+                                                                          fontStyle:
+                                                                              FontStyle.italic,
+                                                                        ),
+                                                                      ),
+                                                                    ],
                                                                   ],
-                                                                ],
-                                                              ),
-                                                              activeColor: Theme.of(context).colorScheme.tertiary,
-                                                              checkColor: Theme.of(context).colorScheme.primary,
-                                                            );
-                                                          },
-                                                        ),
+                                                                ),
+                                                                activeColor:
+                                                                    Theme.of(
+                                                                          context,
+                                                                        )
+                                                                        .colorScheme
+                                                                        .tertiary,
+                                                                checkColor:
+                                                                    Theme.of(
+                                                                          context,
+                                                                        )
+                                                                        .colorScheme
+                                                                        .primary,
+                                                              );
+                                                            },
+                                                          ),
                                                 ),
                                               ],
                                             ),
                                           ),
                                           actions: [
                                             Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.spaceEvenly,
                                               children: [
                                                 TextButton(
-                                                  onPressed: () => Navigator.pop(context),
+                                                  onPressed:
+                                                      () => Navigator.pop(
+                                                        context,
+                                                      ),
                                                   child: Text(
                                                     'Cancel',
                                                     style: TextStyle(
-                                                      color: Theme.of(context).colorScheme.tertiary,
+                                                      color:
+                                                          Theme.of(context)
+                                                              .colorScheme
+                                                              .tertiary,
                                                     ),
                                                   ),
                                                 ),
                                                 ElevatedButton(
-                                                  onPressed: selectedContacts.isEmpty
-                                                      ? null
-                                                      : () => Navigator.pop(context, selectedContacts),
-                                                  style: ElevatedButton.styleFrom(
-                                                    backgroundColor: Theme.of(context).colorScheme.tertiary,
-                                                    foregroundColor: Theme.of(context).colorScheme.primary,
-                                                  ),
+                                                  onPressed:
+                                                      selectedContacts.isEmpty
+                                                          ? null
+                                                          : () => Navigator.pop(
+                                                            context,
+                                                            selectedContacts,
+                                                          ),
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                        backgroundColor:
+                                                            Theme.of(context)
+                                                                .colorScheme
+                                                                .tertiary,
+                                                        foregroundColor:
+                                                            Theme.of(context)
+                                                                .colorScheme
+                                                                .primary,
+                                                      ),
                                                   child: Text(
                                                     'Add ${selectedContacts.length} Collaborator${selectedContacts.length == 1 ? '' : 's'}',
                                                   ),
@@ -2566,16 +2956,22 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                     );
                                   },
                                 );
-                                
-                                if (selectedContacts != null && selectedContacts.isNotEmpty) {
+
+                                if (selectedContacts != null &&
+                                    selectedContacts.isNotEmpty) {
                                   // Store original state for rollback
-                                  final originalCollaborators = List<dynamic>.from(project.collaborators);
+                                  final originalCollaborators =
+                                      List<dynamic>.from(project.collaborators);
 
                                   // Add all selected collaborators
                                   setState(() {
                                     for (final contact in selectedContacts) {
-                                      if (!project.collaborators.contains(contact.phoneNumber)) {
-                                        project.collaborators.add(contact.phoneNumber);
+                                      if (!project.collaborators.contains(
+                                        contact.phoneNumber,
+                                      )) {
+                                        project.collaborators.add(
+                                          contact.phoneNumber,
+                                        );
                                       }
                                     }
                                   });
@@ -2588,11 +2984,16 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                     final projectData = updatedProject.toMap();
                                     projectData['_id'] = updatedProject.id;
 
-                                    bool success = await ProjectsAdapter.updateProject(projectData);
+                                    bool success =
+                                        await ProjectsAdapter.updateProject(
+                                          projectData,
+                                        );
                                     if (success) {
                                       widget.onUpdate(updatedProject);
                                       if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           SnackBar(
                                             content: Text(
                                               selectedContacts.length == 1
@@ -2607,12 +3008,18 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                       // Revert the local change if database update failed
                                       setState(() {
                                         project.collaborators.clear();
-                                        project.collaborators.addAll(originalCollaborators);
+                                        project.collaborators.addAll(
+                                          originalCollaborators,
+                                        );
                                       });
                                       if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           const SnackBar(
-                                            content: Text('Failed to add collaborators'),
+                                            content: Text(
+                                              'Failed to add collaborators',
+                                            ),
                                             duration: Duration(seconds: 2),
                                           ),
                                         );
@@ -2623,12 +3030,18 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                     // Revert the local change if database update failed
                                     setState(() {
                                       project.collaborators.clear();
-                                      project.collaborators.addAll(originalCollaborators);
+                                      project.collaborators.addAll(
+                                        originalCollaborators,
+                                      );
                                     });
                                     if (mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
                                         SnackBar(
-                                          content: Text('Error adding collaborators: $e'),
+                                          content: Text(
+                                            'Error adding collaborators: $e',
+                                          ),
                                           duration: Duration(seconds: 2),
                                         ),
                                       );

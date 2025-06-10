@@ -76,6 +76,25 @@ class ToDoItem {
   }
 
   bool get isPastDeadline => deadlineDate.isBefore(DateTime.now());
+
+  /// Create a copy of this task with updated fields
+  ToDoItem copyWith({
+    String? id,
+    String? sectionId,
+    String? text,
+    DateTime? deadlineDate,
+    bool? isCompleted,
+    DateTime? completedAt,
+  }) {
+    return ToDoItem(
+      id: id ?? this.id,
+      sectionId: sectionId ?? this.sectionId,
+      text: text ?? this.text,
+      deadlineDate: deadlineDate ?? this.deadlineDate,
+      isCompleted: isCompleted ?? this.isCompleted,
+      completedAt: completedAt ?? this.completedAt,
+    );
+  }
 }
 
 class TasksAdapter {
