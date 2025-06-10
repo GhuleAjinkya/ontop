@@ -403,6 +403,7 @@ class _ProjectsState extends State<Projects> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              !addingProject ?
               fetchingProjects ? 
               CircularProgressIndicator(
                 color: Theme.of(context).colorScheme.tertiary,
@@ -411,13 +412,16 @@ class _ProjectsState extends State<Projects> {
                 Icons.folder_outlined,
                 size: 80,
                 color: Theme.of(context).colorScheme.tertiary,
-              ),
+              ) : Container(),
               SizedBox(height: 16),
-              Text(
-                fetchingProjects ? "Fetching Projects...":
-                selectedTab == 'Ongoing' 
-                  ? (searching && searchQuery.isNotEmpty ? 'No ongoing projects found' : 'No ongoing projects')
-                  : (searching && searchQuery.isNotEmpty ? 'No completed projects found' : 'No completed projects'),
+              Text( // summary: if adding a project, show nothing. if not, then if fetching
+              // project, show fetching projects
+                !addingProject ? 
+                  fetchingProjects ? "Fetching Projects...":
+                    selectedTab == 'Ongoing' 
+                      ? (searching && searchQuery.isNotEmpty  ? 'No ongoing projects found' : 'No ongoing projects')
+                      : (searching && searchQuery.isNotEmpty  ? 'No completed projects found' : 'No completed projects') 
+                : "",
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.tertiary,
                   fontSize: 18,
@@ -429,7 +433,9 @@ class _ProjectsState extends State<Projects> {
               if (!searching && selectedTab == 'Ongoing' && !fetchingProjects) ...[
                 SizedBox(height: 8),
                 Text(
-                  'Tap the + button to add your first project',
+                  !addingProject ? 
+                  'Tap the + button to add your first project'
+                  : '',
                   style: TextStyle(
                     color: Theme.of(
                       context,
@@ -1614,6 +1620,60 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                             ],
                           ],
                         ),
+                        subtitle: TextField(
+                          controller: descriptionController,
+                          maxLines: 5,
+                          minLines: 1,
+                          readOnly: !editingDescription,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: "Write a description...",
+                            hintStyle: TextStyle(
+                              color: Theme.of(context).colorScheme.onSecondary,
+                            ),
+                            border:
+                                editingDescription
+                                    ? OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: BorderSide(
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onSecondary,
+                                        width: 1.2,
+                                      ),
+                                    )
+                                    : InputBorder.none,
+                            enabledBorder:
+                                editingDescription
+                                    ? OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: BorderSide(
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onSecondary,
+                                        width: 1.2,
+                                      ),
+                                    )
+                                    : InputBorder.none,
+                            focusedBorder:
+                                editingDescription
+                                    ? OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: BorderSide(
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onSecondary,
+                                        width: 1.2,
+                                      ),
+                                    )
+                                    : InputBorder.none,
+                          ),
+                        ),
                       ),
                       divLine(),
                       ListTile( // To-Do
@@ -1933,17 +1993,13 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                               ),
                             ],
                             // Show only incomplete tasks
-                            if (project.projectTasks
-                                .where(
-                                  (task) => !completedTasks.contains(task.id),
-                                )
-                                .isEmpty) ...[
+                            if (project.projectTasks.where((task) => !completedTasks.contains(task.id),).isEmpty) ...[
                               Container(
                                 margin: EdgeInsets.symmetric(vertical: 10),
                                 child: Text(
                                   project.projectTasks.isEmpty
                                       ? "No tasks yet."
-                                      : "All tasks completed! 🎉",
+                                      : "All tasks completed!",
                                   style: TextStyle(
                                     color:
                                         Theme.of(
@@ -1955,14 +2011,11 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                               ),
                             ] else ...[
                               // Show only incomplete tasks
-                              ...project.projectTasks.where((task) => !completedTasks.contains(task.id)).map<
-                                Widget
-                              >((item) {
+                              ...project.projectTasks.where((task) => !completedTasks.contains(task.id)).map<Widget>((item) {
                                 return Row(
                                   children: [
                                     Checkbox(
-                                      value:
-                                          false, // Always false since we're only showing incomplete tasks
+                                      value: false,
                                       onChanged: (bool? changed) async {
                                         setState(() {
                                           completedTasks.add(item.id);
@@ -1997,6 +2050,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                               );
                                           if (success) {
                                             // Sync to Tasks tab
+                                            widget.onUpdate(project);    
                                             await ProjectTasksSync.syncProjectToTasks(
                                               updatedProject,
                                             );
@@ -2508,7 +2562,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                           children: [
                             Text(
                               fetchingContacts ? 
-                              "Fetching Collaborators..."
+                              "Fetching..."
                               : "Collaborators",
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,

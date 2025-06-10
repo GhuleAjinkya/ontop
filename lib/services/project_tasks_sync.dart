@@ -7,7 +7,7 @@ import '../models/to_do_item.dart';
 /// Service to sync project tasks with task sections
 class ProjectTasksSync {
   /// Sync project tasks to Tasks tab when project tasks are modified
-  static Future<bool> syncProjectToTasks(Project project) async {
+  static Future<bool> syncProjectToTasks(Project project) async { // doesnt work
     try {
       log("ProjectTasksSync: Syncing project ${project.title} to tasks");
 
@@ -54,7 +54,7 @@ class ProjectTasksSync {
   }
 
   /// Remove project section when project is deleted
-  static Future<bool> removeProjectFromTasks(String projectId) async {
+  static Future<bool> removeProjectFromTasks(String projectId) async { //
     try {
       log("ProjectTasksSync: Removing project $projectId from tasks");
 
@@ -76,7 +76,7 @@ class ProjectTasksSync {
   }
 
   /// Sync task completion from Tasks tab back to project
-  static Future<bool> syncTaskCompletionToProject({
+  static Future<bool> syncTaskCompletionToProject({ // works
     required String taskId,
     required String projectId,
     required bool isCompleted,
@@ -143,7 +143,7 @@ class ProjectTasksSync {
   }
 
   /// Sync new task from Tasks tab back to project
-  static Future<bool> syncTaskToProject({
+  static Future<bool> syncTaskToProject({ // works
     required String projectId,
     required String taskText,
     required DateTime taskDeadline,
@@ -195,7 +195,7 @@ class ProjectTasksSync {
   }
 
   /// Sync task deletion from Tasks tab back to project
-  static Future<bool> syncTaskDeletionToProject({
+  static Future<bool> syncTaskDeletionToProject({ // works
     required String taskId,
     required String projectId,
   }) async {
