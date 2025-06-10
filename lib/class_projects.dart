@@ -8,6 +8,7 @@ import 'user_session.dart';
 import 'services/projects_adapter.dart';
 import 'services/contacts_adapter.dart';
 import 'services/optimistic_updates.dart';
+import 'services/project_tasks_sync.dart';
 
 class Projects extends StatefulWidget {
   const Projects({super.key});
@@ -209,6 +210,10 @@ class _ProjectsState extends State<Projects> {
                                     project.id!,
                                   );
                               if (success) {
+                                // Sync project deletion to Tasks tab
+                                await ProjectTasksSync.removeProjectFromTasks(
+                                  project.id.toString(),
+                                );
                                 // Remove from local list
                                 setState(() {
                                   projects.removeWhere(
@@ -859,6 +864,10 @@ class _ProjectsState extends State<Projects> {
                           showErrorMessage: 'Failed to delete project',
                           context: context,
                           onSuccess: () {
+                            // Sync project deletion to Tasks tab
+                            ProjectTasksSync.removeProjectFromTasks(
+                              project.id.toString(),
+                            );
                             setState(() {}); // Trigger rebuild
                           },
                           onError: (error) {
@@ -1874,6 +1883,12 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                     widget.onUpdate(
                                                       updatedProject,
                                                     );
+
+                                                    // Sync to Tasks tab
+                                                    await ProjectTasksSync.syncProjectToTasks(
+                                                      updatedProject,
+                                                    );
+
                                                     if (mounted) {
                                                       ScaffoldMessenger.of(
                                                         context,
@@ -2014,7 +2029,12 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                               await ProjectsAdapter.updateProject(
                                                 projectData,
                                               );
-                                          if (!success) {
+                                          if (success) {
+                                            // Sync to Tasks tab
+                                            await ProjectTasksSync.syncProjectToTasks(
+                                              updatedProject,
+                                            );
+                                          } else {
                                             // Revert the local change if database update failed
                                             setState(() {
                                               completedTasks.remove(item.id);
@@ -2218,6 +2238,10 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                 );
                                             if (success) {
                                               widget.onUpdate(updatedProject);
+                                              // Sync to Tasks tab
+                                              await ProjectTasksSync.syncProjectToTasks(
+                                                updatedProject,
+                                              );
                                               if (mounted) {
                                                 ScaffoldMessenger.of(
                                                   context,
@@ -2440,7 +2464,6 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                     completedTasks;
                                                 projectData['completed_tasks_history'] =
                                                     completedTasksHistory;
-
                                                 bool success =
                                                     await ProjectsAdapter.updateProject(
                                                       projectData,
@@ -2470,6 +2493,10 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                     );
                                                   }
                                                 } else {
+                                                  // Sync undo completion to Tasks tab
+                                                  await ProjectTasksSync.syncProjectToTasks(
+                                                    updatedProject,
+                                                  );
                                                   if (mounted) {
                                                     ScaffoldMessenger.of(
                                                       context,

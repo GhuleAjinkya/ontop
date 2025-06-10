@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'main.dart';
 import 'services/tasks_adapter.dart';
 import 'services/optimistic_updates.dart';
+import 'services/project_tasks_sync.dart';
 
 class Tasks extends StatefulWidget {
   const Tasks({super.key});
@@ -51,12 +52,26 @@ class _TasksState extends State<Tasks> {
     setState(() {
       isLoading = true;
     });
-
     try {
       // Load sections and tasks
       taskSections = await TasksAdapter.loadSections();
-      final allTasks =
-          await TasksAdapter.loadTasks(); // Organize tasks by section
+      final allTasks = await TasksAdapter.loadTasks();
+
+      // Sort sections: User sections first (by last interaction), then project sections (by last interaction)
+      taskSections.sort((a, b) {
+        // First separate by type
+        if (a.type != b.type) {
+          return a.type == SectionType.userCreated ? -1 : 1;
+        }
+
+        // Within same type, sort by last interaction (most recent first)
+        final aTime =
+            a.lastInteracted ?? DateTime(2000); // Default old date for null
+        final bTime = b.lastInteracted ?? DateTime(2000);
+        return bTime.compareTo(aTime);
+      });
+
+      // Organize tasks by section
       sections.clear();
       completedSections.clear();
 
@@ -66,9 +81,9 @@ class _TasksState extends State<Tasks> {
         final todoTasks =
             sectionTasks.where((task) => !task.isCompleted).toList();
         final completedTasks =
-            sectionTasks
-                .where((task) => task.isCompleted)
-                .toList(); // Sort tasks: for ongoing tasks, sort by deadline (earliest first)
+            sectionTasks.where((task) => task.isCompleted).toList();
+
+        // Sort tasks: for ongoing tasks, sort by deadline (earliest first)
         // For completed tasks, show recently completed first (using completedAt timestamp)
         todoTasks.sort((a, b) {
           if (a.deadlineDate.isBefore(b.deadlineDate)) return -1;
@@ -254,14 +269,22 @@ class _TasksState extends State<Tasks> {
                         );
                         completedSections[sectionName]!.insert(0, updatedTask);
                       }
-                    });
-
-                    // Step 2: Perform database operation
+                    }); // Step 2: Perform database operation
                     try {
                       await TasksAdapter.updateTaskCompletion(
                         toDoItem.id,
                         !completed,
                       );
+
+                      // Step 2.5: Sync completion back to project if this is a project task
+                      if (toDoItem.projectId != null &&
+                          toDoItem.projectId!.isNotEmpty) {
+                        await ProjectTasksSync.syncTaskCompletionToProject(
+                          taskId: toDoItem.id,
+                          projectId: toDoItem.projectId!,
+                          isCompleted: !completed,
+                        );
+                      }
 
                       // Step 3: Show success message (optional)
                       if (mounted) {
@@ -384,6 +407,13 @@ class _TasksState extends State<Tasks> {
         completed
             ? completedSections[sectionKey]?.isEmpty ?? true
             : sections[sectionKey]?.isEmpty ?? true;
+
+    // Find the section to check if it's project-linked
+    final section = taskSections.firstWhere(
+      (s) => s.name == sectionKey,
+      orElse: () => TaskSection(id: '', name: sectionKey, isCompleted: false),
+    );
+    final isProjectSection = section.type == SectionType.projectLinked;
 
     return Column(
       children: [
@@ -567,10 +597,22 @@ class _TasksState extends State<Tasks> {
                           size: 20,
                         )
                         : Container(),
+                    if (isProjectSection) ...[
+                      Icon(
+                        Icons.folder_outlined,
+                        color: Theme.of(context).colorScheme.tertiary,
+                        size: 16,
+                      ),
+                      SizedBox(width: 4),
+                    ],
                     Text(
                       sectionKey,
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onPrimary,
+                        fontStyle:
+                            isProjectSection
+                                ? FontStyle.italic
+                                : FontStyle.normal,
                       ),
                     ),
                   ],
@@ -1045,16 +1087,21 @@ class _TasksState extends State<Tasks> {
                         selectedDate!.day,
                         selectedTime!.hour,
                         selectedTime!.minute,
-                      );
-
-                      // Find the section ID
+                      ); // Find the section ID
                       final section = taskSections.firstWhere(
                         (s) => s.name == sectionKey,
                         orElse: () => throw Exception('Section not found'),
-                      ); // Implement optimistic task creation
+                      );
+
+                      // Check if this is a project section to set projectId
+                      final isProjectSection =
+                          section.type == SectionType.projectLinked;
+
+                      // Implement optimistic task creation
                       final tempTask = ToDoItem(
                         id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
                         sectionId: section.id,
+                        projectId: isProjectSection ? section.projectId : null,
                         text: textController.text.trim(),
                         deadlineDate: deadline,
                         isCompleted: false,
@@ -1091,6 +1138,16 @@ class _TasksState extends State<Tasks> {
                               return 0;
                             });
                           });
+
+                          // If this is a project section, sync the task back to the project
+                          if (isProjectSection && section.projectId != null) {
+                            ProjectTasksSync.syncTaskToProject(
+                              projectId: section.projectId!,
+                              taskText: textController.text.trim(),
+                              taskDeadline: deadline,
+                            );
+                          }
+
                           // Reload data to get the real task ID from database
                           _loadTasksFromDatabase();
                         },
@@ -1418,12 +1475,39 @@ class _TasksState extends State<Tasks> {
         }
       }
       selectedTaskIDs.clear();
-    });
-
-    // Step 2: Perform database operations
+    }); // Step 2: Perform database operations
     try {
       for (final taskId in allSelectedIDs) {
         await TasksAdapter.updateTaskCompletion(taskId, newCompletionStatus);
+
+        // Step 2.5: Sync completion back to project if this is a project task
+        // Find the task to get its projectId
+        for (final sectionKey in selectedTaskIDs.keys) {
+          final tasks =
+              openCompleted
+                  ? completedSections[sectionKey]
+                  : sections[sectionKey];
+          final task = tasks?.firstWhere(
+            (t) => t.id == taskId,
+            orElse:
+                () => ToDoItem(
+                  id: '',
+                  sectionId: '',
+                  text: '',
+                  deadlineDate: DateTime.now(),
+                  isCompleted: false,
+                ),
+          );
+          if (task != null &&
+              task.projectId != null &&
+              task.projectId!.isNotEmpty) {
+            await ProjectTasksSync.syncTaskCompletionToProject(
+              taskId: taskId,
+              projectId: task.projectId!,
+              isCompleted: newCompletionStatus,
+            );
+          }
+        }
       }
 
       // Step 3: Show success message
@@ -1464,6 +1548,88 @@ class _TasksState extends State<Tasks> {
       // Reload data to ensure consistency
       _loadTasksFromDatabase();
     }
+  }
+
+  /// Check if we should show a separator before this section
+  bool _shouldShowSeparator(int index, bool completed) {
+    if (index == 0) return false; // Never show separator before first section
+
+    List<String> sectionKeys =
+        completed ? completedSections.keys.toList() : sections.keys.toList();
+    if (index >= sectionKeys.length) return false;
+
+    // Find the current and previous sections
+    final currentSectionName = sectionKeys[index];
+    final previousSectionName = sectionKeys[index - 1];
+
+    final currentSection = taskSections.firstWhere(
+      (s) => s.name == currentSectionName,
+      orElse:
+          () =>
+              TaskSection(id: '', name: currentSectionName, isCompleted: false),
+    );
+    final previousSection = taskSections.firstWhere(
+      (s) => s.name == previousSectionName,
+      orElse:
+          () => TaskSection(
+            id: '',
+            name: previousSectionName,
+            isCompleted: false,
+          ),
+    );
+
+    // Show separator when transitioning from user sections to project sections
+    return previousSection.type == SectionType.userCreated &&
+        currentSection.type == SectionType.projectLinked;
+  }
+
+  /// Build visual separator between user and project sections
+  Widget _buildSectionSeparator() {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              height: 1,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  width: 1,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onPrimary.withOpacity(0.3),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12),
+            child: Text(
+              'PROJECTS',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.6),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Container(
+              height: 1,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  width: 1,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onPrimary.withOpacity(0.3),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -1984,6 +2150,9 @@ class _TasksState extends State<Tasks> {
                       if (!searching) ...[
                         if (sections.isNotEmpty) ...[
                           for (int i = 0; i < sections.keys.length; i++) ...[
+                            // Add separator between user and project sections
+                            if (i > 0 && _shouldShowSeparator(i, false))
+                              _buildSectionSeparator(),
                             buildSectionWidget(i, false),
                           ],
                         ],
@@ -2014,7 +2183,12 @@ class _TasksState extends State<Tasks> {
                             int i = 0;
                             i < completedSections.keys.length;
                             i++
-                          ) ...[buildSectionWidget(i, true)],
+                          ) ...[
+                            // Add separator between user and project sections
+                            if (i > 0 && _shouldShowSeparator(i, true))
+                              _buildSectionSeparator(),
+                            buildSectionWidget(i, true),
+                          ],
                         ] else ...[
                           for (
                             int i = 0;
