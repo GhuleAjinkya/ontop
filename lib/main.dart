@@ -15,6 +15,7 @@ import 'class_tasks.dart';
 import 'mongodb.dart';
 import 'login.dart';
 import 'user_session.dart';
+import 'call_notifications.dart';
 
 standardTile(double borderRadius, {bool isSelected = false}) {
   // Code to create the common tile with the background blur
@@ -61,6 +62,11 @@ void main() async {
   print("Initializing user session...");
   await userSession.initialize();
   print("User logged in: ${userSession.isLoggedIn}");
+
+  final callService = CallNotificationService();
+  await callService.init();
+  await callService.showIncomingCallNotification("9876543210");
+  callService.listenForCalls();
 
   // Run the app
   runApp(const MyApp());
