@@ -68,7 +68,7 @@ void main() async {
 
   final callService = CallNotificationService();
   await callService.init();
-  await callService.showIncomingCallNotification("9876543210");
+  
   callService.listenForCalls();
 
   // Run the app

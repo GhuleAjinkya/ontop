@@ -6,7 +6,6 @@ import 'user_session.dart';
 import 'class_contacts.dart';
 import 'package:flutter/material.dart';
 import 'main.dart';
-import 'user_session.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -116,7 +115,7 @@ class CallNotificationService {
 
       final title = contact.name != 'Unknown Caller' 
           ? '${contact.name} is calling you'
-          : 'Incoming Call: ${number ?? "Unknown Number"}';
+          : 'Incoming Call: ${normalizedNumber ?? "Unknown Number"}';
 
       final body = contact.name != 'Unknown Caller'
           ? 'Click to view contact details'
