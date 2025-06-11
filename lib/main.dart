@@ -68,7 +68,7 @@ void main() async {
 
   final callService = CallNotificationService();
   await callService.init();
-  
+  // TODO call init everwhere
   callService.listenForCalls();
 
   // Run the app
