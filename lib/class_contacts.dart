@@ -4,6 +4,7 @@ import 'dart:convert'; // For JSON encoding/decoding
 import 'user_session.dart';
 import 'services/contacts_adapter.dart'; // Add our new adapter
 import 'services/optimistic_updates.dart'; // Add optimistic updates
+import 'screens/contact_import_screen.dart'; // Add contact import screen
 
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
@@ -693,6 +694,22 @@ class _ContactsState extends State<Contacts> {
                                       return;
                                     }
 
+                                    if (value == 'import_phone') {
+                                      // Navigate to phone contact import screen
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder:
+                                              (context) => ContactImportScreen(
+                                                onContactsImported: () {
+                                                  // Reload contacts after import
+                                                  begin();
+                                                },
+                                              ),
+                                        ),
+                                      );
+                                      return;
+                                    }
+
                                     await requestStoragePermission(); // ask for permission first
 
                                     final jsonPath =
@@ -803,12 +820,23 @@ class _ContactsState extends State<Contacts> {
                                   itemBuilder:
                                       (context) => [
                                         PopupMenuItem(
+                                          value: 'import_phone',
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: const [
+                                              Text('Import from Phone'),
+                                              Icon(Icons.phone_android),
+                                            ],
+                                          ),
+                                        ),
+                                        PopupMenuItem(
                                           value: 'import',
                                           child: Row(
                                             mainAxisAlignment:
                                                 MainAxisAlignment.spaceBetween,
                                             children: const [
-                                              Text('Import'),
+                                              Text('Import from File'),
                                               Icon(
                                                 Icons.file_download_outlined,
                                               ),
