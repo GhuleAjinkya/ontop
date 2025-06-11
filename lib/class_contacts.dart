@@ -20,6 +20,7 @@ class Contact {
   final String organization;
   final String position;
   final String phoneNumber;
+  final String email; // Add email field
   int starred;
 
   Contact({
@@ -29,8 +30,8 @@ class Contact {
     required this.phoneNumber,
     required this.position,
     required this.starred,
+    this.email = '', // Make email optional with default empty string
   });
-
   // Convert MongoDB document to Contact object
   factory Contact.fromMongo(Map<String, dynamic> doc) {
     return Contact(
@@ -39,10 +40,10 @@ class Contact {
       organization: doc['organization'] ?? '',
       phoneNumber: doc['phoneNumber'] ?? '',
       position: doc['position'] ?? '',
+      email: doc['email'] ?? '', // Add email field
       starred: doc['starred'] ?? 0,
     );
   }
-
   // Create a copy of Contact with updated values
   Contact copyWith({
     dynamic id,
@@ -50,6 +51,7 @@ class Contact {
     String? organization,
     String? position,
     String? phoneNumber,
+    String? email,
     int? starred,
   }) {
     return Contact(
@@ -58,6 +60,7 @@ class Contact {
       organization: organization ?? this.organization,
       position: position ?? this.position,
       phoneNumber: phoneNumber ?? this.phoneNumber,
+      email: email ?? this.email,
       starred: starred ?? this.starred,
     );
   }
@@ -69,18 +72,19 @@ class Contact {
       'organization': organization,
       'phoneNumber': phoneNumber,
       'position': position,
+      'email': email,
       'starred': starred,
       'type': 'contact', // Add type field
     };
   }
 }
 
-ScaffoldFeatureController<SnackBar, SnackBarClosedReason> updatingSnackBar(BuildContext context) {
+ScaffoldFeatureController<SnackBar, SnackBarClosedReason> updatingSnackBar(
+  BuildContext context,
+) {
   return ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
-      content: Text(
-        'Please wait. Updating Contacts...',
-      ),
+      content: Text('Please wait. Updating Contacts...'),
       duration: Duration(seconds: 1),
       showCloseIcon: true,
     ),
@@ -101,6 +105,8 @@ class _ContactsState extends State<Contacts> {
   final TextEditingController organizationController = TextEditingController();
   final TextEditingController positionController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
+  final TextEditingController emailController =
+      TextEditingController(); // Add email controller
   final TextEditingController searchController = TextEditingController();
 
   String searchQuery = '';
@@ -207,20 +213,27 @@ class _ContactsState extends State<Contacts> {
 
     // Fetch contacts using the adapter which tries Node.js API first, then falls back to MongoDB
     try {
-      setState(() {fetchingContacts = true;});
-      List<Map<String, dynamic>> fetchedContacts = await ContactsAdapter.getContacts();
+      setState(() {
+        fetchingContacts = true;
+      });
+      List<Map<String, dynamic>> fetchedContacts =
+          await ContactsAdapter.getContacts();
 
       // Convert documents to Contact objects
       contacts = fetchedContacts.map((doc) => Contact.fromMongo(doc)).toList();
 
       print("Successfully loaded ${contacts.length} contacts for user $userId");
-      setState(() {fetchingContacts = false;});
+      setState(() {
+        fetchingContacts = false;
+      });
     } catch (e) {
       print("Error loading contacts: $e");
       contacts = [];
 
       if (mounted) {
-        setState(() {fetchingContacts = false;});
+        setState(() {
+          fetchingContacts = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to load contacts: $e'),
@@ -295,6 +308,7 @@ class _ContactsState extends State<Contacts> {
       organizationController.clear();
       positionController.clear();
       phoneController.clear();
+      emailController.clear(); // Clear email field
     }
   }
 
@@ -515,46 +529,55 @@ class _ContactsState extends State<Contacts> {
           });
         },
         onUpdate: (updatedContact) {
-  setState(() {
-    // Update in main contacts list
-    final idx = contacts.indexWhere((c) => c.id.toString() == updatedContact.id.toString());
-    if (idx != -1) {
-      contacts[idx] = updatedContact;
-    }
+          setState(() {
+            // Update in main contacts list
+            final idx = contacts.indexWhere(
+              (c) => c.id.toString() == updatedContact.id.toString(),
+            );
+            if (idx != -1) {
+              contacts[idx] = updatedContact;
+            }
 
-    // Remove from all sections
-    for (var list in sections.values) {
-      list.removeWhere((c) => c.id.toString() == updatedContact.id.toString());
-    }
+            // Remove from all sections
+            for (var list in sections.values) {
+              list.removeWhere(
+                (c) => c.id.toString() == updatedContact.id.toString(),
+              );
+            }
 
-    // Handle starred/unstarred logic
-    final starredIdx = starred.indexWhere((c) => c.id.toString() == updatedContact.id.toString());
-    if (updatedContact.starred == 1) {
-      // Add to starred if not present
-      if (starredIdx == -1) {
-        starred.add(updatedContact);
-        starred.sort((a, b) => a.name.compareTo(b.name));
-      } else {
-        starred[starredIdx] = updatedContact;
-      }
-      // Do NOT add to sections (starred contacts should not appear in sections)
-    } else {
-      // Remove from starred if present
-      if (starredIdx != -1) {
-        starred.removeAt(starredIdx);
-      }
-      // Add to correct section
-      final firstLetter = updatedContact.name.isNotEmpty ? updatedContact.name[0].toUpperCase() : '';
-      if (sections.containsKey(firstLetter)) {
-        sections[firstLetter]!.add(updatedContact);
-        sections[firstLetter]!.sort((a, b) => a.name.compareTo(b.name));
-      }
-    }
+            // Handle starred/unstarred logic
+            final starredIdx = starred.indexWhere(
+              (c) => c.id.toString() == updatedContact.id.toString(),
+            );
+            if (updatedContact.starred == 1) {
+              // Add to starred if not present
+              if (starredIdx == -1) {
+                starred.add(updatedContact);
+                starred.sort((a, b) => a.name.compareTo(b.name));
+              } else {
+                starred[starredIdx] = updatedContact;
+              }
+              // Do NOT add to sections (starred contacts should not appear in sections)
+            } else {
+              // Remove from starred if present
+              if (starredIdx != -1) {
+                starred.removeAt(starredIdx);
+              }
+              // Add to correct section
+              final firstLetter =
+                  updatedContact.name.isNotEmpty
+                      ? updatedContact.name[0].toUpperCase()
+                      : '';
+              if (sections.containsKey(firstLetter)) {
+                sections[firstLetter]!.add(updatedContact);
+                sections[firstLetter]!.sort((a, b) => a.name.compareTo(b.name));
+              }
+            }
 
-    // Update openedContact if needed
-    openedContact = updatedContact;
-  });
-}
+            // Update openedContact if needed
+            openedContact = updatedContact;
+          });
+        },
       );
     }
     return Scaffold(
@@ -628,7 +651,10 @@ class _ContactsState extends State<Contacts> {
                                   ),
                                   onChanged: (value) {
                                     setState(() {
-                                      searchQuery = searchController.text.trim().toLowerCase();
+                                      searchQuery =
+                                          searchController.text
+                                              .trim()
+                                              .toLowerCase();
                                     });
                                   },
                                 ),
@@ -644,9 +670,7 @@ class _ContactsState extends State<Contacts> {
                             children: [
                               IconButton(
                                 icon: Icon(
-                                  !searching
-                                      ? Icons.search
-                                      : Icons.close,
+                                  !searching ? Icons.search : Icons.close,
                                   color:
                                       Theme.of(context).colorScheme.onPrimary,
                                   size: 30,
@@ -1120,6 +1144,29 @@ class _ContactsState extends State<Contacts> {
                             ),
                           ),
                         ),
+                        SizedBox(
+                          child: TextField(
+                            controller: emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            cursorColor: Theme.of(context).colorScheme.tertiary,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Email (Optional)',
+                              labelText: 'Email',
+                              labelStyle: TextStyle(
+                                color:
+                                    Theme.of(context).colorScheme.onSecondary,
+                              ),
+                              hintStyle: TextStyle(
+                                color:
+                                    Theme.of(context).colorScheme.onSecondary,
+                              ),
+                              border: const UnderlineInputBorder(),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                     trailing: IconButton(
@@ -1152,17 +1199,23 @@ class _ContactsState extends State<Contacts> {
                             ),
                           );
                           return;
-                        } // Create contact data
+                        }
+
+                        // Create contact data
                         final contactData = {
                           'name': nameController.text.trim(),
                           'organization': organizationController.text.trim(),
                           'phoneNumber': phoneController.text.trim(),
                           'position': positionController.text.trim(),
+                          'email':
+                              emailController.text.trim(), // Add email field
                           'starred': 0,
                           'type': 'contact', // Add type field
                           'created_at':
                               DateTime.now(), // Store as Date type in MongoDB
-                        }; // Create temporary contact for optimistic update
+                        };
+
+                        // Create temporary contact for optimistic update
                         final tempContact = Contact(
                           id:
                               DateTime.now().millisecondsSinceEpoch
@@ -1171,6 +1224,8 @@ class _ContactsState extends State<Contacts> {
                           organization: contactData['organization'] as String,
                           phoneNumber: contactData['phoneNumber'] as String,
                           position: contactData['position'] as String,
+                          email:
+                              contactData['email'] as String, // Add email field
                           starred: 0,
                         );
 
@@ -1212,101 +1267,59 @@ class _ContactsState extends State<Contacts> {
               Expanded(
                 child: ListView(
                   children: [
-                    if (starred.isEmpty && sections.entries.every((c) => c.value.isEmpty)) ...[
-                      Container( // Fetching Contacts widget
+                    if (starred.isEmpty &&
+                        sections.entries.every((c) => c.value.isEmpty)) ...[
+                      Container(
+                        // Fetching Contacts widget
                         margin: EdgeInsets.only(top: 150),
                         child: Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             spacing: 10,
                             children: [
-                              fetchingContacts ?
-                              CircularProgressIndicator(
-                                color: Theme.of(context).colorScheme.tertiary,
-                              ) : 
-                              Icon(
-                                Icons.person,
-                                size: 80,
-                                color: Theme.of(context).colorScheme.tertiary,
-                              ),
+                              fetchingContacts
+                                  ? CircularProgressIndicator(
+                                    color:
+                                        Theme.of(context).colorScheme.tertiary,
+                                  )
+                                  : Icon(
+                                    Icons.person,
+                                    size: 80,
+                                    color:
+                                        Theme.of(context).colorScheme.tertiary,
+                                  ),
                               Text(
-                                fetchingContacts ?
-                                'Fetching Contacts...'
-                                : 'No added contacts.',
+                                fetchingContacts
+                                    ? 'Fetching Contacts...'
+                                    : 'No added contacts.',
                                 style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
                                   fontSize: 16,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      )
+                      ),
                     ] else ...[
                       if (searchQuery.isEmpty) ...[
-                      ...(() {
-                        if (starred.isNotEmpty) {
-                          return [ // Starred return widget
-                            Container(
-                              margin: const EdgeInsets.only(left: 40),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.star_rounded,
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                    size: 20,
-                                  ),
-                                  Expanded(
-                                    child: Container(
-                                      margin: const EdgeInsets.only(
-                                        left: 10,
-                                        right: 40,
-                                      ),
-                                      height: 5,
-                                      decoration: BoxDecoration(
-                                        color: Colors.transparent,
-                                        border: Border(
-                                          bottom: BorderSide(
-                                            color:
-                                                Theme.of(
-                                                  context,
-                                                ).colorScheme.onPrimary,
-                                            width: 0.75,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            buildContactTiles(starred, starred: true),
-                          ];
-                        }
-                        return <Widget>[];
-                      })(),
-                      // Show alphabetical sections
-                      for (var entry in sections.entries)
                         ...(() {
-                          if (entry.value.isNotEmpty) {
-                            return [ // regular sections return widget
-                              const Divider(height: 1, color: Colors.transparent),
+                          if (starred.isNotEmpty) {
+                            return [
+                              // Starred return widget
                               Container(
                                 margin: const EdgeInsets.only(left: 40),
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
-                                    Text(
-                                      entry.key,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.onPrimary,
-                                      ),
+                                    Icon(
+                                      Icons.star_rounded,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                      size: 20,
                                     ),
                                     Expanded(
                                       child: Container(
@@ -1332,77 +1345,144 @@ class _ContactsState extends State<Contacts> {
                                   ],
                                 ),
                               ),
-                              buildContactTiles(entry.value),
+                              buildContactTiles(starred, starred: true),
                             ];
-                          } else {
-                            return <Widget>[];
                           }
+                          return <Widget>[];
                         })(),
-                    ] else ...[
+                        // Show alphabetical sections
+                        for (var entry in sections.entries)
+                          ...(() {
+                            if (entry.value.isNotEmpty) {
+                              return [
+                                // regular sections return widget
+                                const Divider(
+                                  height: 1,
+                                  color: Colors.transparent,
+                                ),
+                                Container(
+                                  margin: const EdgeInsets.only(left: 40),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        entry.key,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.onPrimary,
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Container(
+                                          margin: const EdgeInsets.only(
+                                            left: 10,
+                                            right: 40,
+                                          ),
+                                          height: 5,
+                                          decoration: BoxDecoration(
+                                            color: Colors.transparent,
+                                            border: Border(
+                                              bottom: BorderSide(
+                                                color:
+                                                    Theme.of(
+                                                      context,
+                                                    ).colorScheme.onPrimary,
+                                                width: 0.75,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                buildContactTiles(entry.value),
+                              ];
+                            } else {
+                              return <Widget>[];
+                            }
+                          })(),
+                      ] else ...[
                         // Search view - flat list without sections
                         ...(() {
                           List<Contact> allFilteredContacts = [];
-                          
+
                           // Filter starred contacts by search query
-                          final filteredStarredContacts = starred
-                              .where(
-                                (contact) => contact.name
-                                    .toLowerCase()
-                                    .contains(searchQuery.toLowerCase()) ||
-                                    contact.phoneNumber
-                                    .toLowerCase()
-                                    .contains(searchQuery.toLowerCase()),
-                              )
-                              .toList();
-                          
+                          final filteredStarredContacts =
+                              starred
+                                  .where(
+                                    (contact) =>
+                                        contact.name.toLowerCase().contains(
+                                          searchQuery.toLowerCase(),
+                                        ) ||
+                                        contact.phoneNumber
+                                            .toLowerCase()
+                                            .contains(
+                                              searchQuery.toLowerCase(),
+                                            ),
+                                  )
+                                  .toList();
+
                           // Filter all other contacts by search query
-                          final filteredRegularContacts = contacts
-                              .where((contact) => 
-                                  contact.starred == 0 && 
-                                  (contact.name
-                                      .toLowerCase()
-                                      .contains(searchQuery.toLowerCase()) ||
-                                  contact.phoneNumber
-                                      .toLowerCase()
-                                      .contains(searchQuery.toLowerCase()))
-                              )
-                              .toList();
-                          
+                          final filteredRegularContacts =
+                              contacts
+                                  .where(
+                                    (contact) =>
+                                        contact.starred == 0 &&
+                                        (contact.name.toLowerCase().contains(
+                                              searchQuery.toLowerCase(),
+                                            ) ||
+                                            contact.phoneNumber
+                                                .toLowerCase()
+                                                .contains(
+                                                  searchQuery.toLowerCase(),
+                                                )),
+                                  )
+                                  .toList();
+
                           // Combine all filtered contacts
                           allFilteredContacts.addAll(filteredStarredContacts);
                           allFilteredContacts.addAll(filteredRegularContacts);
-                          
+
                           // Sort all contacts: starts with query first, then contains query
                           allFilteredContacts.sort((a, b) {
-                            final aNameStartsWith = a.name.toLowerCase().startsWith(
-                              searchQuery.toLowerCase(),
-                            );
-                            final bNameStartsWith = b.name.toLowerCase().startsWith(
-                              searchQuery.toLowerCase(),
-                            );
-                            final aPhoneStartsWith = a.phoneNumber.toLowerCase().startsWith(
-                              searchQuery.toLowerCase(),
-                            );
-                            final bPhoneStartsWith = b.phoneNumber.toLowerCase().startsWith(
-                              searchQuery.toLowerCase(),
-                            );
-                            
-                            final aStartsWith = aNameStartsWith || aPhoneStartsWith;
-                            final bStartsWith = bNameStartsWith || bPhoneStartsWith;
-                            
+                            final aNameStartsWith = a.name
+                                .toLowerCase()
+                                .startsWith(searchQuery.toLowerCase());
+                            final bNameStartsWith = b.name
+                                .toLowerCase()
+                                .startsWith(searchQuery.toLowerCase());
+                            final aPhoneStartsWith = a.phoneNumber
+                                .toLowerCase()
+                                .startsWith(searchQuery.toLowerCase());
+                            final bPhoneStartsWith = b.phoneNumber
+                                .toLowerCase()
+                                .startsWith(searchQuery.toLowerCase());
+
+                            final aStartsWith =
+                                aNameStartsWith || aPhoneStartsWith;
+                            final bStartsWith =
+                                bNameStartsWith || bPhoneStartsWith;
+
                             if (aStartsWith && !bStartsWith) return -1;
                             if (!aStartsWith && bStartsWith) return 1;
-                            
+
                             // If both start with query, prioritize name matches over phone matches
                             if (aStartsWith && bStartsWith) {
-                              if (aNameStartsWith && !bNameStartsWith) return -1;
+                              if (aNameStartsWith && !bNameStartsWith) {
+                                return -1;
+                              }
                               if (!aNameStartsWith && bNameStartsWith) return 1;
                             }
-                            
+
                             // Finally sort by name
                             return a.name.compareTo(b.name);
                           });
-                          
+
                           if (allFilteredContacts.isNotEmpty) {
                             return [buildContactTiles(allFilteredContacts)];
                           } else {
@@ -1413,7 +1493,10 @@ class _ContactsState extends State<Contacts> {
                                   child: Text(
                                     'No contacts found',
                                     style: TextStyle(
-                                      color: Theme.of(context).colorScheme.tertiary,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.tertiary,
                                       fontSize: 16,
                                     ),
                                   ),
@@ -1424,7 +1507,8 @@ class _ContactsState extends State<Contacts> {
                         })(),
                       ],
                     ],
-                   /* if (fetchingContacts && starred.isEmpty && sections.entries.every((c) => c.value.isEmpty)) ...[
+
+                    /* if (fetchingContacts && starred.isEmpty && sections.entries.every((c) => c.value.isEmpty)) ...[
                       Container( // Fetching Contacts widget
                         margin: EdgeInsets.only(top: 150),
                         child: Center(
@@ -1628,7 +1712,6 @@ class _ContactsState extends State<Contacts> {
                         })(),
                       ],
                     ],*/
-                    
                   ],
                 ),
               ),
@@ -1708,6 +1791,59 @@ class _ContactDetailsState extends State<ContactDetails> {
     onError();
   }
 
+  void openEmail(String email, VoidCallback onError) async {
+    try {
+      // First try standard mailto
+      final Uri mailtoUri = Uri.parse('mailto:$email');
+      print('Trying to launch email with URI: $mailtoUri');
+
+      if (await canLaunchUrl(mailtoUri)) {
+        await launchUrl(mailtoUri, mode: LaunchMode.externalApplication);
+        print('Email app launched successfully with mailto');
+        return;
+      }
+
+      // Try with query parameters for better compatibility
+      final Uri mailtoQueryUri = Uri(scheme: 'mailto', path: email);
+      print('Trying to launch email with path URI: $mailtoQueryUri');
+
+      if (await canLaunchUrl(mailtoQueryUri)) {
+        await launchUrl(mailtoQueryUri, mode: LaunchMode.externalApplication);
+        print('Email app launched successfully with path');
+        return;
+      }
+
+      // Try different launch modes for better emulator compatibility
+      try {
+        await launchUrl(mailtoUri, mode: LaunchMode.platformDefault);
+        print('Email launched with platform default mode');
+        return;
+      } catch (platformError) {
+        print('Platform default launch failed: $platformError');
+      }
+
+      // Try Gmail web interface as fallback
+      final Uri gmailWebUri = Uri.parse(
+        'https://mail.google.com/mail/?view=cm&to=$email',
+      );
+      print('Trying to launch Gmail web interface: $gmailWebUri');
+
+      if (await canLaunchUrl(gmailWebUri)) {
+        await launchUrl(gmailWebUri, mode: LaunchMode.externalApplication);
+        print('Gmail web interface launched successfully');
+        return;
+      }
+
+      print(
+        'All email launch methods failed - likely no email apps or browser installed (common on emulators)',
+      );
+      onError();
+    } catch (e) {
+      print('Error launching email: $e');
+      onError();
+    }
+  }
+
   Widget divLine(BuildContext context) {
     return Container(
       margin: EdgeInsets.symmetric(vertical: 8),
@@ -1751,6 +1887,8 @@ class _ContactDetailsState extends State<ContactDetails> {
   final TextEditingController organizationController = TextEditingController();
   final TextEditingController positionController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
+  final TextEditingController emailController =
+      TextEditingController(); // Add email controller
   late Contact localContact;
 
   // Get current user's ID for MongoDB operations
@@ -1760,11 +1898,11 @@ class _ContactDetailsState extends State<ContactDetails> {
     super.initState();
     // Create a local copy of the contact
     localContact = widget.contact.copyWith();
-
     nameController.text = localContact.name;
     organizationController.text = localContact.organization;
     positionController.text = localContact.position;
     phoneController.text = localContact.phoneNumber;
+    emailController.text = localContact.email; // Initialize email field
 
     starred = localContact.starred == 1;
   }
@@ -1775,6 +1913,7 @@ class _ContactDetailsState extends State<ContactDetails> {
     organizationController.dispose();
     positionController.dispose();
     phoneController.dispose();
+    emailController.dispose(); // Dispose email controller
     super.dispose();
   }
 
@@ -1816,6 +1955,16 @@ class _ContactDetailsState extends State<ContactDetails> {
                               fontSize: 16,
                             ),
                           ),
+                          if (localContact.email.isNotEmpty)
+                            Text(
+                              localContact.email,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color:
+                                    Theme.of(context).colorScheme.onSecondary,
+                                fontSize: 16,
+                              ),
+                            ),
                           Text(
                             "${localContact.position}, ${localContact.organization}",
                             textAlign: TextAlign.center,
@@ -1827,8 +1976,7 @@ class _ContactDetailsState extends State<ContactDetails> {
                         ],
                       ),
                     ),
-                  ] 
-                  else ...[
+                  ] else ...[
                     Container(
                       margin: EdgeInsets.only(bottom: 10),
                       child: Row(
@@ -1845,6 +1993,8 @@ class _ContactDetailsState extends State<ContactDetails> {
                                   localContact.organization;
                               positionController.text = localContact.position;
                               phoneController.text = localContact.phoneNumber;
+                              emailController.text =
+                                  localContact.email; // Add email field reset
                             },
                             icon: Icon(
                               Icons.close,
@@ -1900,6 +2050,32 @@ class _ContactDetailsState extends State<ContactDetails> {
                                   organizationController,
                                   "Organization",
                                 ),
+                                SizedBox(
+                                  child: TextField(
+                                    controller: emailController,
+                                    keyboardType: TextInputType.emailAddress,
+                                    cursorColor:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                    style: TextStyle(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                      fontSize: 14,
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText: 'Email (Optional)',
+                                      labelText: 'Email',
+                                      hintStyle: TextStyle(
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onSecondary,
+                                      ),
+                                      border: const UnderlineInputBorder(),
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -1953,6 +2129,9 @@ class _ContactDetailsState extends State<ContactDetails> {
                                           organizationController.text.trim(),
                                       phoneNumber: phoneController.text.trim(),
                                       position: positionController.text.trim(),
+                                      email:
+                                          emailController.text
+                                              .trim(), // Add email field
                                       starred: starred ? 1 : 0,
                                     );
                                     editingContact = false;
@@ -1966,6 +2145,9 @@ class _ContactDetailsState extends State<ContactDetails> {
                                         organizationController.text.trim(),
                                     'phoneNumber': phoneController.text.trim(),
                                     'position': positionController.text.trim(),
+                                    'email':
+                                        emailController.text
+                                            .trim(), // Add email field
                                     'starred': starred ? 1 : 0,
                                     'type': 'contact',
                                   });
@@ -2025,6 +2207,40 @@ class _ContactDetailsState extends State<ContactDetails> {
                         },
                         icon: Icon(
                           FontAwesomeIcons.whatsapp,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () {
+                          if (localContact.email.isEmpty) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  "No email address stored for this contact",
+                                ),
+                                backgroundColor:
+                                    Theme.of(context).colorScheme.error,
+                              ),
+                            );
+                            return;
+                          }
+                          openEmail(localContact.email, () {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  "Could not launch email app. This may be due to no email apps being installed (common on emulators). Email functionality works on real devices with email apps installed.",
+                                ),
+                                duration: Duration(seconds: 4),
+                                backgroundColor:
+                                    Theme.of(context).colorScheme.error,
+                              ),
+                            );
+                          });
+                        },
+                        icon: Icon(
+                          Icons.email_outlined,
                           color: Theme.of(context).colorScheme.onPrimary,
                         ),
                       ),
