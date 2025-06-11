@@ -4,6 +4,11 @@ import 'package:permission_handler/permission_handler.dart';
 import 'services/contacts_adapter.dart';
 import 'user_session.dart';
 import 'class_contacts.dart';
+import 'package:flutter/material.dart';
+import 'main.dart';
+import 'user_session.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class CallNotificationService {
   final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
@@ -32,7 +37,39 @@ class CallNotificationService {
         InitializationSettings(android: androidSettings);
     
     await loadContactsFromMongo();
-    await _notifications.initialize(initSettings);
+    await _notifications.initialize(
+    initSettings,
+    onDidReceiveNotificationResponse: (details) async {
+      final number = details.payload; // This will be the phone number
+      if (number != null) {
+        // Find contact with this number
+        final contact = globalContacts.firstWhere(
+          (c) => c.phoneNumber == number,
+          orElse: () => Contact(
+            id: '',
+            name: 'Unknown Caller',
+            phoneNumber: number,
+            organization: '',
+            position: '',
+            starred: 0,
+          ),
+        );
+        
+        
+        // Use navigatorKey to push ContactDetails
+        navigatorKey.currentState?.push(
+          MaterialPageRoute(
+            builder: (context) => Tabs(
+              currentIndex: 1, // Index for Contacts tab
+              tabs: const ['Tasks', 'Contacts', 'Projects', 'Events'],
+              initialContact: contact, // Pass the contact to open
+            ),
+          ),
+        );
+        
+      }
+    },
+  );
     listenForCalls(); // Start listening for calls after initialization
   }
 
@@ -52,7 +89,7 @@ class CallNotificationService {
         orElse: () => Contact(
           id: '',
           name: 'Unknown Caller',
-          phoneNumber: number ?? 'No Number',
+          phoneNumber: normalizedNumber ?? 'No Number',
           organization: '',
           position: '',
           starred: 0,
@@ -68,7 +105,7 @@ class CallNotificationService {
         fullScreenIntent: false,
         category: AndroidNotificationCategory.call,
         ticker: 'Incoming call',
-        icon: '@mipmap/ic_call',
+        icon: '@mipmap/ic_launcher',
         playSound: true,
         enableVibration: true,
         styleInformation: BigTextStyleInformation(''),
@@ -90,6 +127,7 @@ class CallNotificationService {
         title,
         body,
         notificationDetails,
+        payload: contact.phoneNumber,
       );
 
       print("Notification sent for call from: ${contact.name}");
@@ -100,7 +138,7 @@ class CallNotificationService {
 
   void listenForCalls() {
     PhoneState.stream.listen((PhoneState? event) {
-      if (event != null && event.status == PhoneStateStatus.CALL_INCOMING) {
+      if (event != null && event.status == PhoneStateStatus.CALL_INCOMING && userSession.isLoggedIn) {
         final number = event.number;
         print("Incoming call detected from: $number");
         if (number != null) {

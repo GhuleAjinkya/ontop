@@ -76,11 +76,13 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final String? initialContactPhone;
+  const MyApp({super.key, this.initialContactPhone});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'ontop.',
       // Theme stores details like the font and colours used
@@ -399,10 +401,12 @@ class Tabs extends StatefulWidget {
     required this.currentIndex,
     required this.tabs,
     this.userData,
+    this.initialContact,
   });
   final int currentIndex;
   final List<String> tabs;
   final Map<String, dynamic>? userData;
+  final Contact? initialContact;
 
   @override
   State<Tabs> createState() => _TabsState();
@@ -474,6 +478,7 @@ class _TabsState extends State<Tabs> {
       ),
       body: TabsContentCaller(
         tab: index,
+        initialContact: widget.initialContact,
       ), // Calls tabsContentCaller with index of tab required
       // cleaner that writing the code here
       endDrawer: Drawer(
@@ -589,8 +594,9 @@ class _TabsState extends State<Tabs> {
 
 // This class just returns the body of the specific tab called
 class TabsContentCaller extends StatelessWidget {
-  const TabsContentCaller({super.key, required this.tab});
+  const TabsContentCaller({super.key, required this.tab, this.initialContact});
   final int tab;
+  final Contact? initialContact;
   // tabs list for index reference
   /*'Tasks',
     'Contacts',
@@ -600,7 +606,7 @@ class TabsContentCaller extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (tab) {
       case 1:
-        return Contacts();
+        return Contacts(contactToOpen: initialContact,);
 
       case 2:
         return Projects();
