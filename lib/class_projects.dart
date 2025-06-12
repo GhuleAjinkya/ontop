@@ -11,7 +11,9 @@ import 'services/optimistic_updates.dart';
 import 'services/project_tasks_sync.dart';
 
 class Projects extends StatefulWidget {
-  const Projects({super.key});
+  const Projects({super.key, this.initialProject});
+
+  final Project? initialProject;
 
   @override
   State<Projects> createState() => _ProjectsState();
@@ -29,13 +31,17 @@ class _ProjectsState extends State<Projects> {
   Project? openedProject;
   String get userId => UserSession().userId ?? '';
   List<Contact> globalContacts = []; // For collaborator name mapping
-
   @override
   void initState() {
     super.initState();
     print("Called Projects initState");
     loadProjects();
     loadContactsFromMongo();
+
+    // Set initial project if provided
+    if (widget.initialProject != null) {
+      openedProject = widget.initialProject;
+    }
   }
 
   Future<void> loadContactsFromMongo() async {
@@ -48,8 +54,10 @@ class _ProjectsState extends State<Projects> {
 
     try {
       // Use ContactsAdapter instead of direct MongoDB access
-      List<Map<String, dynamic>> fetchedContacts = await ContactsAdapter.getContacts();
-      globalContacts = fetchedContacts.map((doc) => Contact.fromMongo(doc)).toList();
+      List<Map<String, dynamic>> fetchedContacts =
+          await ContactsAdapter.getContacts();
+      globalContacts =
+          fetchedContacts.map((doc) => Contact.fromMongo(doc)).toList();
       print(
         "Successfully loaded ${globalContacts.length} contacts for project collaborators",
       );
@@ -69,20 +77,27 @@ class _ProjectsState extends State<Projects> {
     }
 
     try {
-      setState(() {fetchingProjects = true;});
-      List<Map<String, dynamic>> fetchedProjects = await ProjectsAdapter.getProjects();
+      setState(() {
+        fetchingProjects = true;
+      });
+      List<Map<String, dynamic>> fetchedProjects =
+          await ProjectsAdapter.getProjects();
 
       // Convert documents to Project objects
       projects = fetchedProjects.map((doc) => Project.fromMongo(doc)).toList();
 
       print("Successfully loaded ${projects.length} projects for user $userId");
-      setState(() {fetchingProjects = false;});
+      setState(() {
+        fetchingProjects = false;
+      });
     } catch (e) {
       print("Error loading projects: $e");
       projects = [];
 
       if (mounted) {
-        setState(() {fetchingProjects = false;});
+        setState(() {
+          fetchingProjects = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to load projects: $e'),
@@ -403,25 +418,32 @@ class _ProjectsState extends State<Projects> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              !addingProject ?
-              fetchingProjects ? 
-              CircularProgressIndicator(
-                color: Theme.of(context).colorScheme.tertiary,
-              )
-              :Icon(
-                Icons.folder_outlined,
-                size: 80,
-                color: Theme.of(context).colorScheme.tertiary,
-              ) : Container(),
+              !addingProject
+                  ? fetchingProjects
+                      ? CircularProgressIndicator(
+                        color: Theme.of(context).colorScheme.tertiary,
+                      )
+                      : Icon(
+                        Icons.folder_outlined,
+                        size: 80,
+                        color: Theme.of(context).colorScheme.tertiary,
+                      )
+                  : Container(),
               SizedBox(height: 16),
-              Text( // summary: if adding a project, show nothing. if not, then if fetching
-              // project, show fetching projects
-                !addingProject ? 
-                  fetchingProjects ? "Fetching Projects...":
-                    selectedTab == 'Ongoing' 
-                      ? (searching && searchQuery.isNotEmpty  ? 'No ongoing projects found' : 'No ongoing projects')
-                      : (searching && searchQuery.isNotEmpty  ? 'No completed projects found' : 'No completed projects') 
-                : "",
+              Text(
+                // summary: if adding a project, show nothing. if not, then if fetching
+                // project, show fetching projects
+                !addingProject
+                    ? fetchingProjects
+                        ? "Fetching Projects..."
+                        : selectedTab == 'Ongoing'
+                        ? (searching && searchQuery.isNotEmpty
+                            ? 'No ongoing projects found'
+                            : 'No ongoing projects')
+                        : (searching && searchQuery.isNotEmpty
+                            ? 'No completed projects found'
+                            : 'No completed projects')
+                    : "",
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.tertiary,
                   fontSize: 18,
@@ -430,12 +452,14 @@ class _ProjectsState extends State<Projects> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              if (!searching && selectedTab == 'Ongoing' && !fetchingProjects) ...[
+              if (!searching &&
+                  selectedTab == 'Ongoing' &&
+                  !fetchingProjects) ...[
                 SizedBox(height: 8),
                 Text(
-                  !addingProject ? 
-                  'Tap the + button to add your first project'
-                  : '',
+                  !addingProject
+                      ? 'Tap the + button to add your first project'
+                      : '',
                   style: TextStyle(
                     color: Theme.of(
                       context,
@@ -1056,11 +1080,8 @@ class _ProjectsState extends State<Projects> {
                           children: [
                             IconButton(
                               icon: Icon(
-                                !searching
-                                    ? Icons.search
-                                    : Icons.close,
-                                color:
-                                    Theme.of(context).colorScheme.onPrimary,
+                                !searching ? Icons.search : Icons.close,
+                                color: Theme.of(context).colorScheme.onPrimary,
                                 size: !searching ? 30 : 25,
                               ),
                               onPressed: () {
@@ -1322,7 +1343,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
     }
 
     try {
-      setState((){fetchingContacts = true;});
+      setState(() {
+        fetchingContacts = true;
+      });
       // Use ContactsAdapter instead of direct MongoDB access
       List<Map<String, dynamic>> fetchedContacts =
           await ContactsAdapter.getContacts();
@@ -1331,10 +1354,14 @@ class _ProjectDetailsState extends State<ProjectDetails> {
       print(
         "Successfully loaded ${globalContacts.length} contacts for project collaborators",
       );
-      setState(() {fetchingContacts = false;});
+      setState(() {
+        fetchingContacts = false;
+      });
     } catch (e) {
       if (mounted) {
-        setState(() {fetchingContacts = false;});
+        setState(() {
+          fetchingContacts = false;
+        });
       }
       print("Error loading contacts for project: $e");
       globalContacts = [];
@@ -1419,7 +1446,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
         onUpdate: (updatedContact) {
           setState(() {
             final idx = globalContacts.indexWhere(
-              (c) => c.id.toString() == updatedContact.id.toString()
+              (c) => c.id.toString() == updatedContact.id.toString(),
             );
             if (idx != -1) {
               globalContacts[idx] = updatedContact;
@@ -1437,7 +1464,8 @@ class _ProjectDetailsState extends State<ProjectDetails> {
           margin: EdgeInsets.symmetric(horizontal: 20),
           child: Column(
             children: [
-              Row( // Title and Back Button
+              Row(
+                // Title and Back Button
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
@@ -1478,7 +1506,8 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                   margin: EdgeInsets.all(5),
                   child: Column(
                     children: [
-                      ListTile(  // Description
+                      ListTile(
+                        // Description
                         title: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -1518,7 +1547,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                     ),
                                     onPressed: () async {
                                       try {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           SnackBar(
                                             content: Text(
                                               'Please wait. Updating Projects...',
@@ -1530,73 +1561,70 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                         final updatedDescription =
                                             descriptionController.text.trim();
                                         final updatedProject = project.copyWith(
-                                          description: updatedDescription,);
+                                          description: updatedDescription,
+                                        );
 
-                                          // Update in database - convert to Map for the adapter
-                                          final projectData =
-                                              updatedProject.toMap();
-                                          projectData['_id'] =
-                                              updatedProject
-                                                  .id; // Ensure the ID is included
-                                          bool success =
-                                              await ProjectsAdapter.updateProject(
-                                                projectData,
-                                              );
+                                        // Update in database - convert to Map for the adapter
+                                        final projectData =
+                                            updatedProject.toMap();
+                                        projectData['_id'] =
+                                            updatedProject
+                                                .id; // Ensure the ID is included
+                                        bool success =
+                                            await ProjectsAdapter.updateProject(
+                                              projectData,
+                                            );
 
-                                          if (success) {
-                                            setState(() {
-                                              project = updatedProject;
-                                              editingDescription = false;
-                                            });
-                                            widget.onUpdate(project);
+                                        if (success) {
+                                          setState(() {
+                                            project = updatedProject;
+                                            editingDescription = false;
+                                          });
+                                          widget.onUpdate(project);
 
-                                            if (mounted) {
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                    'Description updated successfully',
-                                                  ),
-                                                  duration: Duration(
-                                                    seconds: 2,
-                                                  ),
-                                                ),
-                                              );
-                                            }
-                                          } else {
-                                            if (mounted) {
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                    'Failed to update description',
-                                                  ),
-                                                  duration: Duration(
-                                                    seconds: 2,
-                                                  ),
-                                                ),
-                                              );
-                                            }
-                                          }
-                                        } catch (e) {
-                                          print(
-                                            "Error updating project description: $e",
-                                          );
                                           if (mounted) {
                                             ScaffoldMessenger.of(
                                               context,
                                             ).showSnackBar(
                                               SnackBar(
                                                 content: Text(
-                                                  'Error updating description: $e',
+                                                  'Description updated successfully',
+                                                ),
+                                                duration: Duration(seconds: 2),
+                                              ),
+                                            );
+                                          }
+                                        } else {
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Failed to update description',
                                                 ),
                                                 duration: Duration(seconds: 2),
                                               ),
                                             );
                                           }
                                         }
+                                      } catch (e) {
+                                        print(
+                                          "Error updating project description: $e",
+                                        );
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Error updating description: $e',
+                                              ),
+                                              duration: Duration(seconds: 2),
+                                            ),
+                                          );
+                                        }
+                                      }
                                     },
                                   ),
                                 ],
@@ -1676,7 +1704,8 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                         ),
                       ),
                       divLine(),
-                      ListTile( // To-Do
+                      ListTile(
+                        // To-Do
                         title: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -1993,7 +2022,11 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                               ),
                             ],
                             // Show only incomplete tasks
-                            if (project.projectTasks.where((task) => !completedTasks.contains(task.id),).isEmpty) ...[
+                            if (project.projectTasks
+                                .where(
+                                  (task) => !completedTasks.contains(task.id),
+                                )
+                                .isEmpty) ...[
                               Container(
                                 margin: EdgeInsets.symmetric(vertical: 10),
                                 child: Text(
@@ -2011,7 +2044,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                               ),
                             ] else ...[
                               // Show only incomplete tasks
-                              ...project.projectTasks.where((task) => !completedTasks.contains(task.id)).map<Widget>((item) {
+                              ...project.projectTasks.where((task) => !completedTasks.contains(task.id)).map<
+                                Widget
+                              >((item) {
                                 return Row(
                                   children: [
                                     Checkbox(
@@ -2050,7 +2085,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                               );
                                           if (success) {
                                             // Sync to Tasks tab
-                                            widget.onUpdate(project);    
+                                            widget.onUpdate(project);
                                             await ProjectTasksSync.syncProjectToTasks(
                                               updatedProject,
                                             );
@@ -2128,7 +2163,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                       ),
                                       onPressed: () async {
                                         // Show confirmation dialog
-                                        final confirmed = await showDialog<bool>(
+                                        final confirmed = await showDialog<
+                                          bool
+                                        >(
                                           context: context,
                                           builder:
                                               (context) => AlertDialog(
@@ -2173,7 +2210,11 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                             .spaceEvenly,
                                                     children: [
                                                       IconButton(
-                                                        onPressed: () => Navigator.pop(context,false),
+                                                        onPressed:
+                                                            () => Navigator.pop(
+                                                              context,
+                                                              false,
+                                                            ),
                                                         icon: Icon(
                                                           Icons.close,
                                                           color:
@@ -2205,7 +2246,6 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                         );
 
                                         if (confirmed == true) {
-                                          
                                           // Store original state for rollback
                                           final originalTasks =
                                               List<ToDoItem>.from(
@@ -2233,7 +2273,6 @@ class _ProjectDetailsState extends State<ProjectDetails> {
 
                                           // Update project in database
                                           try {
-                                            
                                             final updatedProject = project
                                                 .copyWith(
                                                   projectTasks:
@@ -2556,14 +2595,15 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                         ),
                       ),
                       divLine(),
-                      ListTile( // Collabs
+                      ListTile(
+                        // Collabs
                         title: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              fetchingContacts ? 
-                              "Fetching..."
-                              : "Collaborators",
+                              fetchingContacts
+                                  ? "Fetching..."
+                                  : "Collaborators",
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Theme.of(context).colorScheme.onPrimary,
@@ -2590,10 +2630,11 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                     return StatefulBuilder(
                                       builder: (context, setDialogState) {
                                         // Filter contacts by search query with improved ordering
-                                        if (globalContacts.isEmpty && contactsFetched == false) {
+                                        if (globalContacts.isEmpty &&
+                                            contactsFetched == false) {
                                           loop += 1;
                                           print("loops = $loop\n");
-                                          setDialogState((){
+                                          setDialogState(() {
                                             fetchingContacts = true;
                                           });
                                           loadContactsFromMongo().then((_) {
@@ -2602,13 +2643,26 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                               fetchingContacts = false;
                                               contactsFetched = true;
                                             });
-                                            
                                           });
                                         } else {
-                                          filtered = globalContacts.where((c) =>
-                                            c.name.toLowerCase().contains(search.toLowerCase()) ||
-                                            c.phoneNumber.toLowerCase().contains(search.toLowerCase())
-                                          ).toList();
+                                          filtered =
+                                              globalContacts
+                                                  .where(
+                                                    (c) =>
+                                                        c.name
+                                                            .toLowerCase()
+                                                            .contains(
+                                                              search
+                                                                  .toLowerCase(),
+                                                            ) ||
+                                                        c.phoneNumber
+                                                            .toLowerCase()
+                                                            .contains(
+                                                              search
+                                                                  .toLowerCase(),
+                                                            ),
+                                                  )
+                                                  .toList();
                                         }
 
                                         // Sort filtered contacts: starts with query first, then contains query
@@ -2668,7 +2722,10 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                         }
 
                                         return AlertDialog(
-                                          backgroundColor: Theme.of(context).colorScheme.primary,
+                                          backgroundColor:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.primary,
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(
                                               16,
@@ -2803,8 +2860,8 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                 SizedBox(height: 16),
                                                 Expanded(
                                                   child:
-                                                    fetchingContacts ? 
-                                                      Container(
+                                                      fetchingContacts
+                                                          ? Container(
                                                             margin:
                                                                 EdgeInsets.only(
                                                                   top: 75,
@@ -2821,7 +2878,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                               ),
                                                             ),
                                                           )
-                                                      : filtered.isEmpty
+                                                          : filtered.isEmpty
                                                           ? Container(
                                                             margin:
                                                                 EdgeInsets.only(
@@ -3156,18 +3213,25 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                     ),
                                               );
                                           return GestureDetector(
-                                            onTap: fetchingContacts ?
-                                            null :
-                                            () {
-                                              setState(() {
-                                                openedContact = contact;
-                                              });
-                                            },
+                                            onTap:
+                                                fetchingContacts
+                                                    ? null
+                                                    : () {
+                                                      setState(() {
+                                                        openedContact = contact;
+                                                      });
+                                                    },
                                             child: Chip(
-                                              backgroundColor: Theme.of(context).colorScheme.primary.withAlpha(205),
+                                              backgroundColor: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary
+                                                  .withAlpha(205),
                                               shape: StadiumBorder(
                                                 side: BorderSide(
-                                                  color: Theme.of(context).colorScheme.secondary,
+                                                  color:
+                                                      Theme.of(
+                                                        context,
+                                                      ).colorScheme.secondary,
                                                   width: 2,
                                                 ),
                                               ),
@@ -3196,9 +3260,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                 >(
                                                   context: context,
                                                   builder:
-                                                      (
-                                                        context,
-                                                      ) => AlertDialog(
+                                                      (context) => AlertDialog(
                                                         backgroundColor:
                                                             Theme.of(context)
                                                                 .colorScheme
@@ -3228,8 +3290,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                                     .colorScheme
                                                                     .onPrimary,
                                                             fontWeight:
-                                                                FontWeight
-                                                                    .w600,
+                                                                FontWeight.w600,
                                                           ),
                                                         ),
                                                         content: Text(
@@ -3284,14 +3345,14 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                         ],
                                                       ),
                                                 );
-                                            
+
                                                 if (confirmed == true) {
                                                   // Remove collaborator from local state
                                                   setState(() {
                                                     project.collaborators
                                                         .remove(phoneNumber);
                                                   });
-                                            
+
                                                   // Update project in database
                                                   try {
                                                     final updatedProject =
@@ -3301,11 +3362,10 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                                   .collaborators,
                                                         );
                                                     final projectData =
-                                                        updatedProject
-                                                            .toMap();
+                                                        updatedProject.toMap();
                                                     projectData['_id'] =
                                                         updatedProject.id;
-                                            
+
                                                     bool success =
                                                         await ProjectsAdapter.updateProject(
                                                           projectData,
@@ -3322,10 +3382,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                             content: Text(
                                                               '${contact.name} removed from project',
                                                             ),
-                                                            duration:
-                                                                Duration(
-                                                                  seconds: 2,
-                                                                ),
+                                                            duration: Duration(
+                                                              seconds: 2,
+                                                            ),
                                                           ),
                                                         );
                                                       }
@@ -3343,10 +3402,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                             content: Text(
                                                               'Failed to remove collaborator',
                                                             ),
-                                                            duration:
-                                                                Duration(
-                                                                  seconds: 2,
-                                                                ),
+                                                            duration: Duration(
+                                                              seconds: 2,
+                                                            ),
                                                           ),
                                                         );
                                                       }
@@ -3357,8 +3415,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                     );
                                                     // Revert the local change if database update failed
                                                     setState(() {
-                                                      project.collaborators
-                                                          .add(phoneNumber);
+                                                      project.collaborators.add(
+                                                        phoneNumber,
+                                                      );
                                                     });
                                                     if (mounted) {
                                                       ScaffoldMessenger.of(
@@ -3385,10 +3444,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                       ),
                     ],
                   ),
-                       
                 ),
               ),
-            ],        
+            ],
           ),
         ),
       ),

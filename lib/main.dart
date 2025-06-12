@@ -12,6 +12,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'class_projects.dart';
 import 'class_events.dart';
 import 'class_tasks.dart';
+import 'models/project.dart';
 import 'mongodb.dart';
 import 'login.dart';
 import 'user_session.dart';
@@ -95,7 +96,8 @@ class MyApp extends StatelessWidget {
           secondary: Color.fromARGB(255, 101, 28, 132),
           tertiary: Color.fromARGB(255, 200, 162, 200),
           onSecondary: Color.fromARGB(255, 88, 81, 111),
-        ),      ),
+        ),
+      ),
       // Show HomePage if user is logged in, otherwise show LoginPage
       home: _buildHomePage(),
     );
@@ -104,18 +106,18 @@ class MyApp extends StatelessWidget {
   Widget _buildHomePage() {
     final isLoggedIn = userSession.isLoggedIn;
     final userData = userSession.currentUser;
-    
+
     print('🏗️ MyApp: Building home page...');
     print('🔐 MyApp: User logged in: $isLoggedIn');
     print('👤 MyApp: User data: ${userData?.toString() ?? "null"}');
-    
+
     if (isLoggedIn) {
       print('✅ MyApp: Showing HomePage');
       return HomePage(userData: userData);
     } else {
       print('❌ MyApp: Showing LoginPage');
       return LoginPage();
-  }
+    }
   }
 }
 
@@ -402,11 +404,13 @@ class Tabs extends StatefulWidget {
     required this.tabs,
     this.userData,
     this.initialContact,
+    this.initialProject,
   });
   final int currentIndex;
   final List<String> tabs;
   final Map<String, dynamic>? userData;
   final Contact? initialContact;
+  final Project? initialProject;
 
   @override
   State<Tabs> createState() => _TabsState();
@@ -479,6 +483,7 @@ class _TabsState extends State<Tabs> {
       body: TabsContentCaller(
         tab: index,
         initialContact: widget.initialContact,
+        initialProject: widget.initialProject,
       ), // Calls tabsContentCaller with index of tab required
       // cleaner that writing the code here
       endDrawer: Drawer(
@@ -594,9 +599,15 @@ class _TabsState extends State<Tabs> {
 
 // This class just returns the body of the specific tab called
 class TabsContentCaller extends StatelessWidget {
-  const TabsContentCaller({super.key, required this.tab, this.initialContact});
+  const TabsContentCaller({
+    super.key,
+    required this.tab,
+    this.initialContact,
+    this.initialProject,
+  });
   final int tab;
   final Contact? initialContact;
+  final Project? initialProject;
   // tabs list for index reference
   /*'Tasks',
     'Contacts',
@@ -606,10 +617,10 @@ class TabsContentCaller extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (tab) {
       case 1:
-        return Contacts(contactToOpen: initialContact,);
+        return Contacts(contactToOpen: initialContact);
 
       case 2:
-        return Projects();
+        return Projects(initialProject: initialProject);
 
       case 3:
         return Events();

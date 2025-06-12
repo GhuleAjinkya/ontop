@@ -4,7 +4,9 @@ import 'dart:convert'; // For JSON encoding/decoding
 import 'user_session.dart';
 import 'services/contacts_adapter.dart'; // Add our new adapter
 import 'services/optimistic_updates.dart'; // Add optimistic updates
+import 'services/projects_adapter.dart'; // Add projects adapter
 import 'screens/contact_import_screen.dart'; // Add contact import screen
+import 'models/project.dart'; // Add project model
 
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
@@ -21,6 +23,7 @@ class Contact {
   final String position;
   final String phoneNumber;
   final String email; // Add email field
+  final String notes; // Add notes field
   int starred;
 
   Contact({
@@ -31,8 +34,8 @@ class Contact {
     required this.position,
     required this.starred,
     this.email = '', // Make email optional with default empty string
-  });
-  // Convert MongoDB document to Contact object
+    this.notes = '', // Make notes optional with default empty string
+  }); // Convert MongoDB document to Contact object
   factory Contact.fromMongo(Map<String, dynamic> doc) {
     return Contact(
       id: doc['_id'], // Keep as ObjectId
@@ -41,10 +44,10 @@ class Contact {
       phoneNumber: doc['phoneNumber'] ?? '',
       position: doc['position'] ?? '',
       email: doc['email'] ?? '', // Add email field
+      notes: doc['notes'] ?? '', // Add notes field
       starred: doc['starred'] ?? 0,
     );
-  }
-  // Create a copy of Contact with updated values
+  } // Create a copy of Contact with updated values
   Contact copyWith({
     dynamic id,
     String? name,
@@ -52,6 +55,7 @@ class Contact {
     String? position,
     String? phoneNumber,
     String? email,
+    String? notes,
     int? starred,
   }) {
     return Contact(
@@ -61,6 +65,7 @@ class Contact {
       position: position ?? this.position,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       email: email ?? this.email,
+      notes: notes ?? this.notes,
       starred: starred ?? this.starred,
     );
   }
@@ -73,6 +78,7 @@ class Contact {
       'phoneNumber': phoneNumber,
       'position': position,
       'email': email,
+      'notes': notes,
       'starred': starred,
       'type': 'contact', // Add type field
     };
@@ -1199,9 +1205,7 @@ class _ContactsState extends State<Contacts> {
                             ),
                           );
                           return;
-                        }
-
-                        // Create contact data
+                        } // Create contact data
                         final contactData = {
                           'name': nameController.text.trim(),
                           'organization': organizationController.text.trim(),
@@ -1209,13 +1213,12 @@ class _ContactsState extends State<Contacts> {
                           'position': positionController.text.trim(),
                           'email':
                               emailController.text.trim(), // Add email field
+                          'notes': '', // Add notes field with empty default
                           'starred': 0,
                           'type': 'contact', // Add type field
                           'created_at':
                               DateTime.now(), // Store as Date type in MongoDB
-                        };
-
-                        // Create temporary contact for optimistic update
+                        }; // Create temporary contact for optimistic update
                         final tempContact = Contact(
                           id:
                               DateTime.now().millisecondsSinceEpoch
@@ -1226,6 +1229,8 @@ class _ContactsState extends State<Contacts> {
                           position: contactData['position'] as String,
                           email:
                               contactData['email'] as String, // Add email field
+                          notes:
+                              contactData['notes'] as String, // Add notes field
                           starred: 0,
                         );
 
@@ -1883,16 +1888,94 @@ class _ContactDetailsState extends State<ContactDetails> {
 
   bool starred = false;
   bool editingContact = false;
+  bool editingNotes = false; // Add notes editing state
   final TextEditingController nameController = TextEditingController();
   final TextEditingController organizationController = TextEditingController();
   final TextEditingController positionController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController emailController =
       TextEditingController(); // Add email controller
+  final TextEditingController notesController =
+      TextEditingController(); // Add notes controller
   late Contact localContact;
 
+  // Project-related variables
+  List<Project> ongoingProjects = [];
+  List<Project> completedProjects = [];
+  bool loadingProjects = false;
   // Get current user's ID for MongoDB operations
   String get userId => UserSession().userId ?? '';
+
+  // Load projects where this contact is a collaborator
+  Future<void> loadContactProjects() async {
+    if (userId.isEmpty) {
+      print("No user ID available. Cannot load projects.");
+      return;
+    }
+
+    setState(() {
+      loadingProjects = true;
+    });
+
+    try {
+      // Fetch all projects using ProjectsAdapter
+      List<Map<String, dynamic>> fetchedProjects =
+          await ProjectsAdapter.getProjects();
+
+      // Convert to Project objects
+      List<Project> allProjects =
+          fetchedProjects.map((doc) => Project.fromMongo(doc)).toList();
+
+      // Filter projects where this contact's phone number is in collaborators
+      List<Project> contactProjects =
+          allProjects.where((project) {
+            return project.collaborators.contains(localContact.phoneNumber);
+          }).toList();
+
+      // Separate ongoing and completed projects
+      ongoingProjects =
+          contactProjects.where((p) => p.isCompleted != true).toList();
+      completedProjects =
+          contactProjects.where((p) => p.isCompleted == true).toList();
+
+      // Sort ongoing projects by creation date (most recent first)
+      ongoingProjects.sort((a, b) {
+        if (a.createdAt == null && b.createdAt == null) return 0;
+        if (a.createdAt == null) return 1;
+        if (b.createdAt == null) return -1;
+        return b.createdAt!.compareTo(a.createdAt!);
+      });
+
+      // Sort completed projects by completion date (most recent first)
+      completedProjects.sort((a, b) {
+        if (a.completedAt == null && b.completedAt == null) {
+          // Fall back to creation date if no completion date
+          if (a.createdAt == null && b.createdAt == null) return 0;
+          if (a.createdAt == null) return 1;
+          if (b.createdAt == null) return -1;
+          return b.createdAt!.compareTo(a.createdAt!);
+        }
+        if (a.completedAt == null) return 1;
+        if (b.completedAt == null) return -1;
+        return b.completedAt!.compareTo(a.completedAt!);
+      });
+
+      print(
+        "Loaded ${ongoingProjects.length} ongoing and ${completedProjects.length} completed projects for contact ${localContact.name}",
+      );
+    } catch (e) {
+      print("Error loading projects for contact: $e");
+      ongoingProjects = [];
+      completedProjects = [];
+    } finally {
+      if (mounted) {
+        setState(() {
+          loadingProjects = false;
+        });
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1903,8 +1986,12 @@ class _ContactDetailsState extends State<ContactDetails> {
     positionController.text = localContact.position;
     phoneController.text = localContact.phoneNumber;
     emailController.text = localContact.email; // Initialize email field
+    notesController.text = localContact.notes; // Initialize notes field
 
     starred = localContact.starred == 1;
+
+    // Load projects for this contact
+    loadContactProjects();
   }
 
   @override
@@ -1914,7 +2001,124 @@ class _ContactDetailsState extends State<ContactDetails> {
     positionController.dispose();
     phoneController.dispose();
     emailController.dispose(); // Dispose email controller
+    notesController.dispose(); // Dispose notes controller
     super.dispose();
+  } // Navigate to project details
+
+  void navigateToProject(Project project) {
+    // Navigate to the Projects tab with the specific project to open
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder:
+            (context) => Tabs(
+              currentIndex: 2, // Index for Projects tab
+              tabs: const ['Tasks', 'Contacts', 'Projects', 'Events'],
+              initialProject: project, // Pass the project to open
+            ),
+      ),
+    );
+  }
+
+  // Build project list widget
+  Widget buildProjectList(List<Project> projects, String sectionTitle) {
+    if (projects.isEmpty) {
+      return Container();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Text(
+            sectionTitle,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+              color:
+                  Theme.of(context)
+                      .colorScheme
+                      .tertiary, // Use tertiary color to differentiate from main title
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+        ...projects.map(
+          (project) => Container(
+            margin: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: InkWell(
+              onTap: () => navigateToProject(project),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onPrimary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onPrimary.withValues(alpha: 0.2),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      project.isCompleted == true
+                          ? Icons.check_circle
+                          : Icons.circle_outlined,
+                      color:
+                          project.isCompleted == true
+                              ? Theme.of(context).colorScheme.tertiary
+                              : Theme.of(context).colorScheme.onSecondary,
+                      size: 20,
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            project.title,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 14,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (project.description.isNotEmpty) ...[
+                            SizedBox(height: 4),
+                            Text(
+                              project.description,
+                              style: TextStyle(
+                                color:
+                                    Theme.of(context).colorScheme.onSecondary,
+                                fontSize: 12,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      color: Theme.of(context).colorScheme.onSecondary,
+                      size: 16,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -2132,6 +2336,9 @@ class _ContactDetailsState extends State<ContactDetails> {
                                       email:
                                           emailController.text
                                               .trim(), // Add email field
+                                      notes:
+                                          localContact
+                                              .notes, // Keep existing notes
                                       starred: starred ? 1 : 0,
                                     );
                                     editingContact = false;
@@ -2148,6 +2355,9 @@ class _ContactDetailsState extends State<ContactDetails> {
                                     'email':
                                         emailController.text
                                             .trim(), // Add email field
+                                    'notes':
+                                        localContact
+                                            .notes, // Keep existing notes
                                     'starred': starred ? 1 : 0,
                                     'type': 'contact',
                                   });
@@ -2248,38 +2458,284 @@ class _ContactDetailsState extends State<ContactDetails> {
                   ),
                   divLine(context),
                   ListTile(
-                    // Redo for final
-                    title: Text(
-                      "Projects",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                      ),
+                    // Notes
+                    title: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Notes",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                        ),
+                        if (editingNotes) ...[
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  Icons.close,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    notesController.text = localContact.notes;
+                                    editingNotes = false;
+                                  });
+                                },
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.check,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                ),
+                                onPressed: () async {
+                                  if (userId.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Please log in to update notes',
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  try {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Please wait. Updating notes...',
+                                        ),
+                                        duration: Duration(seconds: 1),
+                                        showCloseIcon: true,
+                                      ),
+                                    );
+
+                                    final updatedNotes =
+                                        notesController.text.trim();
+                                    final updatedContact = localContact
+                                        .copyWith(notes: updatedNotes);
+
+                                    // Update in database using ContactsAdapter
+                                    bool success =
+                                        await ContactsAdapter.updateContact({
+                                          '_id': localContact.id,
+                                          'name': localContact.name,
+                                          'organization':
+                                              localContact.organization,
+                                          'phoneNumber':
+                                              localContact.phoneNumber,
+                                          'position': localContact.position,
+                                          'email': localContact.email,
+                                          'notes': updatedNotes,
+                                          'starred': localContact.starred,
+                                          'type': 'contact',
+                                        });
+
+                                    if (success) {
+                                      setState(() {
+                                        localContact = updatedContact;
+                                        editingNotes = false;
+                                      });
+                                      widget.onUpdate(localContact);
+
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Notes updated successfully',
+                                            ),
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
+                                    } else {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Failed to update notes',
+                                            ),
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  } catch (e) {
+                                    print("Error updating contact notes: $e");
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Error updating notes: $e',
+                                          ),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ] else ...[
+                          Container(
+                            margin: EdgeInsets.only(left: 100, right: 0),
+                            child: IconButton(
+                              icon: Icon(
+                                Icons.edit,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  editingNotes = true;
+                                });
+                              },
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                    subtitle: Text(
-                      "No current projects with this contact",
+                    subtitle: TextField(
+                      controller: notesController,
+                      maxLines: 5,
+                      minLines: 1,
+                      readOnly: !editingNotes,
                       style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSecondary,
+                        color:
+                            editingNotes
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : Theme.of(
+                                  context,
+                                ).colorScheme.onPrimary.withValues(alpha: 0.85),
+                      ),
+                      decoration: InputDecoration(
+                        hintText: "Add notes about this contact...",
+                        hintStyle: TextStyle(
+                          color: Theme.of(context).colorScheme.onSecondary,
+                        ),
+                        border:
+                            editingNotes
+                                ? OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                  borderSide: BorderSide(
+                                    color:
+                                        Theme.of(
+                                          context,
+                                        ).colorScheme.onSecondary,
+                                    width: 1.2,
+                                  ),
+                                )
+                                : InputBorder.none,
+                        enabledBorder:
+                            editingNotes
+                                ? OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                  borderSide: BorderSide(
+                                    color:
+                                        Theme.of(
+                                          context,
+                                        ).colorScheme.onSecondary,
+                                    width: 1.2,
+                                  ),
+                                )
+                                : InputBorder.none,
+                        focusedBorder:
+                            editingNotes
+                                ? OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                  borderSide: BorderSide(
+                                    color:
+                                        Theme.of(
+                                          context,
+                                        ).colorScheme.onSecondary,
+                                    width: 1.2,
+                                  ),
+                                )
+                                : InputBorder.none,
                       ),
                     ),
                   ),
                   divLine(context),
-                  ListTile(
-                    // Redo for final
-                    title: Text(
-                      "Notes",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onPrimary,
+                  // Dynamic Projects Section
+                  if (loadingProjects) ...[
+                    ListTile(
+                      title: Text(
+                        "Projects",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
+                      subtitle: Row(
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Theme.of(context).colorScheme.tertiary,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            "Loading projects...",
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    subtitle: Text(
-                      "Store some details regarding this contact",
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSecondary,
+                  ] else if (ongoingProjects.isEmpty &&
+                      completedProjects.isEmpty) ...[
+                    ListTile(
+                      title: Text(
+                        "Projects",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
+                      subtitle: Text(
+                        "No current projects with this contact",
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSecondary,
+                        ),
                       ),
                     ),
-                  ),
+                  ] else ...[
+                    // Show projects header
+                    Padding(
+                      padding: EdgeInsets.only(
+                        left: 16,
+                        right: 16,
+                        top: 16,
+                        bottom: 8,
+                      ),
+                      child: Text(
+                        "Projects",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
+                    ),
+                    // Show ongoing projects
+                    buildProjectList(ongoingProjects, "Ongoing Projects"),
+                    // Show completed projects
+                    buildProjectList(completedProjects, "Completed Projects"),
+                  ],
                 ],
               ),
             ),
