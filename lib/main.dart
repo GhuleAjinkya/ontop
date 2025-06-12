@@ -12,10 +12,24 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'class_projects.dart';
 import 'class_events.dart';
 import 'class_tasks.dart';
+import 'models/project.dart';
 import 'mongodb.dart';
 import 'login.dart';
 import 'user_session.dart';
 import 'call_notifications.dart';
+import 'class_user_profile.dart';
+import 'widgets/app_title.dart';
+
+// Global navigator key for navigation from anywhere in the app
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+// Function to navigate to home page from anywhere in the app
+void navigateToHome() {
+  final context = navigatorKey.currentContext;
+  if (context != null) {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+}
 
 standardTile(double borderRadius, {bool isSelected = false}) {
   // Code to create the common tile with the background blur
@@ -68,7 +82,7 @@ void main() async {
 
   final callService = CallNotificationService();
   await callService.init();
-  // TODO call init everwhere
+  // Initialize call notification service for incoming call detection
   callService.listenForCalls();
 
   // Run the app
@@ -95,7 +109,8 @@ class MyApp extends StatelessWidget {
           secondary: Color.fromARGB(255, 101, 28, 132),
           tertiary: Color.fromARGB(255, 200, 162, 200),
           onSecondary: Color.fromARGB(255, 88, 81, 111),
-        ),      ),
+        ),
+      ),
       // Show HomePage if user is logged in, otherwise show LoginPage
       home: _buildHomePage(),
     );
@@ -104,18 +119,18 @@ class MyApp extends StatelessWidget {
   Widget _buildHomePage() {
     final isLoggedIn = userSession.isLoggedIn;
     final userData = userSession.currentUser;
-    
+
     print('🏗️ MyApp: Building home page...');
     print('🔐 MyApp: User logged in: $isLoggedIn');
     print('👤 MyApp: User data: ${userData?.toString() ?? "null"}');
-    
+
     if (isLoggedIn) {
       print('✅ MyApp: Showing HomePage');
       return HomePage(userData: userData);
     } else {
       print('❌ MyApp: Showing LoginPage');
       return LoginPage();
-  }
+    }
   }
 }
 
@@ -181,117 +196,21 @@ class _HomePageState extends State<HomePage> {
             Positioned(
               top: 35,
               right: 20,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    onPressed: () async {
-                      bool confirm =
-                          await showDialog(
-                            context: context,
-                            builder:
-                                (context) => AlertDialog(
-                                  backgroundColor:
-                                      Theme.of(context).colorScheme.primary,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    side: BorderSide(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onSecondary,
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  title: Text(
-                                    'Logout?',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimary,
-                                    ),
-                                  ),
-                                  content: Text(
-                                    "You'll need to log back in to access your stored information.",
-                                    style: TextStyle(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimary,
-                                    ),
-                                  ),
-                                  actions: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceAround,
-                                      children: [
-                                        IconButton(
-                                          onPressed:
-                                              () => Navigator.of(
-                                                context,
-                                              ).pop(false),
-                                          icon: Icon(
-                                            Icons.close,
-                                            color:
-                                                Theme.of(
-                                                  context,
-                                                ).colorScheme.onPrimary,
-                                            size: 30,
-                                          ),
-                                        ),
-                                        IconButton(
-                                          onPressed:
-                                              () => Navigator.of(
-                                                context,
-                                              ).pop(true),
-                                          icon: Icon(
-                                            Icons.check,
-                                            color:
-                                                Theme.of(
-                                                  context,
-                                                ).colorScheme.error,
-                                            size: 30,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                          ) ??
-                          false;
-                      if (confirm) {
-                        // Clear user session
-                        await userSession.clearSession();
-
-                        // Navigate to login page
-                        if (mounted) {
-                          Navigator.of(context).pushAndRemoveUntil(
-                            MaterialPageRoute(
-                              builder: (context) => LoginPage(),
-                            ),
-                            (route) => false, // Clear all routes in stack
-                          );
-                        }
-                      }
-                    },
-                    icon: Icon(
-                      Icons.logout,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      size: 28,
+              child: IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) => UserProfile(userData: widget.userData),
                     ),
-                    tooltip: 'Logout',
-                  ),
-                  IconButton(
-                    onPressed: () {},
-                    icon: Icon(
-                      Icons.person_2_outlined,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      size: 35,
-                    ),
-                  ),
-                ],
+                  );
+                },
+                icon: Icon(
+                  Icons.person_2_outlined,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                  size: 35,
+                ),
               ),
             ),
           ],
@@ -304,11 +223,9 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Appbar with name and greeting
-              SizedBox(height: 5),
-              Text(
-                "ontop.",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 40),
+              // Appbar with name and greeting              SizedBox(height: 5),
+              AppTitle(
+                isMain: true, // This is the main screen
               ),
               Column(
                 children: [
@@ -402,11 +319,13 @@ class Tabs extends StatefulWidget {
     required this.tabs,
     this.userData,
     this.initialContact,
+    this.initialProject,
   });
   final int currentIndex;
   final List<String> tabs;
   final Map<String, dynamic>? userData;
   final Contact? initialContact;
+  final Project? initialProject;
 
   @override
   State<Tabs> createState() => _TabsState();
@@ -459,9 +378,8 @@ class _TabsState extends State<Tabs> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                "ontop.",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 40),
+              AppTitle(
+                isMain: false, // Not the main screen, enable navigation
               ),
               Builder(
                 // sidebar requires context, hence the builder widget
@@ -479,6 +397,7 @@ class _TabsState extends State<Tabs> {
       body: TabsContentCaller(
         tab: index,
         initialContact: widget.initialContact,
+        initialProject: widget.initialProject,
       ), // Calls tabsContentCaller with index of tab required
       // cleaner that writing the code here
       endDrawer: Drawer(
@@ -497,9 +416,9 @@ class _TabsState extends State<Tabs> {
             crossAxisAlignment:
                 CrossAxisAlignment.end, // FOr right aligned icons
             children: [
-              // Close sidebar button
+              // Close sidebar button (moved lower)
               IconButton(
-                padding: EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+                padding: EdgeInsets.symmetric(vertical: 40, horizontal: 20),
                 icon: Icon(Icons.arrow_forward, color: Colors.white, size: 30),
                 onPressed: () {
                   Navigator.pop(context);
@@ -510,7 +429,7 @@ class _TabsState extends State<Tabs> {
                   padding: EdgeInsets.only(
                     top:
                         MediaQuery.of(context).size.height *
-                        0.10, // Vertical offset
+                        0.10, // Back to original vertical offset
                   ),
                   itemCount: drawerTabs.length,
                   separatorBuilder: // Add in the gap and the horizontal line between tiles
@@ -578,11 +497,20 @@ class _TabsState extends State<Tabs> {
                       ),
                 ),
               ),
+              // Profile and Settings Button (back at bottom, just a little above lower boundary)
               IconButton(
-                // Profile and Settings Button, currently a dummy
-                padding: EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+                padding: EdgeInsets.symmetric(vertical: 15, horizontal: 20),
                 icon: Icon(Icons.person_outline, color: Colors.white, size: 30),
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.pop(context); // Close drawer first
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) => UserProfile(userData: widget.userData),
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -594,9 +522,15 @@ class _TabsState extends State<Tabs> {
 
 // This class just returns the body of the specific tab called
 class TabsContentCaller extends StatelessWidget {
-  const TabsContentCaller({super.key, required this.tab, this.initialContact});
+  const TabsContentCaller({
+    super.key,
+    required this.tab,
+    this.initialContact,
+    this.initialProject,
+  });
   final int tab;
   final Contact? initialContact;
+  final Project? initialProject;
   // tabs list for index reference
   /*'Tasks',
     'Contacts',
@@ -606,10 +540,10 @@ class TabsContentCaller extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (tab) {
       case 1:
-        return Contacts(contactToOpen: initialContact,);
+        return Contacts(contactToOpen: initialContact);
 
       case 2:
-        return Projects();
+        return Projects(initialProject: initialProject);
 
       case 3:
         return Events();

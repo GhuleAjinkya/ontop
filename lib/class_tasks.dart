@@ -4,12 +4,12 @@ import 'services/tasks_adapter.dart';
 import 'services/optimistic_updates.dart';
 import 'services/project_tasks_sync.dart';
 
-ScaffoldFeatureController<SnackBar, SnackBarClosedReason> updatingSnackBar(BuildContext context) {
+ScaffoldFeatureController<SnackBar, SnackBarClosedReason> updatingSnackBar(
+  BuildContext context,
+) {
   return ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
-      content: Text(
-        'Please wait. Updating Contacts...',
-      ),
+      content: Text('Please wait. Updating Contacts...'),
       duration: Duration(seconds: 1),
       showCloseIcon: true,
     ),
@@ -160,6 +160,454 @@ class _TasksState extends State<Tasks> {
       addingItemInSection = null;
       addingSection = false;
     });
+  }
+
+  void _showSectionDialog() {
+    final sectionController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onPrimary.withValues(alpha: 0.3),
+                width: 1,
+              ),
+            ),
+            title: Text(
+              'Add New Section',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimary,
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            content: SizedBox(
+              width: MediaQuery.of(context).size.width * 0.85,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildDialogTextField(
+                      controller: sectionController,
+                      label: 'Section Name',
+                      hint: 'Enter section name',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.tertiary,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => _saveSection(sectionController.text),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.secondary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                ),
+                child: Text('Add', style: TextStyle(fontFamily: 'Poppins')),
+              ),
+            ],
+          ),
+    );
+  }
+
+  void _showTaskDialog(String sectionKey) {
+    final taskController = TextEditingController();
+    DateTime? selectedDate;
+    TimeOfDay? selectedTime;
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setDialogState) => AlertDialog(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onPrimary.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  title: Text(
+                    'Add New Task',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      fontFamily: 'Poppins',
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  content: SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.85,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildDialogTextField(
+                            controller: taskController,
+                            label: 'Task Details',
+                            hint: 'Enter task details',
+                          ),
+                          SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextButton.icon(
+                                  icon: Icon(
+                                    Icons.calendar_today,
+                                    size: 16,
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                  ),
+                                  label: Text(
+                                    selectedDate != null
+                                        ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
+                                        : "Pick date",
+                                    style: TextStyle(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                      fontSize: 12,
+                                      fontFamily: 'Poppins',
+                                    ),
+                                  ),
+                                  onPressed: () async {
+                                    final now = DateTime.now();
+                                    final picked = await showDatePicker(
+                                      context: context,
+                                      initialDate: selectedDate ?? now,
+                                      firstDate: now,
+                                      lastDate: DateTime(now.year + 5),
+                                    );
+                                    if (picked != null) {
+                                      setDialogState(() {
+                                        selectedDate = picked;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: TextButton.icon(
+                                  icon: Icon(
+                                    Icons.access_time,
+                                    size: 16,
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                  ),
+                                  label: Text(
+                                    selectedTime != null
+                                        ? "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}"
+                                        : "Pick time",
+                                    style: TextStyle(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                      fontSize: 12,
+                                      fontFamily: 'Poppins',
+                                    ),
+                                  ),
+                                  onPressed: () async {
+                                    final picked = await showTimePicker(
+                                      context: context,
+                                      initialTime:
+                                          selectedTime ?? TimeOfDay.now(),
+                                      initialEntryMode:
+                                          TimePickerEntryMode.dial,
+                                    );
+                                    if (picked != null) {
+                                      setDialogState(() {
+                                        selectedTime = picked;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.tertiary,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed:
+                          () => _saveTask(
+                            sectionKey: sectionKey,
+                            taskText: taskController.text,
+                            selectedDate: selectedDate,
+                            selectedTime: selectedTime,
+                          ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            Theme.of(context).colorScheme.secondary,
+                        foregroundColor:
+                            Theme.of(context).colorScheme.onPrimary,
+                      ),
+                      child: Text(
+                        'Add',
+                        style: TextStyle(fontFamily: 'Poppins'),
+                      ),
+                    ),
+                  ],
+                ),
+          ),
+    );
+  }
+
+  Widget _buildDialogTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    int maxLines = 1,
+  }) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.onPrimary,
+        fontFamily: 'Poppins',
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        labelStyle: TextStyle(
+          color: Theme.of(context).colorScheme.tertiary,
+          fontFamily: 'Poppins',
+        ),
+        hintStyle: TextStyle(
+          color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.7),
+          fontFamily: 'Poppins',
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(
+              context,
+            ).colorScheme.tertiary.withValues(alpha: 0.3),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.secondary,
+            width: 2,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _saveSection(String sectionName) async {
+    if (sectionName.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Section name is required')));
+      return;
+    }
+
+    // Check if section already exists
+    if (taskSections.any((section) => section.name == sectionName.trim())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Section "${sectionName.trim()}" already exists'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+      return;
+    }
+
+    Navigator.pop(context);
+
+    // Implement optimistic section creation
+    final tempSection = TaskSection(
+      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+      name: sectionName.trim(),
+      isCompleted: false,
+    );
+
+    // Step 1: Update local state immediately
+    setState(() {
+      taskSections.add(tempSection);
+      sections[sectionName.trim()] = []; // Create empty section
+    });
+
+    // Step 2: Perform database operation
+    try {
+      final success = await TasksAdapter.createSection(tempSection.name);
+
+      if (!success) {
+        throw Exception('Database operation failed');
+      }
+
+      // Step 3: Reload data to get real section ID
+      await _loadTasksFromDatabase();
+
+      // Step 4: Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Section "${tempSection.name}" created successfully'),
+            backgroundColor: Theme.of(context).colorScheme.tertiary,
+          ),
+        );
+      }
+    } catch (e) {
+      // Step 5: Revert local state if database operation failed
+      setState(() {
+        taskSections.removeWhere((section) => section.id == tempSection.id);
+        sections.remove(tempSection.name);
+      });
+
+      // Step 6: Show error message
+      print('Error creating section: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to create section: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  void _saveTask({
+    required String sectionKey,
+    required String taskText,
+    required DateTime? selectedDate,
+    required TimeOfDay? selectedTime,
+  }) async {
+    if (taskText.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Task details are required')));
+      return;
+    }
+
+    if (selectedDate == null || selectedTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please select both date and time')),
+      );
+      return;
+    }
+
+    Navigator.pop(context);
+
+    try {
+      final deadline = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+        selectedTime.hour,
+        selectedTime.minute,
+      );
+
+      // Find the section ID
+      final section = taskSections.firstWhere(
+        (s) => s.name == sectionKey,
+        orElse: () => throw Exception('Section not found'),
+      );
+
+      // Check if this is a project section to set projectId
+      final isProjectSection = section.type == SectionType.projectLinked;
+
+      // Implement optimistic task creation
+      final tempTask = ToDoItem(
+        id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+        sectionId: section.id,
+        projectId: isProjectSection ? section.projectId : null,
+        text: taskText.trim(),
+        deadlineDate: deadline,
+        isCompleted: false,
+        completedAt: null,
+      );
+
+      // Ensure the section exists in our local state
+      if (sections[sectionKey] == null) {
+        sections[sectionKey] = [];
+      }
+
+      // Use OptimisticUpdates service for task creation
+      await OptimisticUpdates.performListOperation<ToDoItem>(
+        list: sections[sectionKey]!,
+        item: tempTask,
+        operation: 'add',
+        databaseOperation: () async {
+          return await TasksAdapter.createTask(
+            section.id,
+            taskText.trim(),
+            deadline,
+          );
+        },
+        onSuccess: () {
+          // Sort the list after adding
+          setState(() {
+            sections[sectionKey]!.sort((a, b) {
+              if (a.deadlineDate.isBefore(b.deadlineDate)) return -1;
+              if (a.deadlineDate.isAfter(b.deadlineDate)) return 1;
+              return 0;
+            });
+          });
+
+          // If this is a project section, sync the task back to the project
+          if (isProjectSection && section.projectId != null) {
+            ProjectTasksSync.syncTaskToProject(
+              projectId: section.projectId!,
+              taskText: taskText.trim(),
+              taskDeadline: deadline,
+            );
+          }
+
+          // Reload data to get the real task ID from database
+          _loadTasksFromDatabase();
+        },
+        showSuccessMessage: 'Task "${taskText.trim()}" created successfully',
+        showErrorMessage: 'Failed to create task',
+        context: context,
+      );
+    } catch (e) {
+      print('Error creating task: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to create task: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
   }
 
   Widget buildToDoItemTiles(
@@ -437,9 +885,7 @@ class _TasksState extends State<Tasks> {
               InkWell(
                 onTap: () {
                   if (!completed) {
-                    setState(() {
-                      addingItemInSection = sectionKey;
-                    });
+                    _showTaskDialog(sectionKey);
                   }
                 },
                 onLongPress: () {
@@ -1655,7 +2101,8 @@ class _TasksState extends State<Tasks> {
   Widget _buildSectionSeparator() {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-      child: Row(        children: [
+      child: Row(
+        children: [
           Expanded(
             child: Container(
               height: 1,
@@ -1674,7 +2121,9 @@ class _TasksState extends State<Tasks> {
             child: Text(
               'PROJECTS',
               style: TextStyle(
-                color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.6),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onPrimary.withValues(alpha: 0.6),
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
                 letterSpacing: 1.2,
@@ -1766,55 +2215,116 @@ class _TasksState extends State<Tasks> {
                           ),
                         ),
                       ] else ...[
-                        Container(
-                          margin: const EdgeInsets.only(
-                            left: 36,
-                            top: 5,
-                            bottom: 5,
-                            right: 5,
-                          ),
-                          width: MediaQuery.of(context).size.width * 0.6,
-                          decoration: standardTile(10),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 2,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: searchController,
-                                  style: TextStyle(
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                  ),
-                                  cursorColor:
-                                      Theme.of(context).colorScheme.tertiary,
-                                  decoration: InputDecoration(
-                                    hintText: 'Search',
-                                    labelText: 'Search for a Section',
-                                    labelStyle: TextStyle(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onSecondary,
-                                    ),
-                                    hintStyle: TextStyle(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onSecondary,
-                                    ),
-                                    border: const UnderlineInputBorder(),
-                                  ),
-                                  onChanged: (value) {
-                                    setState(() {
-                                      searchQuery = value.trim().toLowerCase();
-                                    });
-                                  },
-                                ),
+                        Expanded(
+                          child: Container(
+                            margin: const EdgeInsets.only(
+                              left: 40,
+                              top: 8,
+                              bottom: 8,
+                              right: 20,
+                            ),
+                            height: 45,
+                            decoration: BoxDecoration(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(25),
+                              border: Border.all(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onPrimary.withValues(alpha: 0.15),
+                                width: 1,
                               ),
-                            ],
+                            ),
+                            child: Row(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 16,
+                                    right: 12,
+                                  ),
+                                  child: Icon(
+                                    Icons.search,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onPrimary
+                                        .withValues(alpha: 0.6),
+                                    size: 20,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: TextField(
+                                    controller: searchController,
+                                    style: TextStyle(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                      fontFamily: 'Poppins',
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                    cursorColor:
+                                        Theme.of(context).colorScheme.tertiary,
+                                    decoration: InputDecoration(
+                                      hintText: 'Search tasks...',
+                                      hintStyle: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onPrimary
+                                            .withValues(alpha: 0.5),
+                                        fontFamily: 'Poppins',
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                    ),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        searchQuery =
+                                            value.trim().toLowerCase();
+                                      });
+                                    },
+                                  ),
+                                ),
+                                if (searchController.text.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 16),
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          searchController.clear();
+                                          searchQuery = '';
+                                        });
+                                      },
+                                      child: Container(
+                                        width: 20,
+                                        height: 20,
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onPrimary
+                                              .withValues(alpha: 0.2),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          Icons.close,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onPrimary
+                                              .withValues(alpha: 0.7),
+                                          size: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -1847,16 +2357,7 @@ class _TasksState extends State<Tasks> {
                                         Theme.of(context).colorScheme.onPrimary,
                                     size: 30,
                                   ),
-                                  onPressed: () {
-                                    setState(() {
-                                      addingSection = true;
-                                      openCompleted = false;
-                                      selectedSection =
-                                          sections.isNotEmpty
-                                              ? sections.keys.first
-                                              : null;
-                                    });
-                                  },
+                                  onPressed: () => _showSectionDialog(),
                                 ),
                                 IconButton(
                                   icon: Icon(

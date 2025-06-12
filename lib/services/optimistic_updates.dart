@@ -23,38 +23,52 @@ class OptimisticUpdates {
     String? showErrorMessage,
     BuildContext? context,
   }) async {
+    print("🟢 DEBUG OptimisticUpdates.perform: Starting optimistic update");
+    
     // Step 1: Update local state immediately for instant UI feedback
+    print("🟢 DEBUG OptimisticUpdates.perform: Calling updateLocalState");
     updateLocalState();
+    
     try {
       // Step 2: Perform database operation in background
-      await databaseOperation();
+      print("🟢 DEBUG OptimisticUpdates.perform: Starting databaseOperation");
+      final result = await databaseOperation();
+      print("🟢 DEBUG OptimisticUpdates.perform: databaseOperation completed with result: $result");
 
       // Step 3: Handle success
       if (onSuccess != null) {
+        print("🟢 DEBUG OptimisticUpdates.perform: Calling onSuccess callback");
         onSuccess();
         print("Succesful optimistic update");
       }
 
       if (showSuccessMessage != null && context != null) {
+        print("🟢 DEBUG OptimisticUpdates.perform: Showing success message: $showSuccessMessage");
         _showSnackBar(context, showSuccessMessage, isError: false);
       }
 
+      print("🟢 DEBUG OptimisticUpdates.perform: Operation completed successfully");
       return true;
     } catch (error) {
+      print("🟢 DEBUG OptimisticUpdates.perform: Exception caught: $error");
+      
       // Step 4: Revert local state if database operation failed
+      print("🟢 DEBUG OptimisticUpdates.perform: Calling revertLocalState");
       revertLocalState();
 
       // Step 5: Handle error
       if (onError != null) {
+        print("🟢 DEBUG OptimisticUpdates.perform: Calling onError callback");
         onError(error);
       }
 
       final errorMessage = showErrorMessage ?? 'Operation failed: $error';
       if (context != null) {
+        print("🟢 DEBUG OptimisticUpdates.perform: Showing error message: $errorMessage");
         _showSnackBar(context, errorMessage, isError: true);
       }
 
-      print('Optimistic update failed: $error');
+      print('🟢 DEBUG OptimisticUpdates.perform: Optimistic update failed: $error');
       return false;
     }
   }

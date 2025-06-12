@@ -4,7 +4,10 @@ import 'dart:convert'; // For JSON encoding/decoding
 import 'user_session.dart';
 import 'services/contacts_adapter.dart'; // Add our new adapter
 import 'services/optimistic_updates.dart'; // Add optimistic updates
+import 'services/projects_adapter.dart'; // Add projects adapter
 import 'screens/contact_import_screen.dart'; // Add contact import screen
+import 'models/project.dart'; // Add project model
+// Add app title widget
 
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
@@ -20,6 +23,8 @@ class Contact {
   final String organization;
   final String position;
   final String phoneNumber;
+  final String email; // Add email field
+  final String notes; // Add notes field
   int starred;
 
   Contact({
@@ -29,9 +34,9 @@ class Contact {
     required this.phoneNumber,
     required this.position,
     required this.starred,
-  });
-
-  // Convert MongoDB document to Contact object
+    this.email = '', // Make email optional with default empty string
+    this.notes = '', // Make notes optional with default empty string
+  }); // Convert MongoDB document to Contact object
   factory Contact.fromMongo(Map<String, dynamic> doc) {
     return Contact(
       id: doc['_id'], // Keep as ObjectId
@@ -39,17 +44,19 @@ class Contact {
       organization: doc['organization'] ?? '',
       phoneNumber: doc['phoneNumber'] ?? '',
       position: doc['position'] ?? '',
+      email: doc['email'] ?? '', // Add email field
+      notes: doc['notes'] ?? '', // Add notes field
       starred: doc['starred'] ?? 0,
     );
-  }
-
-  // Create a copy of Contact with updated values
+  } // Create a copy of Contact with updated values
   Contact copyWith({
     dynamic id,
     String? name,
     String? organization,
     String? position,
     String? phoneNumber,
+    String? email,
+    String? notes,
     int? starred,
   }) {
     return Contact(
@@ -58,6 +65,8 @@ class Contact {
       organization: organization ?? this.organization,
       position: position ?? this.position,
       phoneNumber: phoneNumber ?? this.phoneNumber,
+      email: email ?? this.email,
+      notes: notes ?? this.notes,
       starred: starred ?? this.starred,
     );
   }
@@ -69,18 +78,20 @@ class Contact {
       'organization': organization,
       'phoneNumber': phoneNumber,
       'position': position,
+      'email': email,
+      'notes': notes,
       'starred': starred,
       'type': 'contact', // Add type field
     };
   }
 }
 
-ScaffoldFeatureController<SnackBar, SnackBarClosedReason> updatingSnackBar(BuildContext context) {
+ScaffoldFeatureController<SnackBar, SnackBarClosedReason> updatingSnackBar(
+  BuildContext context,
+) {
   return ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
-      content: Text(
-        'Please wait. Updating Contacts...',
-      ),
+      content: Text('Please wait. Updating Contacts...'),
       duration: Duration(seconds: 1),
       showCloseIcon: true,
     ),
@@ -101,6 +112,8 @@ class _ContactsState extends State<Contacts> {
   final TextEditingController organizationController = TextEditingController();
   final TextEditingController positionController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
+  final TextEditingController emailController =
+      TextEditingController(); // Add email controller
   final TextEditingController searchController = TextEditingController();
 
   String searchQuery = '';
@@ -207,20 +220,27 @@ class _ContactsState extends State<Contacts> {
 
     // Fetch contacts using the adapter which tries Node.js API first, then falls back to MongoDB
     try {
-      setState(() {fetchingContacts = true;});
-      List<Map<String, dynamic>> fetchedContacts = await ContactsAdapter.getContacts();
+      setState(() {
+        fetchingContacts = true;
+      });
+      List<Map<String, dynamic>> fetchedContacts =
+          await ContactsAdapter.getContacts();
 
       // Convert documents to Contact objects
       contacts = fetchedContacts.map((doc) => Contact.fromMongo(doc)).toList();
 
       print("Successfully loaded ${contacts.length} contacts for user $userId");
-      setState(() {fetchingContacts = false;});
+      setState(() {
+        fetchingContacts = false;
+      });
     } catch (e) {
       print("Error loading contacts: $e");
       contacts = [];
 
       if (mounted) {
-        setState(() {fetchingContacts = false;});
+        setState(() {
+          fetchingContacts = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to load contacts: $e'),
@@ -295,6 +315,7 @@ class _ContactsState extends State<Contacts> {
       organizationController.clear();
       positionController.clear();
       phoneController.clear();
+      emailController.clear(); // Clear email field
     }
   }
 
@@ -450,12 +471,20 @@ class _ContactsState extends State<Contacts> {
   }
 
   void deleteSelected() async {
+    print("🔴 DEBUG: Starting deleteSelected()");
+    print("🔴 DEBUG: userId = '$userId'");
+    print("🔴 DEBUG: selectedIDs = $selectedIDs");
+    print("🔴 DEBUG: selectedIDs.length = ${selectedIDs.length}");
+
     if (userId.isEmpty) {
-      print("No user ID available. Cannot delete contacts.");
+      print("🔴 DEBUG: No user ID available. Cannot delete contacts.");
       return;
     }
 
-    if (selectedIDs.isEmpty) return;
+    if (selectedIDs.isEmpty) {
+      print("🔴 DEBUG: No contacts selected for deletion");
+      return;
+    }
 
     // Get contacts to be deleted for optimistic update
     final contactsToDelete =
@@ -466,9 +495,20 @@ class _ContactsState extends State<Contacts> {
             .toList();
     
 
+    print("🔴 DEBUG: contactsToDelete.length = ${contactsToDelete.length}");
+    for (var contact in contactsToDelete) {
+      print(
+        "🔴 DEBUG: Contact to delete: ${contact.name} (ID: ${contact.id}, Type: ${contact.id.runtimeType})",
+      );
+    }
+
     // Use optimistic updates for bulk deletion
+    print("🔴 DEBUG: Starting OptimisticUpdates.perform()");
     await OptimisticUpdates.perform(
       updateLocalState: () {
+        print(
+          "🔴 DEBUG: Executing updateLocalState - removing contacts from UI",
+        );
         setState(() {
           // Remove from main contacts list
           contacts.removeWhere(
@@ -491,14 +531,21 @@ class _ContactsState extends State<Contacts> {
         });
       },
       databaseOperation: () async {
+        print("🔴 DEBUG: Starting databaseOperation");
         bool allSuccess = true;
         for (var contact in contactsToDelete) {
+          print(
+            "🔴 DEBUG: Attempting to delete contact: ${contact.name} (ID: ${contact.id})",
+          );
           bool success = await ContactsAdapter.deleteContact(contact.id);
+          print("🔴 DEBUG: Delete result for ${contact.name}: $success");
           if (!success) allSuccess = false;
         }
+        print("🔴 DEBUG: Overall databaseOperation result: $allSuccess");
         return allSuccess;
       },
       revertLocalState: () {
+        print("🔴 DEBUG: Executing revertLocalState - restoring contacts");
         setState(() {
           // Add back to main contacts list
           contacts.addAll(contactsToDelete);
@@ -528,9 +575,11 @@ class _ContactsState extends State<Contacts> {
       showErrorMessage: 'Failed to delete some contacts',
       context: context,
       onSuccess: () async {
+        print("🔴 DEBUG: Delete success callback - reloading contacts");
         await begin(); // Reload to ensure consistency
       },
     );
+    print("🔴 DEBUG: deleteSelected() completed");
   }
 
   void selectAll() {
@@ -571,6 +620,258 @@ class _ContactsState extends State<Contacts> {
     }
   }
 
+  void _showContactDialog({Contact? contact}) {
+    final isEditing = contact != null;
+    final titleController = TextEditingController(text: contact?.name ?? '');
+    final organizationController = TextEditingController(
+      text: contact?.organization ?? '',
+    );
+    final positionController = TextEditingController(
+      text: contact?.position ?? '',
+    );
+    final phoneController = TextEditingController(
+      text: contact?.phoneNumber ?? '',
+    );
+    final emailController = TextEditingController(text: contact?.email ?? '');
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onPrimary.withValues(alpha: 0.3),
+                width: 1,
+              ),
+            ),
+            title: Text(
+              isEditing ? 'Edit Contact' : 'Add New Contact',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimary,
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            content: SizedBox(
+              width: MediaQuery.of(context).size.width * 0.85,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildDialogTextField(
+                      controller: titleController,
+                      label: 'Name',
+                      hint: 'Enter contact name',
+                    ),
+                    SizedBox(height: 16),
+                    _buildDialogTextField(
+                      controller: phoneController,
+                      label: 'Phone Number',
+                      hint: 'Enter phone number',
+                      keyboardType: TextInputType.phone,
+                    ),
+                    SizedBox(height: 16),
+                    _buildDialogTextField(
+                      controller: positionController,
+                      label: 'Position',
+                      hint: 'Enter position',
+                    ),
+                    SizedBox(height: 16),
+                    _buildDialogTextField(
+                      controller: organizationController,
+                      label: 'Organization',
+                      hint: 'Enter organization',
+                    ),
+                    SizedBox(height: 16),
+                    _buildDialogTextField(
+                      controller: emailController,
+                      label: 'Email (Optional)',
+                      hint: 'Enter email address',
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.tertiary,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed:
+                    () => _saveContact(
+                      contact: contact,
+                      name: titleController.text,
+                      phoneNumber: phoneController.text,
+                      position: positionController.text,
+                      organization: organizationController.text,
+                      email: emailController.text,
+                    ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.secondary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                ),
+                child: Text(
+                  isEditing ? 'Update' : 'Add',
+                  style: TextStyle(fontFamily: 'Poppins'),
+                ),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Widget _buildDialogTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    TextInputType? keyboardType,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.onPrimary,
+        fontFamily: 'Poppins',
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        labelStyle: TextStyle(
+          color: Theme.of(context).colorScheme.tertiary,
+          fontFamily: 'Poppins',
+        ),
+        hintStyle: TextStyle(
+          color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.7),
+          fontFamily: 'Poppins',
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(
+              context,
+            ).colorScheme.tertiary.withValues(alpha: 0.3),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.secondary,
+            width: 2,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _saveContact({
+    Contact? contact,
+    required String name,
+    required String phoneNumber,
+    required String position,
+    required String organization,
+    required String email,
+  }) async {
+    if (name.trim().isEmpty ||
+        phoneNumber.trim().isEmpty ||
+        position.trim().isEmpty ||
+        organization.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Name, phone, position, and organization are required'),
+        ),
+      );
+      return;
+    }
+
+    if (userId.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Please log in to save contacts')));
+      return;
+    }
+
+    Navigator.pop(context);
+
+    // Create contact data
+    final contactData = {
+      'name': name.trim(),
+      'organization': organization.trim(),
+      'phoneNumber': phoneNumber.trim(),
+      'position': position.trim(),
+      'email': email.trim(),
+      'notes': contact?.notes ?? '',
+      'starred': contact?.starred ?? 0,
+      'type': 'contact',
+      'created_at': DateTime.now(),
+    };
+
+    // Create temporary contact for optimistic update
+    final tempContact = Contact(
+      id: contact?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      name: contactData['name'] as String,
+      organization: contactData['organization'] as String,
+      phoneNumber: contactData['phoneNumber'] as String,
+      position: contactData['position'] as String,
+      email: contactData['email'] as String,
+      notes: contactData['notes'] as String,
+      starred: contactData['starred'] as int,
+    );
+
+    bool success;
+    if (contact != null) {
+      // Update existing contact
+      success = await ContactsAdapter.updateContact({
+        '_id': contact.id,
+        ...contactData,
+      });
+    } else {
+      // Create new contact
+      await OptimisticUpdates.performListOperation<Contact>(
+        list: contacts,
+        operation: 'add',
+        item: tempContact,
+        databaseOperation: () async {
+          return await ContactsAdapter.addContact(contactData);
+        },
+        showSuccessMessage: 'Contact added successfully!',
+        showErrorMessage: 'Failed to add contact',
+        context: context,
+        onSuccess: () async {
+          await begin();
+        },
+        onError: (error) {
+          setState(() {});
+        },
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Contact updated successfully')));
+      await begin();
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save contact')));
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -595,46 +896,55 @@ class _ContactsState extends State<Contacts> {
           });
         },
         onUpdate: (updatedContact) {
-  setState(() {
-    // Update in main contacts list
-    final idx = contacts.indexWhere((c) => c.id.toString() == updatedContact.id.toString());
-    if (idx != -1) {
-      contacts[idx] = updatedContact;
-    }
+          setState(() {
+            // Update in main contacts list
+            final idx = contacts.indexWhere(
+              (c) => c.id.toString() == updatedContact.id.toString(),
+            );
+            if (idx != -1) {
+              contacts[idx] = updatedContact;
+            }
 
-    // Remove from all sections
-    for (var list in sections.values) {
-      list.removeWhere((c) => c.id.toString() == updatedContact.id.toString());
-    }
+            // Remove from all sections
+            for (var list in sections.values) {
+              list.removeWhere(
+                (c) => c.id.toString() == updatedContact.id.toString(),
+              );
+            }
 
-    // Handle starred/unstarred logic
-    final starredIdx = starred.indexWhere((c) => c.id.toString() == updatedContact.id.toString());
-    if (updatedContact.starred == 1) {
-      // Add to starred if not present
-      if (starredIdx == -1) {
-        starred.add(updatedContact);
-        starred.sort((a, b) => a.name.compareTo(b.name));
-      } else {
-        starred[starredIdx] = updatedContact;
-      }
-      // Do NOT add to sections (starred contacts should not appear in sections)
-    } else {
-      // Remove from starred if present
-      if (starredIdx != -1) {
-        starred.removeAt(starredIdx);
-      }
-      // Add to correct section
-      final firstLetter = updatedContact.name.isNotEmpty ? updatedContact.name[0].toUpperCase() : '';
-      if (sections.containsKey(firstLetter)) {
-        sections[firstLetter]!.add(updatedContact);
-        sections[firstLetter]!.sort((a, b) => a.name.compareTo(b.name));
-      }
-    }
+            // Handle starred/unstarred logic
+            final starredIdx = starred.indexWhere(
+              (c) => c.id.toString() == updatedContact.id.toString(),
+            );
+            if (updatedContact.starred == 1) {
+              // Add to starred if not present
+              if (starredIdx == -1) {
+                starred.add(updatedContact);
+                starred.sort((a, b) => a.name.compareTo(b.name));
+              } else {
+                starred[starredIdx] = updatedContact;
+              }
+              // Do NOT add to sections (starred contacts should not appear in sections)
+            } else {
+              // Remove from starred if present
+              if (starredIdx != -1) {
+                starred.removeAt(starredIdx);
+              }
+              // Add to correct section
+              final firstLetter =
+                  updatedContact.name.isNotEmpty
+                      ? updatedContact.name[0].toUpperCase()
+                      : '';
+              if (sections.containsKey(firstLetter)) {
+                sections[firstLetter]!.add(updatedContact);
+                sections[firstLetter]!.sort((a, b) => a.name.compareTo(b.name));
+              }
+            }
 
-    // Update openedContact if needed
-    openedContact = updatedContact;
-  });
-}
+            // Update openedContact if needed
+            openedContact = updatedContact;
+          });
+        },
       );
     }
     return Scaffold(
@@ -655,65 +965,131 @@ class _ContactsState extends State<Contacts> {
                       if (!searching) ...[
                         Container(
                           margin: EdgeInsets.only(left: 40),
-                          child: Text(
-                            "Contacts",
-                            style: TextStyle(
-                              fontSize: 28,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ] else ...[
-                        Container(
-                          margin: const EdgeInsets.only(
-                            left: 36,
-                            top: 5,
-                            bottom: 5,
-                            right: 5,
-                          ),
-                          width: MediaQuery.of(context).size.width * 0.6,
-                          decoration: standardTile(10),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 2,
-                          ),
                           child: Row(
                             children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: searchController,
-                                  style: TextStyle(
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                  ),
-                                  cursorColor:
-                                      Theme.of(context).colorScheme.tertiary,
-                                  decoration: InputDecoration(
-                                    hintText: 'Search',
-                                    labelText: 'Search contacts',
-                                    labelStyle: TextStyle(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onSecondary,
-                                    ),
-                                    hintStyle: TextStyle(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onSecondary,
-                                    ),
-                                    border: const UnderlineInputBorder(),
-                                  ),
-                                  onChanged: (value) {
-                                    setState(() {
-                                      searchQuery = searchController.text.trim().toLowerCase();
-                                    });
-                                  },
+                              Text(
+                                "Contacts",
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
+                          ),
+                        ),
+                      ] else ...[
+                        Expanded(
+                          child: Container(
+                            margin: const EdgeInsets.only(
+                              left: 40,
+                              top: 8,
+                              bottom: 8,
+                              right: 36,
+                            ),
+                            height: 45,
+                            decoration: BoxDecoration(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(25),
+                              border: Border.all(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onPrimary.withValues(alpha: 0.15),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 16,
+                                    right: 12,
+                                  ),
+                                  child: Icon(
+                                    Icons.search,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onPrimary
+                                        .withValues(alpha: 0.6),
+                                    size: 20,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: TextField(
+                                    controller: searchController,
+                                    style: TextStyle(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                      fontFamily: 'Poppins',
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                    cursorColor:
+                                        Theme.of(context).colorScheme.tertiary,
+                                    decoration: InputDecoration(
+                                      hintText: 'Search contacts...',
+                                      hintStyle: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onPrimary
+                                            .withValues(alpha: 0.5),
+                                        fontFamily: 'Poppins',
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                    ),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        searchQuery =
+                                            value.trim().toLowerCase();
+                                      });
+                                    },
+                                  ),
+                                ),
+                                if (searchController.text.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 16),
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          searchController.clear();
+                                          searchQuery = '';
+                                        });
+                                      },
+                                      child: Container(
+                                        width: 20,
+                                        height: 20,
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onPrimary
+                                              .withValues(alpha: 0.2),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          Icons.close,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onPrimary
+                                              .withValues(alpha: 0.7),
+                                          size: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -724,9 +1100,7 @@ class _ContactsState extends State<Contacts> {
                             children: [
                               IconButton(
                                 icon: Icon(
-                                  !searching
-                                      ? Icons.search
-                                      : Icons.close,
+                                  !searching ? Icons.search : Icons.close,
                                   color:
                                       Theme.of(context).colorScheme.onPrimary,
                                   size: 30,
@@ -747,11 +1121,7 @@ class _ContactsState extends State<Contacts> {
                                         Theme.of(context).colorScheme.onPrimary,
                                     size: 26,
                                   ),
-                                  onPressed: () {
-                                    setState(() {
-                                      addingContact = true;
-                                    });
-                                  },
+                                  onPressed: () => _showContactDialog(),
                                 ),
                                 PopupMenuButton<String>(
                                   icon: Icon(
@@ -1080,313 +1450,62 @@ class _ContactsState extends State<Contacts> {
                   ),
                 ),
               ),
-              if (addingContact) ...[
-                Container(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 36,
-                    vertical: 5,
-                  ),
-                  decoration: standardTile(10),
-                  child: ListTile(
-                    contentPadding: EdgeInsets.symmetric(horizontal: 2),
-                    leading: IconButton(
-                      alignment: Alignment.centerLeft,
-                      onPressed: clearForm,
-                      icon: Icon(
-                        Icons.close,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                        size: 20,
-                      ),
-                    ),
-                    title: Column(
-                      children: [
-                        SizedBox(
-                          child: TextField(
-                            controller: nameController,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                            cursorColor: Theme.of(context).colorScheme.tertiary,
-                            decoration: InputDecoration(
-                              hintText: 'Name',
-                              labelText: 'Name*',
-                              labelStyle: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSecondary,
-                              ),
-                              hintStyle: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSecondary,
-                              ),
-                              border: const UnderlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                        SizedBox(
-                          child: TextField(
-                            keyboardType: TextInputType.numberWithOptions(
-                              signed: false,
-                              decimal: false,
-                            ),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            controller: phoneController,
-                            cursorColor: Theme.of(context).colorScheme.tertiary,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onPrimary,
-                              fontSize: 14,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: 'Number',
-                              labelText: 'Number*',
-                              labelStyle: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSecondary,
-                              ),
-                              hintStyle: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSecondary,
-                              ),
-                              border: const UnderlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    subtitle: Column(
-                      children: [
-                        SizedBox(
-                          child: TextField(
-                            controller: positionController,
-                            cursorColor: Theme.of(context).colorScheme.tertiary,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: 'Position',
-                              labelText: 'Position*',
-                              labelStyle: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSecondary,
-                              ),
-                              hintStyle: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSecondary,
-                              ),
-                              border: const UnderlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                        SizedBox(
-                          child: TextField(
-                            controller: organizationController,
-                            cursorColor: Theme.of(context).colorScheme.tertiary,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: 'Organization',
-                              labelText: 'Organization*',
-                              labelStyle: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSecondary,
-                              ),
-                              hintStyle: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSecondary,
-                              ),
-                              border: const UnderlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    trailing: IconButton(
-                      alignment: Alignment.centerRight,
-                      onPressed: () async {
-                        if (userId.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Please log in to add contacts'),
-                            ),
-                          );
-                          return;
-                        }
-                        updatingSnackBar(context);
-                        if (nameController.text.trim().isEmpty ||
-                            organizationController.text.trim().isEmpty ||
-                            phoneController.text.trim().isEmpty ||
-                            positionController.text.trim().isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'All fields are required',
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onError,
-                                ),
-                              ),
-                              backgroundColor:
-                                  Theme.of(context).colorScheme.error,
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                          return;
-                        } // Create contact data
-                        final contactData = {
-                          'name': nameController.text.trim(),
-                          'organization': organizationController.text.trim(),
-                          'phoneNumber': phoneController.text.trim(),
-                          'position': positionController.text.trim(),
-                          'starred': 0,
-                          'type': 'contact', // Add type field
-                          'created_at':
-                              DateTime.now(), // Store as Date type in MongoDB
-                        }; // Create temporary contact for optimistic update
-                        final tempContact = Contact(
-                          id:
-                              DateTime.now().millisecondsSinceEpoch
-                                  .toString(), // Temporary ID
-                          name: contactData['name'] as String,
-                          organization: contactData['organization'] as String,
-                          phoneNumber: contactData['phoneNumber'] as String,
-                          position: contactData['position'] as String,
-                          starred: 0,
-                        );
-
-                        clearForm(); // Clear the form first for better UX
-
-                        // Use optimistic updates for contact creation
-                        await OptimisticUpdates.performListOperation<Contact>(
-                          list: contacts,
-                          operation: 'add',
-                          item: tempContact,
-                          databaseOperation: () async {
-                            return await ContactsAdapter.addContact(
-                              contactData,
-                            );
-                          },
-                          showSuccessMessage: 'Contact added successfully!',
-                          showErrorMessage: 'Failed to add contact',
-                          context: context,
-                          onSuccess: () async {
-                            // Reload contacts to get the real contact with database ID
-                            await begin();
-                          },
-                          onError: (error) {
-                            setState(
-                              () {},
-                            ); // Trigger rebuild to remove optimistic contact
-                          },
-                        );
-                      },
-                      icon: Icon(
-                        Icons.check,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
               Expanded(
                 child: ListView(
                   children: [
-                    if (starred.isEmpty && sections.entries.every((c) => c.value.isEmpty)) ...[
-                      Container( // Fetching Contacts widget
+                    if (starred.isEmpty &&
+                        sections.entries.every((c) => c.value.isEmpty)) ...[
+                      Container(
+                        // Fetching Contacts widget
                         margin: EdgeInsets.only(top: 150),
                         child: Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             spacing: 10,
                             children: [
-                              fetchingContacts ?
-                              CircularProgressIndicator(
-                                color: Theme.of(context).colorScheme.tertiary,
-                              ) : 
-                              Icon(
-                                Icons.person,
-                                size: 80,
-                                color: Theme.of(context).colorScheme.tertiary,
-                              ),
+                              fetchingContacts
+                                  ? CircularProgressIndicator(
+                                    color:
+                                        Theme.of(context).colorScheme.tertiary,
+                                  )
+                                  : Icon(
+                                    Icons.person,
+                                    size: 80,
+                                    color:
+                                        Theme.of(context).colorScheme.tertiary,
+                                  ),
                               Text(
-                                fetchingContacts ?
-                                'Fetching Contacts...'
-                                : 'No added contacts.',
+                                fetchingContacts
+                                    ? 'Fetching Contacts...'
+                                    : 'No added contacts.',
                                 style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
                                   fontSize: 16,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      )
+                      ),
                     ] else ...[
                       if (searchQuery.isEmpty) ...[
-                      ...(() {
-                        if (starred.isNotEmpty) {
-                          return [ // Starred return widget
-                            Container(
-                              margin: const EdgeInsets.only(left: 40),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.star_rounded,
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                    size: 20,
-                                  ),
-                                  Expanded(
-                                    child: Container(
-                                      margin: const EdgeInsets.only(
-                                        left: 10,
-                                        right: 40,
-                                      ),
-                                      height: 5,
-                                      decoration: BoxDecoration(
-                                        color: Colors.transparent,
-                                        border: Border(
-                                          bottom: BorderSide(
-                                            color:
-                                                Theme.of(
-                                                  context,
-                                                ).colorScheme.onPrimary,
-                                            width: 0.75,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            buildContactTiles(starred, starred: true),
-                          ];
-                        }
-                        return <Widget>[];
-                      })(),
-                      // Show alphabetical sections
-                      for (var entry in sections.entries)
                         ...(() {
-                          if (entry.value.isNotEmpty) {
-                            return [ // regular sections return widget
-                              const Divider(height: 1, color: Colors.transparent),
+                          if (starred.isNotEmpty) {
+                            return [
+                              // Starred return widget
                               Container(
                                 margin: const EdgeInsets.only(left: 40),
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
-                                    Text(
-                                      entry.key,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.onPrimary,
-                                      ),
+                                    Icon(
+                                      Icons.star_rounded,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                      size: 20,
                                     ),
                                     Expanded(
                                       child: Container(
@@ -1412,77 +1531,144 @@ class _ContactsState extends State<Contacts> {
                                   ],
                                 ),
                               ),
-                              buildContactTiles(entry.value),
+                              buildContactTiles(starred, starred: true),
                             ];
-                          } else {
-                            return <Widget>[];
                           }
+                          return <Widget>[];
                         })(),
-                    ] else ...[
+                        // Show alphabetical sections
+                        for (var entry in sections.entries)
+                          ...(() {
+                            if (entry.value.isNotEmpty) {
+                              return [
+                                // regular sections return widget
+                                const Divider(
+                                  height: 1,
+                                  color: Colors.transparent,
+                                ),
+                                Container(
+                                  margin: const EdgeInsets.only(left: 40),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        entry.key,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.onPrimary,
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Container(
+                                          margin: const EdgeInsets.only(
+                                            left: 10,
+                                            right: 40,
+                                          ),
+                                          height: 5,
+                                          decoration: BoxDecoration(
+                                            color: Colors.transparent,
+                                            border: Border(
+                                              bottom: BorderSide(
+                                                color:
+                                                    Theme.of(
+                                                      context,
+                                                    ).colorScheme.onPrimary,
+                                                width: 0.75,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                buildContactTiles(entry.value),
+                              ];
+                            } else {
+                              return <Widget>[];
+                            }
+                          })(),
+                      ] else ...[
                         // Search view - flat list without sections
                         ...(() {
                           List<Contact> allFilteredContacts = [];
-                          
+
                           // Filter starred contacts by search query
-                          final filteredStarredContacts = starred
-                              .where(
-                                (contact) => contact.name
-                                    .toLowerCase()
-                                    .contains(searchQuery.toLowerCase()) ||
-                                    contact.phoneNumber
-                                    .toLowerCase()
-                                    .contains(searchQuery.toLowerCase()),
-                              )
-                              .toList();
-                          
+                          final filteredStarredContacts =
+                              starred
+                                  .where(
+                                    (contact) =>
+                                        contact.name.toLowerCase().contains(
+                                          searchQuery.toLowerCase(),
+                                        ) ||
+                                        contact.phoneNumber
+                                            .toLowerCase()
+                                            .contains(
+                                              searchQuery.toLowerCase(),
+                                            ),
+                                  )
+                                  .toList();
+
                           // Filter all other contacts by search query
-                          final filteredRegularContacts = contacts
-                              .where((contact) => 
-                                  contact.starred == 0 && 
-                                  (contact.name
-                                      .toLowerCase()
-                                      .contains(searchQuery.toLowerCase()) ||
-                                  contact.phoneNumber
-                                      .toLowerCase()
-                                      .contains(searchQuery.toLowerCase()))
-                              )
-                              .toList();
-                          
+                          final filteredRegularContacts =
+                              contacts
+                                  .where(
+                                    (contact) =>
+                                        contact.starred == 0 &&
+                                        (contact.name.toLowerCase().contains(
+                                              searchQuery.toLowerCase(),
+                                            ) ||
+                                            contact.phoneNumber
+                                                .toLowerCase()
+                                                .contains(
+                                                  searchQuery.toLowerCase(),
+                                                )),
+                                  )
+                                  .toList();
+
                           // Combine all filtered contacts
                           allFilteredContacts.addAll(filteredStarredContacts);
                           allFilteredContacts.addAll(filteredRegularContacts);
-                          
+
                           // Sort all contacts: starts with query first, then contains query
                           allFilteredContacts.sort((a, b) {
-                            final aNameStartsWith = a.name.toLowerCase().startsWith(
-                              searchQuery.toLowerCase(),
-                            );
-                            final bNameStartsWith = b.name.toLowerCase().startsWith(
-                              searchQuery.toLowerCase(),
-                            );
-                            final aPhoneStartsWith = a.phoneNumber.toLowerCase().startsWith(
-                              searchQuery.toLowerCase(),
-                            );
-                            final bPhoneStartsWith = b.phoneNumber.toLowerCase().startsWith(
-                              searchQuery.toLowerCase(),
-                            );
-                            
-                            final aStartsWith = aNameStartsWith || aPhoneStartsWith;
-                            final bStartsWith = bNameStartsWith || bPhoneStartsWith;
-                            
+                            final aNameStartsWith = a.name
+                                .toLowerCase()
+                                .startsWith(searchQuery.toLowerCase());
+                            final bNameStartsWith = b.name
+                                .toLowerCase()
+                                .startsWith(searchQuery.toLowerCase());
+                            final aPhoneStartsWith = a.phoneNumber
+                                .toLowerCase()
+                                .startsWith(searchQuery.toLowerCase());
+                            final bPhoneStartsWith = b.phoneNumber
+                                .toLowerCase()
+                                .startsWith(searchQuery.toLowerCase());
+
+                            final aStartsWith =
+                                aNameStartsWith || aPhoneStartsWith;
+                            final bStartsWith =
+                                bNameStartsWith || bPhoneStartsWith;
+
                             if (aStartsWith && !bStartsWith) return -1;
                             if (!aStartsWith && bStartsWith) return 1;
-                            
+
                             // If both start with query, prioritize name matches over phone matches
                             if (aStartsWith && bStartsWith) {
-                              if (aNameStartsWith && !bNameStartsWith) return -1;
+                              if (aNameStartsWith && !bNameStartsWith) {
+                                return -1;
+                              }
                               if (!aNameStartsWith && bNameStartsWith) return 1;
                             }
-                            
+
                             // Finally sort by name
                             return a.name.compareTo(b.name);
                           });
-                          
+
                           if (allFilteredContacts.isNotEmpty) {
                             return [buildContactTiles(allFilteredContacts)];
                           } else {
@@ -1493,7 +1679,10 @@ class _ContactsState extends State<Contacts> {
                                   child: Text(
                                     'No contacts found',
                                     style: TextStyle(
-                                      color: Theme.of(context).colorScheme.tertiary,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.tertiary,
                                       fontSize: 16,
                                     ),
                                   ),
@@ -1583,15 +1772,71 @@ class _ContactDetailsState extends State<ContactDetails> {
     onError();
   }
 
+  void openEmail(String email, VoidCallback onError) async {
+    try {
+      // First try standard mailto
+      final Uri mailtoUri = Uri.parse('mailto:$email');
+      print('Trying to launch email with URI: $mailtoUri');
+
+      if (await canLaunchUrl(mailtoUri)) {
+        await launchUrl(mailtoUri, mode: LaunchMode.externalApplication);
+        print('Email app launched successfully with mailto');
+        return;
+      }
+
+      // Try with query parameters for better compatibility
+      final Uri mailtoQueryUri = Uri(scheme: 'mailto', path: email);
+      print('Trying to launch email with path URI: $mailtoQueryUri');
+
+      if (await canLaunchUrl(mailtoQueryUri)) {
+        await launchUrl(mailtoQueryUri, mode: LaunchMode.externalApplication);
+        print('Email app launched successfully with path');
+        return;
+      }
+
+      // Try different launch modes for better emulator compatibility
+      try {
+        await launchUrl(mailtoUri, mode: LaunchMode.platformDefault);
+        print('Email launched with platform default mode');
+        return;
+      } catch (platformError) {
+        print('Platform default launch failed: $platformError');
+      }
+
+      // Try Gmail web interface as fallback
+      final Uri gmailWebUri = Uri.parse(
+        'https://mail.google.com/mail/?view=cm&to=$email',
+      );
+      print('Trying to launch Gmail web interface: $gmailWebUri');
+
+      if (await canLaunchUrl(gmailWebUri)) {
+        await launchUrl(gmailWebUri, mode: LaunchMode.externalApplication);
+        print('Gmail web interface launched successfully');
+        return;
+      }
+
+      print(
+        'All email launch methods failed - likely no email apps or browser installed (common on emulators)',
+      );
+      onError();
+    } catch (e) {
+      print('Error launching email: $e');
+      onError();
+    }
+  }
+
   Widget divLine(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.symmetric(vertical: 8),
-      height: 3,
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            width: 0.75,
-            color: Theme.of(context).colorScheme.onPrimary,
+    return Center(
+      child: Container(
+        margin: EdgeInsets.symmetric(vertical: 8),
+        width: MediaQuery.of(context).size.width * 0.8,
+        height: 3,
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              width: 0.75,
+              color: Theme.of(context).colorScheme.onPrimary,
+            ),
           ),
         ),
       ),
@@ -1622,26 +1867,110 @@ class _ContactDetailsState extends State<ContactDetails> {
 
   bool starred = false;
   bool editingContact = false;
+  bool editingNotes = false; // Add notes editing state
   final TextEditingController nameController = TextEditingController();
   final TextEditingController organizationController = TextEditingController();
   final TextEditingController positionController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
+  final TextEditingController emailController =
+      TextEditingController(); // Add email controller
+  final TextEditingController notesController =
+      TextEditingController(); // Add notes controller
   late Contact localContact;
 
+  // Project-related variables
+  List<Project> ongoingProjects = [];
+  List<Project> completedProjects = [];
+  bool loadingProjects = false;
   // Get current user's ID for MongoDB operations
   String get userId => UserSession().userId ?? '';
+
+  // Load projects where this contact is a collaborator
+  Future<void> loadContactProjects() async {
+    if (userId.isEmpty) {
+      print("No user ID available. Cannot load projects.");
+      return;
+    }
+
+    setState(() {
+      loadingProjects = true;
+    });
+
+    try {
+      // Fetch all projects using ProjectsAdapter
+      List<Map<String, dynamic>> fetchedProjects =
+          await ProjectsAdapter.getProjects();
+
+      // Convert to Project objects
+      List<Project> allProjects =
+          fetchedProjects.map((doc) => Project.fromMongo(doc)).toList();
+
+      // Filter projects where this contact's phone number is in collaborators
+      List<Project> contactProjects =
+          allProjects.where((project) {
+            return project.collaborators.contains(localContact.phoneNumber);
+          }).toList();
+
+      // Separate ongoing and completed projects
+      ongoingProjects =
+          contactProjects.where((p) => p.isCompleted != true).toList();
+      completedProjects =
+          contactProjects.where((p) => p.isCompleted == true).toList();
+
+      // Sort ongoing projects by creation date (most recent first)
+      ongoingProjects.sort((a, b) {
+        if (a.createdAt == null && b.createdAt == null) return 0;
+        if (a.createdAt == null) return 1;
+        if (b.createdAt == null) return -1;
+        return b.createdAt!.compareTo(a.createdAt!);
+      });
+
+      // Sort completed projects by completion date (most recent first)
+      completedProjects.sort((a, b) {
+        if (a.completedAt == null && b.completedAt == null) {
+          // Fall back to creation date if no completion date
+          if (a.createdAt == null && b.createdAt == null) return 0;
+          if (a.createdAt == null) return 1;
+          if (b.createdAt == null) return -1;
+          return b.createdAt!.compareTo(a.createdAt!);
+        }
+        if (a.completedAt == null) return 1;
+        if (b.completedAt == null) return -1;
+        return b.completedAt!.compareTo(a.completedAt!);
+      });
+
+      print(
+        "Loaded ${ongoingProjects.length} ongoing and ${completedProjects.length} completed projects for contact ${localContact.name}",
+      );
+    } catch (e) {
+      print("Error loading projects for contact: $e");
+      ongoingProjects = [];
+      completedProjects = [];
+    } finally {
+      if (mounted) {
+        setState(() {
+          loadingProjects = false;
+        });
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     // Create a local copy of the contact
     localContact = widget.contact.copyWith();
-
     nameController.text = localContact.name;
     organizationController.text = localContact.organization;
     positionController.text = localContact.position;
     phoneController.text = localContact.phoneNumber;
+    emailController.text = localContact.email; // Initialize email field
+    notesController.text = localContact.notes; // Initialize notes field
 
     starred = localContact.starred == 1;
+
+    // Load projects for this contact
+    loadContactProjects();
   }
 
   @override
@@ -1650,7 +1979,347 @@ class _ContactDetailsState extends State<ContactDetails> {
     organizationController.dispose();
     positionController.dispose();
     phoneController.dispose();
+    emailController.dispose(); // Dispose email controller
+    notesController.dispose(); // Dispose notes controller
     super.dispose();
+  } // Navigate to project details
+
+  void navigateToProject(Project project) {
+    // Navigate to the Projects tab with the specific project to open
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder:
+            (context) => Tabs(
+              currentIndex: 2, // Index for Projects tab
+              tabs: const ['Tasks', 'Contacts', 'Projects', 'Events'],
+              initialProject: project, // Pass the project to open
+            ),
+      ),
+    );
+  }
+
+  // Show edit contact dialog
+  void _showEditContactDialog() {
+    final nameController = TextEditingController(text: localContact.name);
+    final organizationController = TextEditingController(
+      text: localContact.organization,
+    );
+    final positionController = TextEditingController(
+      text: localContact.position,
+    );
+    final phoneController = TextEditingController(
+      text: localContact.phoneNumber,
+    );
+    final emailController = TextEditingController(text: localContact.email);
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onPrimary.withValues(alpha: 0.3),
+                width: 1,
+              ),
+            ),
+            title: Text(
+              'Edit Contact',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimary,
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            content: SizedBox(
+              width: MediaQuery.of(context).size.width * 0.85,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildDialogTextField(
+                      controller: nameController,
+                      label: 'Name',
+                      hint: 'Enter contact name',
+                    ),
+                    SizedBox(height: 16),
+                    _buildDialogTextField(
+                      controller: phoneController,
+                      label: 'Phone Number',
+                      hint: 'Enter phone number',
+                      keyboardType: TextInputType.phone,
+                    ),
+                    SizedBox(height: 16),
+                    _buildDialogTextField(
+                      controller: positionController,
+                      label: 'Position',
+                      hint: 'Enter position',
+                    ),
+                    SizedBox(height: 16),
+                    _buildDialogTextField(
+                      controller: organizationController,
+                      label: 'Organization',
+                      hint: 'Enter organization',
+                    ),
+                    SizedBox(height: 16),
+                    _buildDialogTextField(
+                      controller: emailController,
+                      label: 'Email (Optional)',
+                      hint: 'Enter email address',
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.tertiary,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed:
+                    () => _saveEditedContact(
+                      name: nameController.text,
+                      phoneNumber: phoneController.text,
+                      position: positionController.text,
+                      organization: organizationController.text,
+                      email: emailController.text,
+                    ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.secondary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                ),
+                child: Text('Update', style: TextStyle(fontFamily: 'Poppins')),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Widget _buildDialogTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    TextInputType? keyboardType,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.onPrimary,
+        fontFamily: 'Poppins',
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        labelStyle: TextStyle(
+          color: Theme.of(context).colorScheme.tertiary,
+          fontFamily: 'Poppins',
+        ),
+        hintStyle: TextStyle(
+          color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.7),
+          fontFamily: 'Poppins',
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(
+              context,
+            ).colorScheme.tertiary.withValues(alpha: 0.3),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.secondary,
+            width: 2,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _saveEditedContact({
+    required String name,
+    required String phoneNumber,
+    required String position,
+    required String organization,
+    required String email,
+  }) async {
+    if (name.trim().isEmpty ||
+        phoneNumber.trim().isEmpty ||
+        position.trim().isEmpty ||
+        organization.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Name, phone, position, and organization are required'),
+        ),
+      );
+      return;
+    }
+
+    if (userId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please log in to update contacts')),
+      );
+      return;
+    }
+
+    Navigator.pop(context);
+
+    // Store original contact for potential rollback
+    final originalContact = localContact.copyWith();
+
+    // Use optimistic updates for contact editing
+    await OptimisticUpdates.perform(
+      updateLocalState: () {
+        setState(() {
+          localContact = localContact.copyWith(
+            name: name.trim(),
+            organization: organization.trim(),
+            phoneNumber: phoneNumber.trim(),
+            position: position.trim(),
+            email: email.trim(),
+          );
+        });
+      },
+      databaseOperation: () async {
+        return await ContactsAdapter.updateContact({
+          '_id': localContact.id,
+          'name': name.trim(),
+          'organization': organization.trim(),
+          'phoneNumber': phoneNumber.trim(),
+          'position': position.trim(),
+          'email': email.trim(),
+          'notes': localContact.notes,
+          'starred': localContact.starred,
+          'type': 'contact',
+        });
+      },
+      revertLocalState: () {
+        setState(() {
+          localContact = originalContact;
+        });
+      },
+      showSuccessMessage: 'Contact updated successfully!',
+      showErrorMessage: 'Failed to update contact',
+      context: context,
+      onSuccess: () {
+        widget.onUpdate(localContact);
+      },
+    );
+  }
+
+  // Build project list widget
+  Widget buildProjectList(List<Project> projects, String sectionTitle) {
+    if (projects.isEmpty) {
+      return Container();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Text(
+            sectionTitle,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+              color:
+                  Theme.of(context)
+                      .colorScheme
+                      .tertiary, // Use tertiary color to differentiate from main title
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+        ...projects.map(
+          (project) => Container(
+            margin: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: InkWell(
+              onTap: () => navigateToProject(project),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onPrimary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onPrimary.withValues(alpha: 0.2),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      project.isCompleted == true
+                          ? Icons.check_circle
+                          : Icons.circle_outlined,
+                      color:
+                          project.isCompleted == true
+                              ? Theme.of(context).colorScheme.tertiary
+                              : Theme.of(context).colorScheme.onSecondary,
+                      size: 20,
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            project.title,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 14,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (project.description.isNotEmpty) ...[
+                            SizedBox(height: 4),
+                            Text(
+                              project.description,
+                              style: TextStyle(
+                                color:
+                                    Theme.of(context).colorScheme.onSecondary,
+                                fontSize: 12,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      color: Theme.of(context).colorScheme.onSecondary,
+                      size: 16,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -1691,6 +2360,16 @@ class _ContactDetailsState extends State<ContactDetails> {
                               fontSize: 16,
                             ),
                           ),
+                          if (localContact.email.isNotEmpty)
+                            Text(
+                              localContact.email,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color:
+                                    Theme.of(context).colorScheme.onSecondary,
+                                fontSize: 16,
+                              ),
+                            ),
                           Text(
                             "${localContact.position}, ${localContact.organization}",
                             textAlign: TextAlign.center,
@@ -1702,8 +2381,7 @@ class _ContactDetailsState extends State<ContactDetails> {
                         ],
                       ),
                     ),
-                  ] 
-                  else ...[
+                  ] else ...[
                     Container(
                       margin: EdgeInsets.only(bottom: 10),
                       child: Row(
@@ -1720,6 +2398,8 @@ class _ContactDetailsState extends State<ContactDetails> {
                                   localContact.organization;
                               positionController.text = localContact.position;
                               phoneController.text = localContact.phoneNumber;
+                              emailController.text =
+                                  localContact.email; // Add email field reset
                             },
                             icon: Icon(
                               Icons.close,
@@ -1775,6 +2455,32 @@ class _ContactDetailsState extends State<ContactDetails> {
                                   organizationController,
                                   "Organization",
                                 ),
+                                SizedBox(
+                                  child: TextField(
+                                    controller: emailController,
+                                    keyboardType: TextInputType.emailAddress,
+                                    cursorColor:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                    style: TextStyle(
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                      fontSize: 14,
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText: 'Email (Optional)',
+                                      labelText: 'Email',
+                                      hintStyle: TextStyle(
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onSecondary,
+                                      ),
+                                      border: const UnderlineInputBorder(),
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -1828,6 +2534,12 @@ class _ContactDetailsState extends State<ContactDetails> {
                                           organizationController.text.trim(),
                                       phoneNumber: phoneController.text.trim(),
                                       position: positionController.text.trim(),
+                                      email:
+                                          emailController.text
+                                              .trim(), // Add email field
+                                      notes:
+                                          localContact
+                                              .notes, // Keep existing notes
                                       starred: starred ? 1 : 0,
                                     );
                                     editingContact = false;
@@ -1842,6 +2554,12 @@ class _ContactDetailsState extends State<ContactDetails> {
                                         organizationController.text.trim(),
                                     'phoneNumber': phoneController.text.trim(),
                                     'position': positionController.text.trim(),
+                                    'email':
+                                        emailController.text
+                                            .trim(), // Add email field
+                                    'notes':
+                                        localContact
+                                            .notes, // Keep existing notes
                                     'starred': starred ? 1 : 0,
                                     'type': 'contact',
                                   });
@@ -1870,77 +2588,359 @@ class _ContactDetailsState extends State<ContactDetails> {
                     ),
                   ],
                   divLine(context),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      IconButton(
-                        onPressed: () {
-                          callNumber(localContact.phoneNumber, () {
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text("Couldn't open the contact"),
-                              ),
-                            );
-                          });
-                        },
-                        icon: Icon(
-                          Icons.phone_in_talk_outlined,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
+                  Center(
+                    child: SizedBox(
+                      width: MediaQuery.of(context).size.width * 0.8,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          IconButton(
+                            onPressed: () {
+                              callNumber(localContact.phoneNumber, () {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text("Couldn't open the contact"),
+                                  ),
+                                );
+                              });
+                            },
+                            icon: Icon(
+                              Icons.phone_in_talk_outlined,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              openWhatsApp(localContact.phoneNumber, () {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text("Could not launch WhatsApp"),
+                                  ),
+                                );
+                              });
+                            },
+                            icon: Icon(
+                              FontAwesomeIcons.whatsapp,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              if (localContact.email.isEmpty) {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      "No email address stored for this contact",
+                                    ),
+                                    backgroundColor:
+                                        Theme.of(context).colorScheme.error,
+                                  ),
+                                );
+                                return;
+                              }
+                              openEmail(localContact.email, () {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      "Could not launch email app. This may be due to no email apps being installed (common on emulators). Email functionality works on real devices with email apps installed.",
+                                    ),
+                                    duration: Duration(seconds: 4),
+                                    backgroundColor:
+                                        Theme.of(context).colorScheme.error,
+                                  ),
+                                );
+                              });
+                            },
+                            icon: Icon(
+                              Icons.email_outlined,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        onPressed: () {
-                          openWhatsApp(localContact.phoneNumber, () {
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text("Could not launch WhatsApp"),
-                              ),
-                            );
-                          });
-                        },
-                        icon: Icon(
-                          FontAwesomeIcons.whatsapp,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                   divLine(context),
                   ListTile(
-                    // Redo for final
-                    title: Text(
-                      "Projects",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                      ),
+                    // Notes
+                    title: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Notes",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                        ),
+                        if (editingNotes) ...[
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  Icons.close,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    notesController.text = localContact.notes;
+                                    editingNotes = false;
+                                  });
+                                },
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.check,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                ),
+                                onPressed: () async {
+                                  if (userId.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Please log in to update notes',
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  try {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Please wait. Updating notes...',
+                                        ),
+                                        duration: Duration(seconds: 1),
+                                        showCloseIcon: true,
+                                      ),
+                                    );
+
+                                    final updatedNotes =
+                                        notesController.text.trim();
+                                    final updatedContact = localContact
+                                        .copyWith(notes: updatedNotes);
+
+                                    // Update in database using ContactsAdapter
+                                    bool success =
+                                        await ContactsAdapter.updateContact({
+                                          '_id': localContact.id,
+                                          'name': localContact.name,
+                                          'organization':
+                                              localContact.organization,
+                                          'phoneNumber':
+                                              localContact.phoneNumber,
+                                          'position': localContact.position,
+                                          'email': localContact.email,
+                                          'notes': updatedNotes,
+                                          'starred': localContact.starred,
+                                          'type': 'contact',
+                                        });
+
+                                    if (success) {
+                                      setState(() {
+                                        localContact = updatedContact;
+                                        editingNotes = false;
+                                      });
+                                      widget.onUpdate(localContact);
+
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Notes updated successfully',
+                                            ),
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
+                                    } else {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Failed to update notes',
+                                            ),
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  } catch (e) {
+                                    print("Error updating contact notes: $e");
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Error updating notes: $e',
+                                          ),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ] else ...[
+                          IconButton(
+                            icon: Icon(
+                              Icons.edit,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                editingNotes = true;
+                              });
+                            },
+                          ),
+                        ],
+                      ],
                     ),
-                    subtitle: Text(
-                      "No current projects with this contact",
+                    subtitle: TextField(
+                      controller: notesController,
+                      maxLines: 5,
+                      minLines: 1,
+                      readOnly: !editingNotes,
                       style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSecondary,
+                        color:
+                            editingNotes
+                                ? Theme.of(context).colorScheme.onPrimary
+                                : Theme.of(
+                                  context,
+                                ).colorScheme.onPrimary.withValues(alpha: 0.85),
+                      ),
+                      decoration: InputDecoration(
+                        hintText: "Add notes about this contact...",
+                        hintStyle: TextStyle(
+                          color: Theme.of(context).colorScheme.onSecondary,
+                        ),
+                        border:
+                            editingNotes
+                                ? OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                  borderSide: BorderSide(
+                                    color:
+                                        Theme.of(
+                                          context,
+                                        ).colorScheme.onSecondary,
+                                    width: 1.2,
+                                  ),
+                                )
+                                : InputBorder.none,
+                        enabledBorder:
+                            editingNotes
+                                ? OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                  borderSide: BorderSide(
+                                    color:
+                                        Theme.of(
+                                          context,
+                                        ).colorScheme.onSecondary,
+                                    width: 1.2,
+                                  ),
+                                )
+                                : InputBorder.none,
+                        focusedBorder:
+                            editingNotes
+                                ? OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                  borderSide: BorderSide(
+                                    color:
+                                        Theme.of(
+                                          context,
+                                        ).colorScheme.onSecondary,
+                                    width: 1.2,
+                                  ),
+                                )
+                                : InputBorder.none,
                       ),
                     ),
                   ),
                   divLine(context),
-                  ListTile(
-                    // Redo for final
-                    title: Text(
-                      "Notes",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.onPrimary,
+                  // Dynamic Projects Section
+                  if (loadingProjects) ...[
+                    ListTile(
+                      title: Text(
+                        "Projects",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
+                      subtitle: Row(
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Theme.of(context).colorScheme.tertiary,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            "Loading projects...",
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    subtitle: Text(
-                      "Store some details regarding this contact",
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSecondary,
+                  ] else if (ongoingProjects.isEmpty &&
+                      completedProjects.isEmpty) ...[
+                    ListTile(
+                      title: Text(
+                        "Projects",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
+                      subtitle: Text(
+                        "No current projects with this contact",
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSecondary,
+                        ),
                       ),
                     ),
-                  ),
+                  ] else ...[
+                    // Show projects header
+                    Padding(
+                      padding: EdgeInsets.only(
+                        left: 16,
+                        right: 16,
+                        top: 16,
+                        bottom: 8,
+                      ),
+                      child: Text(
+                        "Projects",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
+                    ),
+                    // Show ongoing projects
+                    buildProjectList(ongoingProjects, "Ongoing Projects"),
+                    // Show completed projects
+                    buildProjectList(completedProjects, "Completed Projects"),
+                  ],
                 ],
               ),
             ),
@@ -1994,12 +2994,10 @@ class _ContactDetailsState extends State<ContactDetails> {
                 children: [
                   IconButton(
                     onPressed: () {
-                      setState(() {
-                        editingContact = true;
-                      });
+                      _showEditContactDialog();
                     },
                     icon: Icon(
-                      editingContact ? Icons.edit : Icons.edit_outlined,
+                      Icons.edit_outlined,
                       color: Theme.of(context).colorScheme.onPrimary,
                       size: 30,
                     ),

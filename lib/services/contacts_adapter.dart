@@ -101,11 +101,19 @@ class ContactsAdapter {
 
   // Delete a contact
   static Future<bool> deleteContact(dynamic contactId) async {
+    print("🟡 DEBUG ContactsAdapter.deleteContact: Starting with ID: $contactId (Type: ${contactId.runtimeType})");
+    
     final userId = UserSession().userId;
-    if (userId == null) return false;
+    if (userId == null) {
+      print("🟡 DEBUG ContactsAdapter.deleteContact: No userId available");
+      return false;
+    }
+    
+    print("🟡 DEBUG ContactsAdapter.deleteContact: userId = $userId, useNodeJsApi = $useNodeJsApi");
 
     if (useNodeJsApi) {
       try {
+        print("🟡 DEBUG ContactsAdapter.deleteContact: Trying Node.js API first");
         // Try Node.js API first
         final response = await NodeJsApi.delete(
           '/api/contacts/${contactId.toString()}',
@@ -116,13 +124,16 @@ class ContactsAdapter {
           return true;
         }
       } catch (e) {
-        print('Error deleting contact via Node.js API: $e');
+        print('🟡 DEBUG ContactsAdapter.deleteContact: Error deleting contact via Node.js API: $e');
         // Continue to MongoDB fallback
       }
     }
 
     // Fallback to MongoDB
-    return await MongoDatabase.deleteData(contactId, userId: userId);
+    print("🟡 DEBUG ContactsAdapter.deleteContact: Falling back to MongoDB");
+    final result = await MongoDatabase.deleteData(contactId, userId: userId);
+    print("🟡 DEBUG ContactsAdapter.deleteContact: MongoDB result: $result");
+    return result;
   }
 
   // Toggle star status for a contact

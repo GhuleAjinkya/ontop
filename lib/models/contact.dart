@@ -7,6 +7,8 @@ class Contact {
   final String organization;
   final String position;
   final String phoneNumber;
+  final String email;
+  final String notes;
   int starred;
 
   Contact({
@@ -16,6 +18,8 @@ class Contact {
     required this.phoneNumber,
     required this.position,
     required this.starred,
+    this.email = '',
+    this.notes = '',
   });
 }
 
@@ -25,6 +29,8 @@ class ApiContact {
   final String phoneNumber;
   final String position;
   final String organization;
+  final String email;
+  final String notes;
   final String type; // Always "contact"
   final bool starred;
   final DateTime? createdAt;
@@ -35,11 +41,12 @@ class ApiContact {
     required this.phoneNumber,
     required this.position,
     required this.organization,
+    this.email = '',
+    this.notes = '',
     this.type = 'contact',
     this.starred = false,
     this.createdAt,
   });
-
   factory ApiContact.fromJson(Map<String, dynamic> json) {
     return ApiContact(
       id:
@@ -50,6 +57,8 @@ class ApiContact {
       phoneNumber: json['phoneNumber'] ?? '',
       position: json['position'] ?? '',
       organization: json['organization'] ?? '',
+      email: json['email'] ?? '',
+      notes: json['notes'] ?? '',
       type: json['type'] ?? 'contact',
       starred: json['starred'] == true || json['starred'] == 1,
       createdAt:
@@ -58,13 +67,14 @@ class ApiContact {
               : null,
     );
   }
-
   Map<String, dynamic> toJson() {
     return {
       'name': name,
       'phoneNumber': phoneNumber,
       'position': position,
       'organization': organization,
+      'email': email,
+      'notes': notes,
       'type': type,
       'starred': starred,
     };
@@ -77,10 +87,11 @@ class ApiContact {
       phoneNumber: contact.phoneNumber,
       position: contact.position,
       organization: contact.organization,
+      email: contact.email,
+      notes: contact.notes,
       starred: contact.starred == 1,
     );
   }
-
   // Convert to local Contact (with dummy id if none exists)
   Contact toContact() {
     return Contact(
@@ -89,6 +100,8 @@ class ApiContact {
       phoneNumber: phoneNumber,
       position: position,
       organization: organization,
+      email: email,
+      notes: notes,
       starred: starred ? 1 : 0,
     );
   }
