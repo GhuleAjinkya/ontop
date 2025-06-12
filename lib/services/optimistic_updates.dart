@@ -32,6 +32,7 @@ class OptimisticUpdates {
       // Step 3: Handle success
       if (onSuccess != null) {
         onSuccess();
+        print("Succesful optimistic update");
       }
 
       if (showSuccessMessage != null && context != null) {

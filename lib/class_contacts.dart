@@ -320,7 +320,14 @@ class _ContactsState extends State<Contacts> {
         setState(() {
           for (var contact in contactsToStar) {
             contact.starred = 1;
+            sections.forEach((key, list) {
+              list.removeWhere((c) => c.id.toString() == contact.id.toString());
+            });
+            if (!starred.any((c) => c.id.toString() == contact.id.toString())) {
+              starred.add(contact);
+            }
           }
+          starred.sort((a, b) => a.name.compareTo(b.name));
         });
       },
       databaseOperation: () async {
@@ -338,7 +345,19 @@ class _ContactsState extends State<Contacts> {
         setState(() {
           for (var contact in contactsToStar) {
             contact.starred = 0;
+            starred.remove(contact);
+            if (contact.name.isNotEmpty) {
+              String firstLetter = contact.name[0].toUpperCase();
+              if (sections.containsKey(firstLetter)) {
+                sections[firstLetter]!.add(contact);
+              }
+            }
           }
+          sections.forEach((key, list) {
+            if (list.isNotEmpty) {
+              list.sort((a, b) => a.name.compareTo(b.name));
+            }
+          });
         });
       },
       showSuccessMessage: 'Contacts starred successfully!',
@@ -371,7 +390,21 @@ class _ContactsState extends State<Contacts> {
       updateLocalState: () {
         setState(() {
           for (var contact in contactsToUnstar) {
+            // Update starred status
             contact.starred = 0;
+            
+            // Remove from starred list
+            starred.remove(contact);
+            
+            // Add to appropriate section
+            if (contact.name.isNotEmpty) {
+              String firstLetter = contact.name[0].toUpperCase();
+              if (sections.containsKey(firstLetter)) {
+                sections[firstLetter]!.add(contact);
+                // Sort the section
+                sections[firstLetter]!.sort((a, b) => a.name.compareTo(b.name));
+              }
+            }
           }
         });
       },
@@ -389,8 +422,22 @@ class _ContactsState extends State<Contacts> {
       revertLocalState: () {
         setState(() {
           for (var contact in contactsToUnstar) {
+            // Revert starred status back to 1
             contact.starred = 1;
+            
+            // Remove from sections if present
+            sections.forEach((key, list) {
+              list.removeWhere((c) => c.id.toString() == contact.id.toString());
+            });
+            
+            // Add back to starred list if not present
+            if (!starred.any((c) => c.id.toString() == contact.id.toString())) {
+              starred.add(contact);
+            }
           }
+          
+          // Sort starred list
+          starred.sort((a, b) => a.name.compareTo(b.name));
         });
       },
       showSuccessMessage: 'Contacts unstarred successfully!',
@@ -417,15 +464,29 @@ class _ContactsState extends State<Contacts> {
               (c) => selectedIDs.any((id) => id.toString() == c.id.toString()),
             )
             .toList();
+    
 
     // Use optimistic updates for bulk deletion
     await OptimisticUpdates.perform(
       updateLocalState: () {
         setState(() {
-          // Remove contacts from the list immediately
+          // Remove from main contacts list
           contacts.removeWhere(
-            (c) => selectedIDs.any((id) => id.toString() == c.id.toString()),
+            (c) => selectedIDs.any((id) => id.toString() == c.id.toString())
           );
+          
+          // Remove from sections
+          sections.forEach((key, list) {
+            list.removeWhere(
+              (c) => selectedIDs.any((id) => id.toString() == c.id.toString())
+            );
+          });
+          
+          // Remove from starred if present
+          starred.removeWhere(
+            (c) => selectedIDs.any((id) => id.toString() == c.id.toString())
+          );
+
           selectedIDs.clear();
         });
       },
@@ -439,9 +500,28 @@ class _ContactsState extends State<Contacts> {
       },
       revertLocalState: () {
         setState(() {
-          // Re-add the contacts if deletion failed
+          // Add back to main contacts list
           contacts.addAll(contactsToDelete);
-          selectedIDs.clear();
+          
+          // Add back to sections
+          for (var contact in contactsToDelete) {
+            if (contact.starred == 0 && contact.name.isNotEmpty) {
+              String firstLetter = contact.name[0].toUpperCase();
+              if (sections.containsKey(firstLetter)) {
+                sections[firstLetter]!.add(contact);
+              }
+            }
+          }
+          
+          // Add back to starred if they were starred
+          starred.addAll(
+            contactsToDelete.where((c) => c.starred == 1)
+          );
+
+          // Re-select the contacts
+          selectedIDs.addAll(
+            contactsToDelete.map((c) => c.id)
+          );
         });
       },
       showSuccessMessage: 'Contacts deleted successfully!',
@@ -1424,211 +1504,6 @@ class _ContactsState extends State<Contacts> {
                         })(),
                       ],
                     ],
-                   /* if (fetchingContacts && starred.isEmpty && sections.entries.every((c) => c.value.isEmpty)) ...[
-                      Container( // Fetching Contacts widget
-                        margin: EdgeInsets.only(top: 150),
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            spacing: 10,
-                            children: [
-                              CircularProgressIndicator(
-                                color: Theme.of(context).colorScheme.tertiary,
-                              ),
-                              Text(
-                                'Fetching Contacts...',
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onPrimary,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    ] else ...[
-                      if (searchQuery.isEmpty) ...[
-                      ...(() {
-                        if (starred.isNotEmpty) {
-                          return [ // Starred return widget
-                            Container(
-                              margin: const EdgeInsets.only(left: 40),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.star_rounded,
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                    size: 20,
-                                  ),
-                                  Expanded(
-                                    child: Container(
-                                      margin: const EdgeInsets.only(
-                                        left: 10,
-                                        right: 40,
-                                      ),
-                                      height: 5,
-                                      decoration: BoxDecoration(
-                                        color: Colors.transparent,
-                                        border: Border(
-                                          bottom: BorderSide(
-                                            color:
-                                                Theme.of(
-                                                  context,
-                                                ).colorScheme.onPrimary,
-                                            width: 0.75,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            buildContactTiles(starred, starred: true),
-                          ];
-                        }
-                        return <Widget>[];
-                      })(),
-                      // Show alphabetical sections
-                      for (var entry in sections.entries)
-                        ...(() {
-                          if (entry.value.isNotEmpty) {
-                            return [ // regular sections return widget
-                              const Divider(height: 1, color: Colors.transparent),
-                              Container(
-                                margin: const EdgeInsets.only(left: 40),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      entry.key,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.onPrimary,
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Container(
-                                        margin: const EdgeInsets.only(
-                                          left: 10,
-                                          right: 40,
-                                        ),
-                                        height: 5,
-                                        decoration: BoxDecoration(
-                                          color: Colors.transparent,
-                                          border: Border(
-                                            bottom: BorderSide(
-                                              color:
-                                                  Theme.of(
-                                                    context,
-                                                  ).colorScheme.onPrimary,
-                                              width: 0.75,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              buildContactTiles(entry.value),
-                            ];
-                          } else {
-                            return <Widget>[];
-                          }
-                        })(),
-                    ] else ...[
-                        // Search view - flat list without sections
-                        ...(() {
-                          List<Contact> allFilteredContacts = [];
-                          
-                          // Filter starred contacts by search query
-                          final filteredStarredContacts = starred
-                              .where(
-                                (contact) => contact.name
-                                    .toLowerCase()
-                                    .contains(searchQuery.toLowerCase()) ||
-                                    contact.phoneNumber
-                                    .toLowerCase()
-                                    .contains(searchQuery.toLowerCase()),
-                              )
-                              .toList();
-                          
-                          // Filter all other contacts by search query
-                          final filteredRegularContacts = contacts
-                              .where((contact) => 
-                                  contact.starred == 0 && 
-                                  (contact.name
-                                      .toLowerCase()
-                                      .contains(searchQuery.toLowerCase()) ||
-                                  contact.phoneNumber
-                                      .toLowerCase()
-                                      .contains(searchQuery.toLowerCase()))
-                              )
-                              .toList();
-                          
-                          // Combine all filtered contacts
-                          allFilteredContacts.addAll(filteredStarredContacts);
-                          allFilteredContacts.addAll(filteredRegularContacts);
-                          
-                          // Sort all contacts: starts with query first, then contains query
-                          allFilteredContacts.sort((a, b) {
-                            final aNameStartsWith = a.name.toLowerCase().startsWith(
-                              searchQuery.toLowerCase(),
-                            );
-                            final bNameStartsWith = b.name.toLowerCase().startsWith(
-                              searchQuery.toLowerCase(),
-                            );
-                            final aPhoneStartsWith = a.phoneNumber.toLowerCase().startsWith(
-                              searchQuery.toLowerCase(),
-                            );
-                            final bPhoneStartsWith = b.phoneNumber.toLowerCase().startsWith(
-                              searchQuery.toLowerCase(),
-                            );
-                            
-                            final aStartsWith = aNameStartsWith || aPhoneStartsWith;
-                            final bStartsWith = bNameStartsWith || bPhoneStartsWith;
-                            
-                            if (aStartsWith && !bStartsWith) return -1;
-                            if (!aStartsWith && bStartsWith) return 1;
-                            
-                            // If both start with query, prioritize name matches over phone matches
-                            if (aStartsWith && bStartsWith) {
-                              if (aNameStartsWith && !bNameStartsWith) return -1;
-                              if (!aNameStartsWith && bNameStartsWith) return 1;
-                            }
-                            
-                            // Finally sort by name
-                            return a.name.compareTo(b.name);
-                          });
-                          
-                          if (allFilteredContacts.isNotEmpty) {
-                            return [buildContactTiles(allFilteredContacts)];
-                          } else {
-                            return [
-                              Container(
-                                margin: EdgeInsets.only(top: 50),
-                                child: Center(
-                                  child: Text(
-                                    'No contacts found',
-                                    style: TextStyle(
-                                      color: Theme.of(context).colorScheme.tertiary,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ];
-                          }
-                        })(),
-                      ],
-                    ],*/
-                    
                   ],
                 ),
               ),
@@ -1956,6 +1831,7 @@ class _ContactDetailsState extends State<ContactDetails> {
                                       starred: starred ? 1 : 0,
                                     );
                                     editingContact = false;
+                                    widget.onUpdate(localContact);
                                   });
                                 },
                                 databaseOperation: () async {
@@ -1974,7 +1850,8 @@ class _ContactDetailsState extends State<ContactDetails> {
                                   setState(() {
                                     localContact = originalContact;
                                     editingContact = true;
-                                  });
+                                    widget.onUpdate(localContact);
+                                  }); 
                                 },
                                 showSuccessMessage:
                                     'Contact updated successfully!',
@@ -2144,6 +2021,7 @@ class _ContactDetailsState extends State<ContactDetails> {
                             localContact = localContact.copyWith(
                               starred: starred ? 1 : 0,
                             );
+                            widget.onUpdate(localContact);
                           });
                         },
                         databaseOperation: () async {
@@ -2158,10 +2036,10 @@ class _ContactDetailsState extends State<ContactDetails> {
                             localContact = localContact.copyWith(
                               starred: starred ? 1 : 0,
                             );
+                            widget.onUpdate(localContact);
                           });
                         },
-                        showSuccessMessage:
-                            starred ? 'Contact starred!' : 'Contact unstarred!',
+                        showSuccessMessage: !starred ? 'Contact starred!' : 'Contact unstarred!',
                         showErrorMessage: 'Failed to update star status',
                         context: context,
                       );

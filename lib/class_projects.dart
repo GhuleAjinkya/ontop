@@ -961,7 +961,7 @@ class _ProjectsState extends State<Projects> {
             final idx = projects.indexWhere((p) => p.id == updatedProject.id);
             if (idx != -1) {
               projects[idx] = updatedProject;
-              openedProject = updatedProject;
+              
             }
           });
         },
@@ -1992,7 +1992,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                 ),
                               ),
                             ],
-                            // Show only incomplete tasks
+                            
                             if (project.projectTasks.where((task) => !completedTasks.contains(task.id),).isEmpty) ...[
                               Container(
                                 margin: EdgeInsets.symmetric(vertical: 10),
@@ -2010,7 +2010,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                 ),
                               ),
                             ] else ...[
-                              // Show only incomplete tasks
+                              
                               ...project.projectTasks.where((task) => !completedTasks.contains(task.id)).map<Widget>((item) {
                                 return Row(
                                   children: [
@@ -2034,6 +2034,8 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                               .copyWith(
                                                 projectTasks:
                                                     project.projectTasks,
+                                                    completedTasks: completedTasks,
+                                                    completedTasksHistory: completedTasksHistory,
                                               );
                                           final projectData =
                                               updatedProject.toMap();
@@ -2050,7 +2052,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                               );
                                           if (success) {
                                             // Sync to Tasks tab
-                                            widget.onUpdate(project);    
+                                            widget.onUpdate(updatedProject);    
                                             await ProjectTasksSync.syncProjectToTasks(
                                               updatedProject,
                                             );
@@ -2451,10 +2453,8 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                             size: 18,
                                           ),
                                           onPressed: () async {
-                                            if (completedTasksHistory
-                                                .isNotEmpty) {
-                                              final taskToUndo =
-                                                  completedTasksHistory.last;
+                                            if (completedTasksHistory.isNotEmpty) {
+                                              final taskToUndo = completedTasksHistory.last;
 
                                               setState(() {
                                                 completedTasks.remove(
@@ -2471,6 +2471,8 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                     .copyWith(
                                                       projectTasks:
                                                           project.projectTasks,
+                                                          completedTasks: completedTasks,
+                                                          completedTasksHistory: completedTasksHistory,
                                                     );
                                                 final projectData =
                                                     updatedProject.toMap();
@@ -2510,9 +2512,8 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                   }
                                                 } else {
                                                   // Sync undo completion to Tasks tab
-                                                  await ProjectTasksSync.syncProjectToTasks(
-                                                    updatedProject,
-                                                  );
+                                                  await ProjectTasksSync.syncProjectToTasks(updatedProject);
+                                                  widget.onUpdate(updatedProject);
                                                   if (mounted) {
                                                     ScaffoldMessenger.of(
                                                       context,

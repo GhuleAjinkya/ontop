@@ -422,7 +422,7 @@ class TasksAdapter {
     final allTasks = await loadTasks();
     return allTasks.where((task) => task.sectionId == sectionId).toList();
   }
-
+//
   /// Get completed tasks for a specific section
   static Future<List<ToDoItem>> getCompletedTasksForSection(
     String sectionId,

@@ -13,6 +13,17 @@ class CallNotificationService {
   final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
   List<Contact> globalContacts = [];
 
+  Future<void> updateContacts() async {
+    print("Updating notification service contacts...");
+    try {
+      List<Map<String, dynamic>> fetchedContacts = await ContactsAdapter.getContacts();
+      globalContacts = fetchedContacts.map((doc) => Contact.fromMongo(doc)).toList();
+      print("Updated notification contacts: ${globalContacts.length} contacts loaded");
+    } catch (e) {
+      print("Error updating notification contacts: $e");
+    }
+  }
+
   Future<void> init() async {
     // Request permissions first
     await _requestPermissions();
@@ -82,54 +93,48 @@ class CallNotificationService {
   Future<void> showIncomingCallNotification(String? number) async {
     try {
       final normalizedNumber = number?.replaceFirst('+91', '').trim();
-      // Try to find contact, use default values if not found
-      final contact = globalContacts.firstWhere(
-        (c) => c.phoneNumber == normalizedNumber,
-        orElse: () => Contact(
-          id: '',
-          name: 'Unknown Caller',
-          phoneNumber: normalizedNumber ?? 'No Number',
-          organization: '',
-          position: '',
-          starred: 0,
-        ),
-      );
-
-      const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-        'call_channel',
-        'Incoming Calls',
-        channelDescription: 'Notification channel for incoming calls',
-        importance: Importance.max,
-        priority: Priority.high,
-        fullScreenIntent: false,
-        category: AndroidNotificationCategory.call,
-        ticker: 'Incoming call',
-        icon: '@mipmap/ic_launcher',
-        playSound: true,
-        enableVibration: true,
-        styleInformation: BigTextStyleInformation(''),
+      
+      // Check if number exists in globalContacts
+      final contactExists = globalContacts.any(
+        (c) => c.phoneNumber == normalizedNumber
       );
       
-      final NotificationDetails notificationDetails = 
-          NotificationDetails(android: androidDetails);
+      // Only proceed if contact exists
+      if (contactExists) {
+        final contact = globalContacts.firstWhere(
+          (c) => c.phoneNumber == normalizedNumber
+        );
 
-      final title = contact.name != 'Unknown Caller' 
-          ? '${contact.name} is calling you'
-          : 'Incoming Call: ${normalizedNumber ?? "Unknown Number"}';
+        const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+          'call_channel',
+          'Incoming Calls',
+          channelDescription: 'Notification channel for incoming calls',
+          importance: Importance.high,
+          priority: Priority.high,
+          fullScreenIntent: false,
+          category: AndroidNotificationCategory.call,
+          ticker: 'Incoming call',
+          icon: '@mipmap/ic_launcher',
+          playSound: true,
+          enableVibration: true,
+          styleInformation: BigTextStyleInformation(''),
+        );
+        
+        final NotificationDetails notificationDetails = 
+            NotificationDetails(android: androidDetails);
 
-      final body = contact.name != 'Unknown Caller'
-          ? 'Click to view contact details'
-          : 'Unknown caller';
+        await _notifications.show(
+          0,
+          '${contact.name} is calling you',
+          'Click to view contact details',
+          notificationDetails,
+          payload: contact.phoneNumber,
+        );
 
-      await _notifications.show(
-        0,
-        title,
-        body,
-        notificationDetails,
-        payload: contact.phoneNumber,
-      );
-
-      print("Notification sent for call from: ${contact.name}");
+        print("Notification sent for contact: ${contact.name}");
+      } else {
+        print("Number not in contacts, skipping notification: $normalizedNumber");
+      }
     } catch (e) {
       print("Error showing notification: $e");
     }

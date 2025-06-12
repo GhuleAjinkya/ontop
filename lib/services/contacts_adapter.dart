@@ -2,12 +2,13 @@ import 'dart:convert';
 import '../mongodb.dart';
 import '../user_session.dart';
 import 'node_js_api.dart';
+import '../call_notifications.dart';
 
 // Contacts adapter service that works with both Node.js API and direct MongoDB
 class ContactsAdapter {
   // Flag to enable/disable Node.js API (fallback to MongoDB if false or on error)
   static bool useNodeJsApi = true;
-
+  static final callService = CallNotificationService();
   // Get all contacts for the current user
   static Future<List<Map<String, dynamic>>> getContacts() async {
     final userId = UserSession().userId;
@@ -44,7 +45,11 @@ class ContactsAdapter {
       try {
         // Try Node.js API first
         final response = await NodeJsApi.post('/api/contacts', contactData);
-        if (response['success']) return true;
+        if (response['success']) {
+          await callService.updateContacts();
+          print("callService.updateContacts called");
+          return true;
+        }
       } catch (e) {
         print('Error adding contact via Node.js API: $e');
         // Continue to MongoDB fallback
@@ -75,7 +80,11 @@ class ContactsAdapter {
           '/api/contacts/$contactId',
           contactData,
         );
-        if (response['success']) return true;
+        if (response['success']) {
+          await callService.updateContacts();
+          print("callService.updateContacts called");
+          return true;
+        } 
       } catch (e) {
         print('Error updating contact via Node.js API: $e');
         // Continue to MongoDB fallback
@@ -101,7 +110,11 @@ class ContactsAdapter {
         final response = await NodeJsApi.delete(
           '/api/contacts/${contactId.toString()}',
         );
-        if (response['success']) return true;
+        if (response['success']) {
+          await callService.updateContacts();
+          print("callService.updateContacts called");
+          return true;
+        }
       } catch (e) {
         print('Error deleting contact via Node.js API: $e');
         // Continue to MongoDB fallback
@@ -160,7 +173,11 @@ class ContactsAdapter {
           '/api/contacts/import',
           importData,
         );
-        if (response['success']) return true;
+        if (response['success']) {
+          await callService.updateContacts();
+          print("callService.updateContacts called");
+          return true;
+        }
       } catch (e) {
         print('Error importing contacts via Node.js API: $e');
         // Continue to MongoDB fallback
