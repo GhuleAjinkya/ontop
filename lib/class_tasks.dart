@@ -184,18 +184,21 @@ class _TasksState extends State<Tasks> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildDialogTextField(
-                controller: sectionController,
-                label: 'Section Name',
-                hint: 'Enter section name',
-              ),
-            ],
-          ),
-        ),
+                  content: SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.85,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildDialogTextField(
+                            controller: sectionController,
+                            label: 'Section Name',
+                            hint: 'Enter section name',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -248,86 +251,89 @@ class _TasksState extends State<Tasks> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildDialogTextField(
-                  controller: taskController,
-                  label: 'Task Details',
-                  hint: 'Enter task details',
-                ),
-                SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton.icon(
-                        icon: Icon(
-                          Icons.calendar_today,
-                          size: 16,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                        label: Text(
-                          selectedDate != null
-                              ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
-                              : "Pick date",
-                          style: TextStyle(
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.85,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildDialogTextField(
+                    controller: taskController,
+                    label: 'Task Details',
+                    hint: 'Enter task details',
+                  ),
+                  SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton.icon(
+                          icon: Icon(
+                            Icons.calendar_today,
+                            size: 16,
                             color: Theme.of(context).colorScheme.onPrimary,
-                            fontSize: 12,
-                            fontFamily: 'Poppins',
                           ),
+                          label: Text(
+                            selectedDate != null
+                                ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
+                                : "Pick date",
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              fontSize: 12,
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                          onPressed: () async {
+                            final now = DateTime.now();
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: selectedDate ?? now,
+                              firstDate: now,
+                              lastDate: DateTime(now.year + 5),
+                            );
+                            if (picked != null) {
+                              setDialogState(() {
+                                selectedDate = picked;
+                              });
+                            }
+                          },
                         ),
-                        onPressed: () async {
-                          final now = DateTime.now();
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: selectedDate ?? now,
-                            firstDate: now,
-                            lastDate: DateTime(now.year + 5),
-                          );
-                          if (picked != null) {
-                            setDialogState(() {
-                              selectedDate = picked;
-                            });
-                          }
-                        },
                       ),
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: TextButton.icon(
-                        icon: Icon(
-                          Icons.access_time,
-                          size: 16,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                        label: Text(
-                          selectedTime != null
-                              ? "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}"
-                              : "Pick time",
-                          style: TextStyle(
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: TextButton.icon(
+                          icon: Icon(
+                            Icons.access_time,
+                            size: 16,
                             color: Theme.of(context).colorScheme.onPrimary,
-                            fontSize: 12,
-                            fontFamily: 'Poppins',
                           ),
+                          label: Text(
+                            selectedTime != null
+                                ? "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}"
+                                : "Pick time",
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              fontSize: 12,
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                          onPressed: () async {
+                            final picked = await showTimePicker(
+                              context: context,
+                              initialTime: selectedTime ?? TimeOfDay.now(),
+                              initialEntryMode: TimePickerEntryMode.dial,
+                            );
+                            if (picked != null) {
+                              setDialogState(() {
+                                selectedTime = picked;
+                              });
+                            }
+                          },
                         ),
-                        onPressed: () async {
-                          final picked = await showTimePicker(
-                            context: context,
-                            initialTime: selectedTime ?? TimeOfDay.now(),
-                            initialEntryMode: TimePickerEntryMode.dial,
-                          );
-                          if (picked != null) {
-                            setDialogState(() {
-                              selectedTime = picked;
-                            });
-                          }
-                        },
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -2187,55 +2193,88 @@ class _TasksState extends State<Tasks> {
                           ),
                         ),
                       ] else ...[
-                        Container(
-                          margin: const EdgeInsets.only(
-                            left: 36,
-                            top: 5,
-                            bottom: 5,
-                            right: 5,
-                          ),
-                          width: MediaQuery.of(context).size.width * 0.6,
-                          decoration: standardTile(10),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 2,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: searchController,
-                                  style: TextStyle(
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                  ),
-                                  cursorColor:
-                                      Theme.of(context).colorScheme.tertiary,
-                                  decoration: InputDecoration(
-                                    hintText: 'Search',
-                                    labelText: 'Search for a Section',
-                                    labelStyle: TextStyle(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onSecondary,
-                                    ),
-                                    hintStyle: TextStyle(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onSecondary,
-                                    ),
-                                    border: const UnderlineInputBorder(),
-                                  ),
-                                  onChanged: (value) {
-                                    setState(() {
-                                      searchQuery = value.trim().toLowerCase();
-                                    });
-                                  },
-                                ),
+                        Expanded(
+                          child: Container(
+                            margin: const EdgeInsets.only(
+                              left: 40,
+                              top: 8,
+                              bottom: 8,
+                              right: 20,
+                            ),
+                            height: 45,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(25),
+                              border: Border.all(
+                                color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.15),
+                                width: 1,
                               ),
-                            ],
+                            ),
+                            child: Row(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 16, right: 12),
+                                  child: Icon(
+                                    Icons.search,
+                                    color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.6),
+                                    size: 20,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: TextField(
+                                    controller: searchController,
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.onPrimary,
+                                      fontFamily: 'Poppins',
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                    cursorColor: Theme.of(context).colorScheme.tertiary,
+                                    decoration: InputDecoration(
+                                      hintText: 'Search tasks...',
+                                      hintStyle: TextStyle(
+                                        color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.5),
+                                        fontFamily: 'Poppins',
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.symmetric(vertical: 12),
+                                    ),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        searchQuery = value.trim().toLowerCase();
+                                      });
+                                    },
+                                  ),
+                                ),
+                                if (searchController.text.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 16),
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          searchController.clear();
+                                          searchQuery = '';
+                                        });
+                                      },
+                                      child: Container(
+                                        width: 20,
+                                        height: 20,
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.2),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Icon(
+                                          Icons.close,
+                                          color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.7),
+                                          size: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       ],

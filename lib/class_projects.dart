@@ -1222,55 +1222,88 @@ class _ProjectsState extends State<Projects> {
                           ),
                         ),
                       ] else ...[
-                        Container(
-                          margin: const EdgeInsets.only(
-                            left: 36,
-                            top: 5,
-                            bottom: 5,
-                            right: 5,
-                          ),
-                          width: MediaQuery.of(context).size.width * 0.6,
-                          decoration: standardTile(10),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 2,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: searchController,
-                                  style: TextStyle(
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                  ),
-                                  cursorColor:
-                                      Theme.of(context).colorScheme.tertiary,
-                                  decoration: InputDecoration(
-                                    hintText: 'Search',
-                                    labelText: 'Search projects',
-                                    labelStyle: TextStyle(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onSecondary,
-                                    ),
-                                    hintStyle: TextStyle(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onSecondary,
-                                    ),
-                                    border: const UnderlineInputBorder(),
-                                  ),
-                                  onChanged: (value) {
-                                    setState(() {
-                                      searchQuery = value.trim().toLowerCase();
-                                    });
-                                  },
-                                ),
+                        Expanded(
+                          child: Container(
+                            margin: const EdgeInsets.only(
+                              left: 40,
+                              top: 8,
+                              bottom: 8,
+                              right: 10,
+                            ),
+                            height: 45,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(25),
+                              border: Border.all(
+                                color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.15),
+                                width: 1,
                               ),
-                            ],
+                            ),
+                            child: Row(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 16, right: 12),
+                                  child: Icon(
+                                    Icons.search,
+                                    color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.6),
+                                    size: 20,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: TextField(
+                                    controller: searchController,
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.onPrimary,
+                                      fontFamily: 'Poppins',
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                    cursorColor: Theme.of(context).colorScheme.tertiary,
+                                    decoration: InputDecoration(
+                                      hintText: 'Search projects...',
+                                      hintStyle: TextStyle(
+                                        color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.5),
+                                        fontFamily: 'Poppins',
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.symmetric(vertical: 12),
+                                    ),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        searchQuery = value.trim().toLowerCase();
+                                      });
+                                    },
+                                  ),
+                                ),
+                                if (searchController.text.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 16),
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          searchController.clear();
+                                          searchQuery = '';
+                                        });
+                                      },
+                                      child: Container(
+                                        width: 20,
+                                        height: 20,
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.2),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Icon(
+                                          Icons.close,
+                                          color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.7),
+                                          size: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
