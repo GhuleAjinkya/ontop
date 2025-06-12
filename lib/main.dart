@@ -18,6 +18,18 @@ import 'login.dart';
 import 'user_session.dart';
 import 'call_notifications.dart';
 import 'class_user_profile.dart';
+import 'widgets/app_title.dart';
+
+// Global navigator key for navigation from anywhere in the app
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+// Function to navigate to home page from anywhere in the app
+void navigateToHome() {
+  final context = navigatorKey.currentContext;
+  if (context != null) {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+}
 
 standardTile(double borderRadius, {bool isSelected = false}) {
   // Code to create the common tile with the background blur
@@ -212,11 +224,9 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Appbar with name and greeting
-              SizedBox(height: 5),
-              Text(
-                "ontop.",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 40),
+              // Appbar with name and greeting              SizedBox(height: 5),
+              AppTitle(
+                isMain: true, // This is the main screen
               ),
               Column(
                 children: [
@@ -364,14 +374,12 @@ class _TabsState extends State<Tabs> {
                 width: 2.0,
               ),
             ),
-          ),
-          child: Row(
+          ),          child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                "ontop.",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 40),
+              AppTitle(
+                isMain: false, // Not the main screen, enable navigation
               ),
               Builder(
                 // sidebar requires context, hence the builder widget

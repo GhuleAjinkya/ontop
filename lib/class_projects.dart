@@ -1208,17 +1208,19 @@ class _ProjectsState extends State<Projects> {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      if (!searching) ...[
+                    children: [                      if (!searching) ...[
                         Container(
-                          margin: EdgeInsets.only(left: 40),
-                          child: Text(
-                            'Projects',
-                            style: TextStyle(
-                              fontSize: 28,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          margin: EdgeInsets.only(left: 40),                          child: Row(
+                            children: [
+                              Text(
+                                'Projects',
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ] else ...[

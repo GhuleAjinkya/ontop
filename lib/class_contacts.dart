@@ -7,6 +7,7 @@ import 'services/optimistic_updates.dart'; // Add optimistic updates
 import 'services/projects_adapter.dart'; // Add projects adapter
 import 'screens/contact_import_screen.dart'; // Add contact import screen
 import 'models/project.dart'; // Add project model
+// Add app title widget
 
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
@@ -871,17 +872,19 @@ class _ContactsState extends State<Contacts> {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      if (!searching) ...[
+                    children: [                      if (!searching) ...[
                         Container(
-                          margin: EdgeInsets.only(left: 40),
-                          child: Text(
-                            "Contacts",
-                            style: TextStyle(
-                              fontSize: 28,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          margin: EdgeInsets.only(left: 40),                          child: Row(
+                            children: [
+                              Text(
+                                "Contacts",
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ] else ...[

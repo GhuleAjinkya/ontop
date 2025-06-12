@@ -312,7 +312,6 @@ class _EventsState extends State<Events> {
       ),
     );
   }
-
   Widget _buildHeader() {
     return Container(
       color: Theme.of(context).colorScheme.primary,
@@ -321,7 +320,7 @@ class _EventsState extends State<Events> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            if (!searching) ...[
+            if (!searching) ... [
               Container(
                 margin: EdgeInsets.only(left: 40),
                 child: Text(

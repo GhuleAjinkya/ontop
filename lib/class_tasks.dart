@@ -2172,8 +2172,7 @@ class _TasksState extends State<Tasks> {
         child: Container(
           color: Theme.of(context).colorScheme.primary,
           child: Column(
-            children: [
-              Container(
+            children: [              Container(
                 color: Theme.of(context).colorScheme.primary,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
