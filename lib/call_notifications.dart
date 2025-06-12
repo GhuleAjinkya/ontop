@@ -5,6 +5,7 @@ import 'services/contacts_adapter.dart';
 import 'user_session.dart';
 import 'class_contacts.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'main.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -136,12 +137,19 @@ class CallNotificationService {
   }
 
   void listenForCalls() {
-    PhoneState.stream.listen((PhoneState? event) {
+    PhoneState.stream.listen((PhoneState? event) async {
       if (event != null && event.status == PhoneStateStatus.CALL_INCOMING && userSession.isLoggedIn) {
         final number = event.number;
         print("Incoming call detected from: $number");
-        if (number != null) {
+        
+        // Check if notifications are enabled
+        final prefs = await SharedPreferences.getInstance();
+        final notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
+        
+        if (number != null && notificationsEnabled) {
           showIncomingCallNotification(number);
+        } else if (!notificationsEnabled) {
+          print("Call notifications are disabled by user");
         }
       }
     });
@@ -169,4 +177,3 @@ class CallNotificationService {
     }
   }
 }
-

@@ -17,6 +17,7 @@ import 'mongodb.dart';
 import 'login.dart';
 import 'user_session.dart';
 import 'call_notifications.dart';
+import 'class_user_profile.dart';
 
 standardTile(double borderRadius, {bool isSelected = false}) {
   // Code to create the common tile with the background blur
@@ -69,7 +70,7 @@ void main() async {
 
   final callService = CallNotificationService();
   await callService.init();
-  // TODO call init everwhere
+  // Initialize call notification service for incoming call detection
   callService.listenForCalls();
 
   // Run the app
@@ -183,117 +184,22 @@ class _HomePageState extends State<HomePage> {
             Positioned(
               top: 35,
               right: 20,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    onPressed: () async {
-                      bool confirm =
-                          await showDialog(
-                            context: context,
-                            builder:
-                                (context) => AlertDialog(
-                                  backgroundColor:
-                                      Theme.of(context).colorScheme.primary,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    side: BorderSide(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onSecondary,
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  title: Text(
-                                    'Logout?',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimary,
-                                    ),
-                                  ),
-                                  content: Text(
-                                    "You'll need to log back in to access your stored information.",
-                                    style: TextStyle(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimary,
-                                    ),
-                                  ),
-                                  actions: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceAround,
-                                      children: [
-                                        IconButton(
-                                          onPressed:
-                                              () => Navigator.of(
-                                                context,
-                                              ).pop(false),
-                                          icon: Icon(
-                                            Icons.close,
-                                            color:
-                                                Theme.of(
-                                                  context,
-                                                ).colorScheme.onPrimary,
-                                            size: 30,
-                                          ),
-                                        ),
-                                        IconButton(
-                                          onPressed:
-                                              () => Navigator.of(
-                                                context,
-                                              ).pop(true),
-                                          icon: Icon(
-                                            Icons.check,
-                                            color:
-                                                Theme.of(
-                                                  context,
-                                                ).colorScheme.error,
-                                            size: 30,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                          ) ??
-                          false;
-                      if (confirm) {
-                        // Clear user session
-                        await userSession.clearSession();
-
-                        // Navigate to login page
-                        if (mounted) {
-                          Navigator.of(context).pushAndRemoveUntil(
-                            MaterialPageRoute(
-                              builder: (context) => LoginPage(),
-                            ),
-                            (route) => false, // Clear all routes in stack
-                          );
-                        }
-                      }
-                    },
-                    icon: Icon(
-                      Icons.logout,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      size: 28,
+              child: IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => UserProfile(
+                        userData: widget.userData,
+                      ),
                     ),
-                    tooltip: 'Logout',
-                  ),
-                  IconButton(
-                    onPressed: () {},
-                    icon: Icon(
-                      Icons.person_2_outlined,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      size: 35,
-                    ),
-                  ),
-                ],
+                  );
+                },
+                icon: Icon(
+                  Icons.person_2_outlined,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                  size: 35,
+                ),
               ),
             ),
           ],
@@ -502,9 +408,9 @@ class _TabsState extends State<Tabs> {
             crossAxisAlignment:
                 CrossAxisAlignment.end, // FOr right aligned icons
             children: [
-              // Close sidebar button
+              // Close sidebar button (moved lower)
               IconButton(
-                padding: EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+                padding: EdgeInsets.symmetric(vertical: 40, horizontal: 20),
                 icon: Icon(Icons.arrow_forward, color: Colors.white, size: 30),
                 onPressed: () {
                   Navigator.pop(context);
@@ -515,7 +421,7 @@ class _TabsState extends State<Tabs> {
                   padding: EdgeInsets.only(
                     top:
                         MediaQuery.of(context).size.height *
-                        0.10, // Vertical offset
+                        0.10, // Back to original vertical offset
                   ),
                   itemCount: drawerTabs.length,
                   separatorBuilder: // Add in the gap and the horizontal line between tiles
@@ -583,11 +489,21 @@ class _TabsState extends State<Tabs> {
                       ),
                 ),
               ),
+              // Profile and Settings Button (back at bottom, just a little above lower boundary)
               IconButton(
-                // Profile and Settings Button, currently a dummy
-                padding: EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+                padding: EdgeInsets.symmetric(vertical: 15, horizontal: 20),
                 icon: Icon(Icons.person_outline, color: Colors.white, size: 30),
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.pop(context); // Close drawer first
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => UserProfile(
+                        userData: widget.userData,
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
           ),

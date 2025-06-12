@@ -705,4 +705,32 @@ class MongoDatabase {
       return false;
     }
   }
+
+  // Method to update user password
+  static Future<bool> updateUserPassword(
+    String userId,
+    String newPasswordHash,
+  ) async {
+    if (!isConnected) await connect();
+
+    try {
+      var usersCollection = _db!.collection(userCollectionName);
+
+      // Update the password field for the specific user
+      var result = await usersCollection.updateOne(where.eq('_id', userId), {
+        '\$set': {'password': newPasswordHash},
+      });
+
+      if (result.isSuccess && result.nModified > 0) {
+        print("Password updated successfully for user: $userId");
+        return true;
+      } else {
+        print("Failed to update password. User not found or no changes made.");
+        return false;
+      }
+    } catch (e) {
+      print("Error updating user password: $e");
+      return false;
+    }
+  }
 }

@@ -98,6 +98,42 @@ class UserSession {
     }
   }
 
+  // Update current user data and save to SharedPreferences
+  Future<void> updateUserData(Map<String, dynamic> userData) async {
+    print('🔄 UserSession: Updating user data...');
+    print('📝 UserSession: Updated user data: ${userData.toString()}');
+
+    _currentUser = userData;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Convert DateTime objects to strings for JSON serialization
+      final Map<String, dynamic> serializableData = Map<String, dynamic>.from(
+        userData,
+      );
+      serializableData.forEach((key, value) {
+        if (value is DateTime) {
+          serializableData[key] = value.toIso8601String();
+          print('🔄 UserSession: Converted DateTime field "$key" to string');
+        }
+      });
+
+      final userJsonString = json.encode(serializableData);
+      await prefs.setString('user_data', userJsonString);
+
+      print('✅ UserSession: User data updated successfully');
+
+      // Verify the update worked
+      final savedData = prefs.getString('user_data');
+      print(
+        '🔍 UserSession: Verification - retrieved updated data: ${savedData != null ? "Success" : "Failed"}',
+      );
+    } catch (e) {
+      print('❌ UserSession: Error updating user data: $e');
+    }
+  }
+
   // Clear user session on logout
   Future<void> clearSession() async {
     print('🗑️ UserSession: Clearing user session...');
