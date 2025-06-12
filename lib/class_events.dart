@@ -74,6 +74,7 @@ class _EventsState extends State<Events> {
   bool isLoading = true;
   bool searching = false;
   String searchQuery = '';
+  bool eventsInitialized = false;
   final TextEditingController searchController = TextEditingController();
 
   // Database helper methods
@@ -220,11 +221,12 @@ class _EventsState extends State<Events> {
   void initState() {
     super.initState();
     _loadEvents();
+    eventsInitialized = true;
   }
 
   Future<void> _loadEvents() async {
     setState(() => isLoading = true);
-
+    print("load events called");
     try {
       final events = await _getAllEvents();
       final upcoming = await _getUpcomingEvents();
@@ -300,14 +302,20 @@ class _EventsState extends State<Events> {
                   _buildFilterChips(),
                   _buildTabSelector(), // Add tab selector here
                   Expanded(
-                    child:
-                        isLoading
-                            ? Center(
-                              child: CircularProgressIndicator(
-                                color: Theme.of(context).colorScheme.tertiary,
-                              ),
-                            )
-                            : _buildEventsList(),
+                    child: Builder(builder: (context) {
+                      if (isLoading && allEvents.isEmpty) {
+                        print("loading anim triggered");
+                        return Center(
+                          child: CircularProgressIndicator(
+                            
+                            color: Theme.of(context).colorScheme.tertiary,
+                          ),
+                        );
+                      }
+                      else {
+                        return _buildEventsList();
+                      }
+                    })
                   ),
                 ],
               ),
@@ -601,6 +609,7 @@ class _EventsState extends State<Events> {
   }
 
   Widget _buildEventsList() {
+   
     // Separate filtered events into upcoming and concluded
     final now = DateTime.now();
     final filteredUpcoming =
@@ -963,7 +972,9 @@ class _EventsState extends State<Events> {
                 onPressed: () async {
                   final date = await showDatePicker(
                     context: context,
-                    initialDate: selectedDate,
+                    //initialDate: selectedDate,
+                    
+                    initialDate: DateTime.now().add(const Duration( days: 7)),
                     firstDate: DateTime.now(),
                     lastDate: DateTime.now().add(Duration(days: 365)),
                   );
@@ -1015,7 +1026,7 @@ class _EventsState extends State<Events> {
     );
   }
 
-  void _saveEvent({
+  void _saveEvent({ // localled
     Event? event,
     required String title,
     required String description,
@@ -1035,13 +1046,39 @@ class _EventsState extends State<Events> {
       title: title.trim(),
       description: description.trim(),
       dateTime: dateTime,
-      userId: '', // Will be set in adapter
-      createdAt: event?.createdAt ?? DateTime.now(),
+      userId: userSession.currentUser?['_id'], 
+      createdAt: DateTime.now(),
     );
     bool success;
     if (event != null) {
+      setState(() {
+        // Remove the old event from all lists
+        allEvents.removeWhere((e) => e.id == event.id);
+        upcomingEvents.removeWhere((e) => e.id == event.id);
+        concludedEvents.removeWhere((e) => e.id == event.id);
+
+        // Add the updated event to allEvents
+        allEvents.add(newEvent);
+
+        // Add to the correct list based on new date
+        if (newEvent.dateTime.isAfter(DateTime.now())) {
+          upcomingEvents.add(newEvent);
+        } else {
+          concludedEvents.add(newEvent);
+        }
+        _applyFilter(); // Update filteredEvents if filtering/searching
+      });
+
       success = await _updateEvent(newEvent);
     } else {
+      setState(() {
+        allEvents.add(newEvent);
+        if (newEvent.dateTime.isAfter(DateTime.now())) {
+          upcomingEvents.add(newEvent);
+        } else {
+          concludedEvents.add(newEvent);
+        }
+      });
       success = await _createEvent(newEvent);
     }
     if (!mounted) return;
@@ -1058,6 +1095,34 @@ class _EventsState extends State<Events> {
       );
       _loadEvents();
     } else {
+      if (event != null) {
+        setState(() {
+          allEvents.removeWhere((e) => e.id == newEvent.id);
+          upcomingEvents.removeWhere((e) => e.id == newEvent.id);
+          concludedEvents.removeWhere((e) => e.id == newEvent.id);
+
+          // Add the old event back to allEvents
+          allEvents.add(event);
+
+          // Add back to the correct list based on its original date
+          if (event.dateTime.isAfter(DateTime.now())) {
+            upcomingEvents.add(event);
+          } else {
+            concludedEvents.add(event);
+          }
+
+          _applyFilter();
+        });
+      } else {
+        setState(() {
+          allEvents.remove(newEvent);
+          if (newEvent.dateTime.isAfter(DateTime.now())) {
+            upcomingEvents.remove(newEvent);
+          } else {
+            concludedEvents.remove(newEvent);
+          }
+        });
+      }
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Failed to save event')));
@@ -1109,10 +1174,19 @@ class _EventsState extends State<Events> {
     );
   }
 
-  void _deleteEventById(Event event) async {
+  void _deleteEventById(Event event) async { // localled
     Navigator.pop(context);
 
     if (event.id != null) {
+      setState(() {
+        allEvents.remove(event);
+        if (event.dateTime.isAfter(DateTime.now())) {
+          upcomingEvents.remove(event);
+        } else {
+          concludedEvents.remove(event);
+        }
+      });
+      
       final success = await _deleteEvent(event.id!);
 
       if (!mounted) return;
@@ -1123,6 +1197,14 @@ class _EventsState extends State<Events> {
         ).showSnackBar(SnackBar(content: Text('Event deleted successfully')));
         _loadEvents();
       } else {
+        setState(() {
+          allEvents.add(event);
+            if (event.dateTime.isAfter(DateTime.now())) {
+            upcomingEvents.add(event);
+          } else {
+            concludedEvents.add(event);
+          }
+        });
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Failed to delete event')));

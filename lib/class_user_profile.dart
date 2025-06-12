@@ -463,7 +463,7 @@ class _UserProfileState extends State<UserProfile> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildSectionHeader(
-                      'Personal Information',
+                      'Your Details',
                       Icons.person_outline,
                     ),
                     const SizedBox(height: 20),
