@@ -1850,14 +1850,17 @@ class _ContactDetailsState extends State<ContactDetails> {
   }
 
   Widget divLine(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.symmetric(vertical: 8),
-      height: 3,
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            width: 0.75,
-            color: Theme.of(context).colorScheme.onPrimary,
+    return Center(
+      child: Container(
+        margin: EdgeInsets.symmetric(vertical: 8),
+        width: MediaQuery.of(context).size.width * 0.8,
+        height: 3,
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              width: 0.75,
+              color: Theme.of(context).colorScheme.onPrimary,
+            ),
           ),
         ),
       ),
@@ -2385,76 +2388,81 @@ class _ContactDetailsState extends State<ContactDetails> {
                     ),
                   ],
                   divLine(context),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      IconButton(
-                        onPressed: () {
-                          callNumber(localContact.phoneNumber, () {
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text("Couldn't open the contact"),
-                              ),
-                            );
-                          });
-                        },
-                        icon: Icon(
-                          Icons.phone_in_talk_outlined,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
+                  Center(
+                    child: SizedBox(
+                      width: MediaQuery.of(context).size.width * 0.8,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          IconButton(
+                            onPressed: () {
+                              callNumber(localContact.phoneNumber, () {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text("Couldn't open the contact"),
+                                  ),
+                                );
+                              });
+                            },
+                            icon: Icon(
+                              Icons.phone_in_talk_outlined,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              openWhatsApp(localContact.phoneNumber, () {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text("Could not launch WhatsApp"),
+                                  ),
+                                );
+                              });
+                            },
+                            icon: Icon(
+                              FontAwesomeIcons.whatsapp,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              if (localContact.email.isEmpty) {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      "No email address stored for this contact",
+                                    ),
+                                    backgroundColor:
+                                        Theme.of(context).colorScheme.error,
+                                  ),
+                                );
+                                return;
+                              }
+                              openEmail(localContact.email, () {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      "Could not launch email app. This may be due to no email apps being installed (common on emulators). Email functionality works on real devices with email apps installed.",
+                                    ),
+                                    duration: Duration(seconds: 4),
+                                    backgroundColor:
+                                        Theme.of(context).colorScheme.error,
+                                  ),
+                                );
+                              });
+                            },
+                            icon: Icon(
+                              Icons.email_outlined,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        onPressed: () {
-                          openWhatsApp(localContact.phoneNumber, () {
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text("Could not launch WhatsApp"),
-                              ),
-                            );
-                          });
-                        },
-                        icon: Icon(
-                          FontAwesomeIcons.whatsapp,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () {
-                          if (localContact.email.isEmpty) {
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  "No email address stored for this contact",
-                                ),
-                                backgroundColor:
-                                    Theme.of(context).colorScheme.error,
-                              ),
-                            );
-                            return;
-                          }
-                          openEmail(localContact.email, () {
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  "Could not launch email app. This may be due to no email apps being installed (common on emulators). Email functionality works on real devices with email apps installed.",
-                                ),
-                                duration: Duration(seconds: 4),
-                                backgroundColor:
-                                    Theme.of(context).colorScheme.error,
-                              ),
-                            );
-                          });
-                        },
-                        icon: Icon(
-                          Icons.email_outlined,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                   divLine(context),
                   ListTile(
@@ -2588,19 +2596,16 @@ class _ContactDetailsState extends State<ContactDetails> {
                             ],
                           ),
                         ] else ...[
-                          Container(
-                            margin: EdgeInsets.only(left: 100, right: 0),
-                            child: IconButton(
-                              icon: Icon(
-                                Icons.edit,
-                                color: Theme.of(context).colorScheme.onPrimary,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  editingNotes = true;
-                                });
-                              },
+                          IconButton(
+                            icon: Icon(
+                              Icons.edit,
+                              color: Theme.of(context).colorScheme.onPrimary,
                             ),
+                            onPressed: () {
+                              setState(() {
+                                editingNotes = true;
+                              });
+                            },
                           ),
                         ],
                       ],
