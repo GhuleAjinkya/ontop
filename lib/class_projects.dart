@@ -926,6 +926,208 @@ class _ProjectsState extends State<Projects> {
     );
   }
 
+  void _showProjectDialog({Project? project}) {
+    final isEditing = project != null;
+    final titleController = TextEditingController(text: project?.title ?? '');
+    final descriptionController = TextEditingController(text: project?.description ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        title: Text(
+          isEditing ? 'Edit Project' : 'Add New Project',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimary,
+            fontFamily: 'Poppins',
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildDialogTextField(
+                controller: titleController,
+                label: 'Project Title',
+                hint: 'Enter project title',
+              ),
+              SizedBox(height: 16),
+              _buildDialogTextField(
+                controller: descriptionController,
+                label: 'Description (Optional)',
+                hint: 'Enter project description',
+                maxLines: 3,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.tertiary,
+                fontFamily: 'Poppins',
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => _saveProject(
+              project: project,
+              title: titleController.text,
+              description: descriptionController.text,
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.secondary,
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+            ),
+            child: Text(
+              isEditing ? 'Update' : 'Add',
+              style: TextStyle(fontFamily: 'Poppins'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDialogTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    int maxLines = 1,
+  }) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.onPrimary,
+        fontFamily: 'Poppins',
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        labelStyle: TextStyle(
+          color: Theme.of(context).colorScheme.tertiary,
+          fontFamily: 'Poppins',
+        ),
+        hintStyle: TextStyle(
+          color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.7),
+          fontFamily: 'Poppins',
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.3),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.secondary,
+            width: 2,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _saveProject({
+    Project? project,
+    required String title,
+    required String description,
+  }) async {
+    if (title.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Project title is required')),
+      );
+      return;
+    }
+
+    if (userId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please log in to save projects')),
+      );
+      return;
+    }
+
+    Navigator.pop(context);
+
+    final now = DateTime.now();
+    final projectData = {
+      'title': title.trim(),
+      'description': description.trim(),
+      'collaborators': project?.collaborators ?? [],
+      'project_tasks': project?.projectTasks.map((task) => task.toMap()).toList() ?? [],
+      'type': 'project',
+      'created_at': project?.createdAt?.toIso8601String() ?? now.toIso8601String(),
+    };
+
+    // Create temporary project for optimistic update
+    final tempProject = Project(
+      id: project?.id ?? now.millisecondsSinceEpoch.toString(),
+      title: projectData['title'] as String,
+      description: projectData['description'] as String,
+      collaborators: List<dynamic>.from(projectData['collaborators'] as List),
+      projectTasks: project?.projectTasks ?? [],
+      createdAt: project?.createdAt ?? now,
+      isCompleted: project?.isCompleted ?? false,
+    );
+
+    bool success;
+    if (project != null) {
+      // Update existing project
+      success = await ProjectsAdapter.updateProject({
+        '_id': project.id,
+        ...projectData,
+      });
+    } else {
+      // Create new project
+      await OptimisticUpdates.performListOperation<Project>(
+        list: projects,
+        operation: 'add',
+        item: tempProject,
+        databaseOperation: () async {
+          return await ProjectsAdapter.addProject(projectData);
+        },
+        showSuccessMessage: 'Project added successfully!',
+        showErrorMessage: 'Failed to add project',
+        context: context,
+        onSuccess: () async {
+          await loadProjects();
+        },
+        onError: (error) {
+          setState(() {});
+        },
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Project updated successfully'),
+        ),
+      );
+      await loadProjects();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save project')),
+      );
+    }
+  }
+
   // Helper method to build tab chips with Events-style design
   Widget _buildTabChip({
     required String label,
@@ -1100,11 +1302,7 @@ class _ProjectsState extends State<Projects> {
                                       Theme.of(context).colorScheme.onPrimary,
                                   size: 26,
                                 ),
-                                onPressed: () {
-                                  setState(() {
-                                    addingProject = true;
-                                  });
-                                },
+                                onPressed: () => _showProjectDialog(),
                               ),
                               IconButton(
                                 icon: Icon(
@@ -1432,6 +1630,277 @@ class _ProjectDetailsState extends State<ProjectDetails> {
     );
   }
 
+  void _showTaskDialog() {
+    final taskController = TextEditingController();
+    DateTime? selectedDate;
+    TimeOfDay? selectedTime;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.3),
+              width: 1,
+            ),
+          ),
+          title: Text(
+            'Add New Task',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onPrimary,
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildDialogTextField(
+                  controller: taskController,
+                  label: 'Task Details',
+                  hint: 'Enter task details',
+                ),
+                SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton.icon(
+                        icon: Icon(
+                          Icons.calendar_today,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                        label: Text(
+                          selectedDate != null
+                              ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
+                              : "Pick date",
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            fontSize: 12,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                        onPressed: () async {
+                          final now = DateTime.now();
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: selectedDate ?? now,
+                            firstDate: now,
+                            lastDate: DateTime(now.year + 5),
+                          );
+                          if (picked != null) {
+                            setDialogState(() {
+                              selectedDate = picked;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: TextButton.icon(
+                        icon: Icon(
+                          Icons.access_time,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                        label: Text(
+                          selectedTime != null
+                              ? "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}"
+                              : "Pick time",
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            fontSize: 12,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                        onPressed: () async {
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: selectedTime ?? TimeOfDay.now(),
+                            initialEntryMode: TimePickerEntryMode.dial,
+                          );
+                          if (picked != null) {
+                            setDialogState(() {
+                              selectedTime = picked;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.tertiary,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => _saveTask(
+                taskText: taskController.text,
+                selectedDate: selectedDate,
+                selectedTime: selectedTime,
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.secondary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              ),
+              child: Text(
+                'Add',
+                style: TextStyle(fontFamily: 'Poppins'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDialogTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    int maxLines = 1,
+  }) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.onPrimary,
+        fontFamily: 'Poppins',
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        labelStyle: TextStyle(
+          color: Theme.of(context).colorScheme.tertiary,
+          fontFamily: 'Poppins',
+        ),
+        hintStyle: TextStyle(
+          color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.7),
+          fontFamily: 'Poppins',
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.3),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.secondary,
+            width: 2,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _saveTask({
+    required String taskText,
+    required DateTime? selectedDate,
+    required TimeOfDay? selectedTime,
+  }) async {
+    if (taskText.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Task details are required')),
+      );
+      return;
+    }
+
+    if (selectedDate == null || selectedTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please select both date and time')),
+      );
+      return;
+    }
+
+    Navigator.pop(context);
+
+    final newTask = ToDoItem(
+      text: taskText.trim(),
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      deadlineDate: DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+        selectedTime.hour,
+        selectedTime.minute,
+      ),
+    );
+
+    setState(() {
+      project.projectTasks.add(newTask);
+    });
+
+    // Update project in database
+    try {
+      final updatedProject = project.copyWith(
+        projectTasks: project.projectTasks,
+      );
+      final projectData = updatedProject.toMap();
+      projectData['_id'] = updatedProject.id;
+
+      bool success = await ProjectsAdapter.updateProject(projectData);
+      if (success) {
+        widget.onUpdate(updatedProject);
+
+        // Sync to Tasks tab
+        await ProjectTasksSync.syncProjectToTasks(updatedProject);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Task added successfully!'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } else {
+        // Revert the local change if database update failed
+        setState(() {
+          project.projectTasks.removeLast();
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to add task'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error updating project tasks: $e');
+      // Revert the local change if database update failed
+      setState(() {
+        project.projectTasks.removeLast();
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error adding task: $e'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // If a contact is opened, show ContactDetails inline
@@ -1721,12 +2190,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                 Icons.add,
                                 color: Theme.of(context).colorScheme.onPrimary,
                               ),
-                              onPressed: () {
-                                setState(() {
-                                  openCompletedTasks = false;
-                                  editingToDo = true;
-                                });
-                              },
+                              onPressed: () => _showTaskDialog(),
                             ),
                           ],
                         ),

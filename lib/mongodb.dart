@@ -282,7 +282,7 @@ class MongoDatabase {
     }
   }
 
-  static Future<bool> deleteData(ObjectId id, {String? userId}) async {
+  static Future<bool> deleteData(dynamic id, {String? userId}) async {
     if (!isConnected) await connect();
 
     try {
@@ -294,15 +294,30 @@ class MongoDatabase {
       // Use the user's specific collection
       var userCollection = _db!.collection(userId);
 
+      // Handle both ObjectId and string IDs
+      dynamic queryId = id;
+      if (id is String) {
+        // Try to convert string to ObjectId if it looks like an ObjectId
+        if (ObjectId.isValidHexId(id)) {
+          try {
+            queryId = ObjectId.fromHexString(id);
+          } catch (e) {
+            // If conversion fails, keep it as string
+            queryId = id;
+          }
+        }
+        // Otherwise keep it as string (for imported contacts with custom string IDs)
+      }
+
       // Build the query with just the _id (no need for userId filter since we're using user-specific collection)
-      var query = where.eq('_id', id);
+      var query = where.eq('_id', queryId);
 
       // Use deleteOne with filters
       var result = await userCollection.deleteOne(query);
 
       if (result.isSuccess) {
         print("Document deleted successfully from user collection $userId");
-        print("Deleted document with _id: $id");
+        print("Deleted document with _id: $queryId");
         return true;
       } else {
         print("Failed to delete document. Deleted: ${result.nRemoved}");
@@ -651,8 +666,23 @@ class MongoDatabase {
       // Use the user's specific collection
       var userCollection = _db!.collection(userId);
 
+      // Handle both ObjectId and string IDs
+      dynamic queryId = contactId;
+      if (contactId is String) {
+        // Try to convert string to ObjectId if it looks like an ObjectId
+        if (ObjectId.isValidHexId(contactId)) {
+          try {
+            queryId = ObjectId.fromHexString(contactId);
+          } catch (e) {
+            // If conversion fails, keep it as string
+            queryId = contactId;
+          }
+        }
+        // Otherwise keep it as string (for imported contacts with custom string IDs)
+      }
+
       // Build query to find the contact by ID
-      var query = where.eq('_id', contactId);
+      var query = where.eq('_id', queryId);
 
       // Update the starred field
       var updateData = {'starred': starred ? 1 : 0};

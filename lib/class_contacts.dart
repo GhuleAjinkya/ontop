@@ -423,12 +423,20 @@ class _ContactsState extends State<Contacts> {
   }
 
   void deleteSelected() async {
+    print("🔴 DEBUG: Starting deleteSelected()");
+    print("🔴 DEBUG: userId = '$userId'");
+    print("🔴 DEBUG: selectedIDs = $selectedIDs");
+    print("🔴 DEBUG: selectedIDs.length = ${selectedIDs.length}");
+
     if (userId.isEmpty) {
-      print("No user ID available. Cannot delete contacts.");
+      print("🔴 DEBUG: No user ID available. Cannot delete contacts.");
       return;
     }
 
-    if (selectedIDs.isEmpty) return;
+    if (selectedIDs.isEmpty) {
+      print("🔴 DEBUG: No contacts selected for deletion");
+      return;
+    }
 
     // Get contacts to be deleted for optimistic update
     final contactsToDelete =
@@ -438,26 +446,49 @@ class _ContactsState extends State<Contacts> {
             )
             .toList();
 
+    print("🔴 DEBUG: contactsToDelete.length = ${contactsToDelete.length}");
+    for (var contact in contactsToDelete) {
+      print(
+        "🔴 DEBUG: Contact to delete: ${contact.name} (ID: ${contact.id}, Type: ${contact.id.runtimeType})",
+      );
+    }
+
     // Use optimistic updates for bulk deletion
+    print("🔴 DEBUG: Starting OptimisticUpdates.perform()");
     await OptimisticUpdates.perform(
       updateLocalState: () {
+        print(
+          "🔴 DEBUG: Executing updateLocalState - removing contacts from UI",
+        );
         setState(() {
           // Remove contacts from the list immediately
+          final beforeCount = contacts.length;
           contacts.removeWhere(
             (c) => selectedIDs.any((id) => id.toString() == c.id.toString()),
+          );
+          final afterCount = contacts.length;
+          print(
+            "🔴 DEBUG: Contacts count: before=$beforeCount, after=$afterCount",
           );
           selectedIDs.clear();
         });
       },
       databaseOperation: () async {
+        print("🔴 DEBUG: Starting databaseOperation");
         bool allSuccess = true;
         for (var contact in contactsToDelete) {
+          print(
+            "🔴 DEBUG: Attempting to delete contact: ${contact.name} (ID: ${contact.id})",
+          );
           bool success = await ContactsAdapter.deleteContact(contact.id);
+          print("🔴 DEBUG: Delete result for ${contact.name}: $success");
           if (!success) allSuccess = false;
         }
+        print("🔴 DEBUG: Overall databaseOperation result: $allSuccess");
         return allSuccess;
       },
       revertLocalState: () {
+        print("🔴 DEBUG: Executing revertLocalState - restoring contacts");
         setState(() {
           // Re-add the contacts if deletion failed
           contacts.addAll(contactsToDelete);
@@ -468,9 +499,11 @@ class _ContactsState extends State<Contacts> {
       showErrorMessage: 'Failed to delete some contacts',
       context: context,
       onSuccess: () async {
+        print("🔴 DEBUG: Delete success callback - reloading contacts");
         await begin(); // Reload to ensure consistency
       },
     );
+    print("🔴 DEBUG: deleteSelected() completed");
   }
 
   void selectAll() {
@@ -508,6 +541,241 @@ class _ContactsState extends State<Contacts> {
     var status = await Permission.manageExternalStorage.status;
     if (!status.isGranted) {
       await Permission.manageExternalStorage.request();
+    }
+  }
+
+  void _showContactDialog({Contact? contact}) {
+    final isEditing = contact != null;
+    final titleController = TextEditingController(text: contact?.name ?? '');
+    final organizationController = TextEditingController(text: contact?.organization ?? '');
+    final positionController = TextEditingController(text: contact?.position ?? '');
+    final phoneController = TextEditingController(text: contact?.phoneNumber ?? '');
+    final emailController = TextEditingController(text: contact?.email ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        title: Text(
+          isEditing ? 'Edit Contact' : 'Add New Contact',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimary,
+            fontFamily: 'Poppins',
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildDialogTextField(
+                controller: titleController,
+                label: 'Name',
+                hint: 'Enter contact name',
+              ),
+              SizedBox(height: 16),
+              _buildDialogTextField(
+                controller: phoneController,
+                label: 'Phone Number',
+                hint: 'Enter phone number',
+                keyboardType: TextInputType.phone,
+              ),
+              SizedBox(height: 16),
+              _buildDialogTextField(
+                controller: positionController,
+                label: 'Position',
+                hint: 'Enter position',
+              ),
+              SizedBox(height: 16),
+              _buildDialogTextField(
+                controller: organizationController,
+                label: 'Organization',
+                hint: 'Enter organization',
+              ),
+              SizedBox(height: 16),
+              _buildDialogTextField(
+                controller: emailController,
+                label: 'Email (Optional)',
+                hint: 'Enter email address',
+                keyboardType: TextInputType.emailAddress,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.tertiary,
+                fontFamily: 'Poppins',
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => _saveContact(
+              contact: contact,
+              name: titleController.text,
+              phoneNumber: phoneController.text,
+              position: positionController.text,
+              organization: organizationController.text,
+              email: emailController.text,
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.secondary,
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+            ),
+            child: Text(
+              isEditing ? 'Update' : 'Add',
+              style: TextStyle(fontFamily: 'Poppins'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDialogTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    TextInputType? keyboardType,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.onPrimary,
+        fontFamily: 'Poppins',
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        labelStyle: TextStyle(
+          color: Theme.of(context).colorScheme.tertiary,
+          fontFamily: 'Poppins',
+        ),
+        hintStyle: TextStyle(
+          color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.7),
+          fontFamily: 'Poppins',
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.3),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: Theme.of(context).colorScheme.secondary,
+            width: 2,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _saveContact({
+    Contact? contact,
+    required String name,
+    required String phoneNumber,
+    required String position,
+    required String organization,
+    required String email,
+  }) async {
+    if (name.trim().isEmpty || phoneNumber.trim().isEmpty || 
+        position.trim().isEmpty || organization.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Name, phone, position, and organization are required')),
+      );
+      return;
+    }
+
+    if (userId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please log in to save contacts')),
+      );
+      return;
+    }
+
+    Navigator.pop(context);
+
+    // Create contact data
+    final contactData = {
+      'name': name.trim(),
+      'organization': organization.trim(),
+      'phoneNumber': phoneNumber.trim(),
+      'position': position.trim(),
+      'email': email.trim(),
+      'notes': contact?.notes ?? '',
+      'starred': contact?.starred ?? 0,
+      'type': 'contact',
+      'created_at': DateTime.now(),
+    };
+
+    // Create temporary contact for optimistic update
+    final tempContact = Contact(
+      id: contact?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      name: contactData['name'] as String,
+      organization: contactData['organization'] as String,
+      phoneNumber: contactData['phoneNumber'] as String,
+      position: contactData['position'] as String,
+      email: contactData['email'] as String,
+      notes: contactData['notes'] as String,
+      starred: contactData['starred'] as int,
+    );
+
+    bool success;
+    if (contact != null) {
+      // Update existing contact
+      success = await ContactsAdapter.updateContact({
+        '_id': contact.id,
+        ...contactData,
+      });
+    } else {
+      // Create new contact
+      await OptimisticUpdates.performListOperation<Contact>(
+        list: contacts,
+        operation: 'add',
+        item: tempContact,
+        databaseOperation: () async {
+          return await ContactsAdapter.addContact(contactData);
+        },
+        showSuccessMessage: 'Contact added successfully!',
+        showErrorMessage: 'Failed to add contact',
+        context: context,
+        onSuccess: () async {
+          await begin();
+        },
+        onError: (error) {
+          setState(() {});
+        },
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Contact updated successfully'),
+        ),
+      );
+      await begin();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save contact')),
+      );
     }
   }
 
@@ -697,11 +965,7 @@ class _ContactsState extends State<Contacts> {
                                         Theme.of(context).colorScheme.onPrimary,
                                     size: 26,
                                   ),
-                                  onPressed: () {
-                                    setState(() {
-                                      addingContact = true;
-                                    });
-                                  },
+                                  onPressed: () => _showContactDialog(),
                                 ),
                                 PopupMenuButton<String>(
                                   icon: Icon(
@@ -1030,245 +1294,6 @@ class _ContactsState extends State<Contacts> {
                   ),
                 ),
               ),
-              if (addingContact) ...[
-                Container(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 36,
-                    vertical: 5,
-                  ),
-                  decoration: standardTile(10),
-                  child: ListTile(
-                    contentPadding: EdgeInsets.symmetric(horizontal: 2),
-                    leading: IconButton(
-                      alignment: Alignment.centerLeft,
-                      onPressed: clearForm,
-                      icon: Icon(
-                        Icons.close,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                        size: 20,
-                      ),
-                    ),
-                    title: Column(
-                      children: [
-                        SizedBox(
-                          child: TextField(
-                            controller: nameController,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                            cursorColor: Theme.of(context).colorScheme.tertiary,
-                            decoration: InputDecoration(
-                              hintText: 'Name',
-                              labelText: 'Name*',
-                              labelStyle: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSecondary,
-                              ),
-                              hintStyle: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSecondary,
-                              ),
-                              border: const UnderlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                        SizedBox(
-                          child: TextField(
-                            keyboardType: TextInputType.numberWithOptions(
-                              signed: false,
-                              decimal: false,
-                            ),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            controller: phoneController,
-                            cursorColor: Theme.of(context).colorScheme.tertiary,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onPrimary,
-                              fontSize: 14,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: 'Number',
-                              labelText: 'Number*',
-                              labelStyle: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSecondary,
-                              ),
-                              hintStyle: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSecondary,
-                              ),
-                              border: const UnderlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    subtitle: Column(
-                      children: [
-                        SizedBox(
-                          child: TextField(
-                            controller: positionController,
-                            cursorColor: Theme.of(context).colorScheme.tertiary,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: 'Position',
-                              labelText: 'Position*',
-                              labelStyle: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSecondary,
-                              ),
-                              hintStyle: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSecondary,
-                              ),
-                              border: const UnderlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                        SizedBox(
-                          child: TextField(
-                            controller: organizationController,
-                            cursorColor: Theme.of(context).colorScheme.tertiary,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: 'Organization',
-                              labelText: 'Organization*',
-                              labelStyle: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSecondary,
-                              ),
-                              hintStyle: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSecondary,
-                              ),
-                              border: const UnderlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                        SizedBox(
-                          child: TextField(
-                            controller: emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            cursorColor: Theme.of(context).colorScheme.tertiary,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: 'Email (Optional)',
-                              labelText: 'Email',
-                              labelStyle: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSecondary,
-                              ),
-                              hintStyle: TextStyle(
-                                color:
-                                    Theme.of(context).colorScheme.onSecondary,
-                              ),
-                              border: const UnderlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    trailing: IconButton(
-                      alignment: Alignment.centerRight,
-                      onPressed: () async {
-                        if (userId.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Please log in to add contacts'),
-                            ),
-                          );
-                          return;
-                        }
-                        updatingSnackBar(context);
-                        if (nameController.text.trim().isEmpty ||
-                            organizationController.text.trim().isEmpty ||
-                            phoneController.text.trim().isEmpty ||
-                            positionController.text.trim().isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'All fields are required',
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onError,
-                                ),
-                              ),
-                              backgroundColor:
-                                  Theme.of(context).colorScheme.error,
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                          return;
-                        } // Create contact data
-                        final contactData = {
-                          'name': nameController.text.trim(),
-                          'organization': organizationController.text.trim(),
-                          'phoneNumber': phoneController.text.trim(),
-                          'position': positionController.text.trim(),
-                          'email':
-                              emailController.text.trim(), // Add email field
-                          'notes': '', // Add notes field with empty default
-                          'starred': 0,
-                          'type': 'contact', // Add type field
-                          'created_at':
-                              DateTime.now(), // Store as Date type in MongoDB
-                        }; // Create temporary contact for optimistic update
-                        final tempContact = Contact(
-                          id:
-                              DateTime.now().millisecondsSinceEpoch
-                                  .toString(), // Temporary ID
-                          name: contactData['name'] as String,
-                          organization: contactData['organization'] as String,
-                          phoneNumber: contactData['phoneNumber'] as String,
-                          position: contactData['position'] as String,
-                          email:
-                              contactData['email'] as String, // Add email field
-                          notes:
-                              contactData['notes'] as String, // Add notes field
-                          starred: 0,
-                        );
-
-                        clearForm(); // Clear the form first for better UX
-
-                        // Use optimistic updates for contact creation
-                        await OptimisticUpdates.performListOperation<Contact>(
-                          list: contacts,
-                          operation: 'add',
-                          item: tempContact,
-                          databaseOperation: () async {
-                            return await ContactsAdapter.addContact(
-                              contactData,
-                            );
-                          },
-                          showSuccessMessage: 'Contact added successfully!',
-                          showErrorMessage: 'Failed to add contact',
-                          context: context,
-                          onSuccess: () async {
-                            // Reload contacts to get the real contact with database ID
-                            await begin();
-                          },
-                          onError: (error) {
-                            setState(
-                              () {},
-                            ); // Trigger rebuild to remove optimistic contact
-                          },
-                        );
-                      },
-                      icon: Icon(
-                        Icons.check,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
               Expanded(
                 child: ListView(
                   children: [
