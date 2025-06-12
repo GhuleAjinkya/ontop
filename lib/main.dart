@@ -201,9 +201,8 @@ class _HomePageState extends State<HomePage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => UserProfile(
-                        userData: widget.userData,
-                      ),
+                      builder:
+                          (context) => UserProfile(userData: widget.userData),
                     ),
                   );
                 },
@@ -374,7 +373,8 @@ class _TabsState extends State<Tabs> {
                 width: 2.0,
               ),
             ),
-          ),          child: Row(
+          ),
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -506,9 +506,8 @@ class _TabsState extends State<Tabs> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => UserProfile(
-                        userData: widget.userData,
-                      ),
+                      builder:
+                          (context) => UserProfile(userData: widget.userData),
                     ),
                   );
                 },

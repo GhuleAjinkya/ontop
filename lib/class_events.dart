@@ -267,11 +267,16 @@ class _EventsState extends State<Events> {
 
       // Apply search filter if searching
       if (searching && searchQuery.isNotEmpty) {
-        filteredEvents = baseEvents.where((event) {
-          final titleMatch = event.title.toLowerCase().contains(searchQuery.toLowerCase());
-          final descriptionMatch = event.description.toLowerCase().contains(searchQuery.toLowerCase());
-          return titleMatch || descriptionMatch;
-        }).toList();
+        filteredEvents =
+            baseEvents.where((event) {
+              final titleMatch = event.title.toLowerCase().contains(
+                searchQuery.toLowerCase(),
+              );
+              final descriptionMatch = event.description.toLowerCase().contains(
+                searchQuery.toLowerCase(),
+              );
+              return titleMatch || descriptionMatch;
+            }).toList();
       } else {
         filteredEvents = baseEvents;
       }
@@ -312,6 +317,7 @@ class _EventsState extends State<Events> {
       ),
     );
   }
+
   Widget _buildHeader() {
     return Container(
       color: Theme.of(context).colorScheme.primary,
@@ -320,7 +326,7 @@ class _EventsState extends State<Events> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            if (!searching) ... [
+            if (!searching) ...[
               Container(
                 margin: EdgeInsets.only(left: 40),
                 child: Text(
@@ -344,10 +350,14 @@ class _EventsState extends State<Events> {
                   ),
                   height: 45,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.08),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onPrimary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(25),
                     border: Border.all(
-                      color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.15),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onPrimary.withValues(alpha: 0.15),
                       width: 1,
                     ),
                   ),
@@ -357,7 +367,9 @@ class _EventsState extends State<Events> {
                         padding: const EdgeInsets.only(left: 16, right: 12),
                         child: Icon(
                           Icons.search,
-                          color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.6),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onPrimary.withValues(alpha: 0.6),
                           size: 20,
                         ),
                       ),
@@ -374,7 +386,9 @@ class _EventsState extends State<Events> {
                           decoration: InputDecoration(
                             hintText: 'Search events...',
                             hintStyle: TextStyle(
-                              color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.5),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimary.withValues(alpha: 0.5),
                               fontFamily: 'Poppins',
                               fontSize: 15,
                               fontWeight: FontWeight.w400,
@@ -405,12 +419,16 @@ class _EventsState extends State<Events> {
                               width: 20,
                               height: 20,
                               decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.2),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onPrimary.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Icon(
                                 Icons.close,
-                                color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.7),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onPrimary.withValues(alpha: 0.7),
                                 size: 14,
                               ),
                             ),

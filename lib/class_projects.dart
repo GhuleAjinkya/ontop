@@ -929,74 +929,80 @@ class _ProjectsState extends State<Projects> {
   void _showProjectDialog({Project? project}) {
     final isEditing = project != null;
     final titleController = TextEditingController(text: project?.title ?? '');
-    final descriptionController = TextEditingController(text: project?.description ?? '');
+    final descriptionController = TextEditingController(
+      text: project?.description ?? '',
+    );
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.3),
-            width: 1,
-          ),
-        ),
-        title: Text(
-          isEditing ? 'Edit Project' : 'Add New Project',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onPrimary,
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildDialogTextField(
-                controller: titleController,
-                label: 'Project Title',
-                hint: 'Enter project title',
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onPrimary.withValues(alpha: 0.3),
+                width: 1,
               ),
-              SizedBox(height: 16),
-              _buildDialogTextField(
-                controller: descriptionController,
-                label: 'Description (Optional)',
-                hint: 'Enter project description',
-                maxLines: 3,
+            ),
+            title: Text(
+              isEditing ? 'Edit Project' : 'Add New Project',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimary,
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildDialogTextField(
+                    controller: titleController,
+                    label: 'Project Title',
+                    hint: 'Enter project title',
+                  ),
+                  SizedBox(height: 16),
+                  _buildDialogTextField(
+                    controller: descriptionController,
+                    label: 'Description (Optional)',
+                    hint: 'Enter project description',
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.tertiary,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed:
+                    () => _saveProject(
+                      project: project,
+                      title: titleController.text,
+                      description: descriptionController.text,
+                    ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.secondary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                ),
+                child: Text(
+                  isEditing ? 'Update' : 'Add',
+                  style: TextStyle(fontFamily: 'Poppins'),
+                ),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.tertiary,
-                fontFamily: 'Poppins',
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => _saveProject(
-              project: project,
-              title: titleController.text,
-              description: descriptionController.text,
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.secondary,
-              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-            ),
-            child: Text(
-              isEditing ? 'Update' : 'Add',
-              style: TextStyle(fontFamily: 'Poppins'),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1027,7 +1033,9 @@ class _ProjectsState extends State<Projects> {
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.3),
+            color: Theme.of(
+              context,
+            ).colorScheme.tertiary.withValues(alpha: 0.3),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -1047,16 +1055,16 @@ class _ProjectsState extends State<Projects> {
     required String description,
   }) async {
     if (title.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Project title is required')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Project title is required')));
       return;
     }
 
     if (userId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please log in to save projects')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Please log in to save projects')));
       return;
     }
 
@@ -1067,9 +1075,11 @@ class _ProjectsState extends State<Projects> {
       'title': title.trim(),
       'description': description.trim(),
       'collaborators': project?.collaborators ?? [],
-      'project_tasks': project?.projectTasks.map((task) => task.toMap()).toList() ?? [],
+      'project_tasks':
+          project?.projectTasks.map((task) => task.toMap()).toList() ?? [],
       'type': 'project',
-      'created_at': project?.createdAt?.toIso8601String() ?? now.toIso8601String(),
+      'created_at':
+          project?.createdAt?.toIso8601String() ?? now.toIso8601String(),
     };
 
     // Create temporary project for optimistic update
@@ -1115,16 +1125,14 @@ class _ProjectsState extends State<Projects> {
     if (!mounted) return;
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Project updated successfully'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Project updated successfully')));
       await loadProjects();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save project')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save project')));
     }
   }
 
@@ -1208,15 +1216,18 @@ class _ProjectsState extends State<Projects> {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [                      if (!searching) ...[
+                    children: [
+                      if (!searching) ...[
                         Container(
-                          margin: EdgeInsets.only(left: 40),                          child: Row(
+                          margin: EdgeInsets.only(left: 40),
+                          child: Row(
                             children: [
                               Text(
                                 'Projects',
                                 style: TextStyle(
                                   fontSize: 28,
-                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -1234,20 +1245,30 @@ class _ProjectsState extends State<Projects> {
                             ),
                             height: 45,
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.08),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimary.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(25),
                               border: Border.all(
-                                color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.15),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onPrimary.withValues(alpha: 0.15),
                                 width: 1,
                               ),
                             ),
                             child: Row(
                               children: [
                                 Padding(
-                                  padding: const EdgeInsets.only(left: 16, right: 12),
+                                  padding: const EdgeInsets.only(
+                                    left: 16,
+                                    right: 12,
+                                  ),
                                   child: Icon(
                                     Icons.search,
-                                    color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.6),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onPrimary
+                                        .withValues(alpha: 0.6),
                                     size: 20,
                                   ),
                                 ),
@@ -1255,26 +1276,36 @@ class _ProjectsState extends State<Projects> {
                                   child: TextField(
                                     controller: searchController,
                                     style: TextStyle(
-                                      color: Theme.of(context).colorScheme.onPrimary,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
                                       fontFamily: 'Poppins',
                                       fontSize: 15,
                                       fontWeight: FontWeight.w400,
                                     ),
-                                    cursorColor: Theme.of(context).colorScheme.tertiary,
+                                    cursorColor:
+                                        Theme.of(context).colorScheme.tertiary,
                                     decoration: InputDecoration(
                                       hintText: 'Search projects...',
                                       hintStyle: TextStyle(
-                                        color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.5),
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onPrimary
+                                            .withValues(alpha: 0.5),
                                         fontFamily: 'Poppins',
                                         fontSize: 15,
                                         fontWeight: FontWeight.w400,
                                       ),
                                       border: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(vertical: 12),
+                                      contentPadding: EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
                                     ),
                                     onChanged: (value) {
                                       setState(() {
-                                        searchQuery = value.trim().toLowerCase();
+                                        searchQuery =
+                                            value.trim().toLowerCase();
                                       });
                                     },
                                   ),
@@ -1293,12 +1324,20 @@ class _ProjectsState extends State<Projects> {
                                         width: 20,
                                         height: 20,
                                         decoration: BoxDecoration(
-                                          color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.2),
-                                          borderRadius: BorderRadius.circular(10),
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onPrimary
+                                              .withValues(alpha: 0.2),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
                                         ),
                                         child: Icon(
                                           Icons.close,
-                                          color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.7),
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onPrimary
+                                              .withValues(alpha: 0.7),
                                           size: 14,
                                         ),
                                       ),
@@ -1672,135 +1711,147 @@ class _ProjectDetailsState extends State<ProjectDetails> {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.3),
-              width: 1,
-            ),
-          ),
-          title: Text(
-            'Add New Task',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onPrimary,
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildDialogTextField(
-                  controller: taskController,
-                  label: 'Task Details',
-                  hint: 'Enter task details',
-                ),
-                SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton.icon(
-                        icon: Icon(
-                          Icons.calendar_today,
-                          size: 16,
-                          color: Theme.of(context).colorScheme.onPrimary,
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setDialogState) => AlertDialog(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onPrimary.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  title: Text(
+                    'Add New Task',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      fontFamily: 'Poppins',
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildDialogTextField(
+                          controller: taskController,
+                          label: 'Task Details',
+                          hint: 'Enter task details',
                         ),
-                        label: Text(
-                          selectedDate != null
-                              ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
-                              : "Pick date",
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onPrimary,
-                            fontSize: 12,
-                            fontFamily: 'Poppins',
-                          ),
+                        SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextButton.icon(
+                                icon: Icon(
+                                  Icons.calendar_today,
+                                  size: 16,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                ),
+                                label: Text(
+                                  selectedDate != null
+                                      ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
+                                      : "Pick date",
+                                  style: TextStyle(
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                    fontSize: 12,
+                                    fontFamily: 'Poppins',
+                                  ),
+                                ),
+                                onPressed: () async {
+                                  final now = DateTime.now();
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: selectedDate ?? now,
+                                    firstDate: now,
+                                    lastDate: DateTime(now.year + 5),
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(() {
+                                      selectedDate = picked;
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: TextButton.icon(
+                                icon: Icon(
+                                  Icons.access_time,
+                                  size: 16,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                ),
+                                label: Text(
+                                  selectedTime != null
+                                      ? "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}"
+                                      : "Pick time",
+                                  style: TextStyle(
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                    fontSize: 12,
+                                    fontFamily: 'Poppins',
+                                  ),
+                                ),
+                                onPressed: () async {
+                                  final picked = await showTimePicker(
+                                    context: context,
+                                    initialTime:
+                                        selectedTime ?? TimeOfDay.now(),
+                                    initialEntryMode: TimePickerEntryMode.dial,
+                                  );
+                                  if (picked != null) {
+                                    setDialogState(() {
+                                      selectedTime = picked;
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                          ],
                         ),
-                        onPressed: () async {
-                          final now = DateTime.now();
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: selectedDate ?? now,
-                            firstDate: now,
-                            lastDate: DateTime(now.year + 5),
-                          );
-                          if (picked != null) {
-                            setDialogState(() {
-                              selectedDate = picked;
-                            });
-                          }
-                        },
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.tertiary,
+                          fontFamily: 'Poppins',
+                        ),
                       ),
                     ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: TextButton.icon(
-                        icon: Icon(
-                          Icons.access_time,
-                          size: 16,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                        label: Text(
-                          selectedTime != null
-                              ? "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}"
-                              : "Pick time",
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onPrimary,
-                            fontSize: 12,
-                            fontFamily: 'Poppins',
+                    ElevatedButton(
+                      onPressed:
+                          () => _saveTask(
+                            taskText: taskController.text,
+                            selectedDate: selectedDate,
+                            selectedTime: selectedTime,
                           ),
-                        ),
-                        onPressed: () async {
-                          final picked = await showTimePicker(
-                            context: context,
-                            initialTime: selectedTime ?? TimeOfDay.now(),
-                            initialEntryMode: TimePickerEntryMode.dial,
-                          );
-                          if (picked != null) {
-                            setDialogState(() {
-                              selectedTime = picked;
-                            });
-                          }
-                        },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            Theme.of(context).colorScheme.secondary,
+                        foregroundColor:
+                            Theme.of(context).colorScheme.onPrimary,
+                      ),
+                      child: Text(
+                        'Add',
+                        style: TextStyle(fontFamily: 'Poppins'),
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'Cancel',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.tertiary,
-                  fontFamily: 'Poppins',
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () => _saveTask(
-                taskText: taskController.text,
-                selectedDate: selectedDate,
-                selectedTime: selectedTime,
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.secondary,
-                foregroundColor: Theme.of(context).colorScheme.onPrimary,
-              ),
-              child: Text(
-                'Add',
-                style: TextStyle(fontFamily: 'Poppins'),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -1831,7 +1882,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.3),
+            color: Theme.of(
+              context,
+            ).colorScheme.tertiary.withValues(alpha: 0.3),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -1851,9 +1904,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
     required TimeOfDay? selectedTime,
   }) async {
     if (taskText.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Task details are required')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Task details are required')));
       return;
     }
 

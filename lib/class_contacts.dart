@@ -548,102 +548,112 @@ class _ContactsState extends State<Contacts> {
   void _showContactDialog({Contact? contact}) {
     final isEditing = contact != null;
     final titleController = TextEditingController(text: contact?.name ?? '');
-    final organizationController = TextEditingController(text: contact?.organization ?? '');
-    final positionController = TextEditingController(text: contact?.position ?? '');
-    final phoneController = TextEditingController(text: contact?.phoneNumber ?? '');
+    final organizationController = TextEditingController(
+      text: contact?.organization ?? '',
+    );
+    final positionController = TextEditingController(
+      text: contact?.position ?? '',
+    );
+    final phoneController = TextEditingController(
+      text: contact?.phoneNumber ?? '',
+    );
     final emailController = TextEditingController(text: contact?.email ?? '');
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.3),
-            width: 1,
-          ),
-        ),
-        title: Text(
-          isEditing ? 'Edit Contact' : 'Add New Contact',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onPrimary,
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        content: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.85,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildDialogTextField(
-                  controller: titleController,
-                  label: 'Name',
-                  hint: 'Enter contact name',
-                ),
-                SizedBox(height: 16),
-                _buildDialogTextField(
-                  controller: phoneController,
-                  label: 'Phone Number',
-                  hint: 'Enter phone number',
-                  keyboardType: TextInputType.phone,
-                ),
-                SizedBox(height: 16),
-                _buildDialogTextField(
-                  controller: positionController,
-                  label: 'Position',
-                  hint: 'Enter position',
-                ),
-                SizedBox(height: 16),
-                _buildDialogTextField(
-                  controller: organizationController,
-                  label: 'Organization',
-                  hint: 'Enter organization',
-                ),
-                SizedBox(height: 16),
-                _buildDialogTextField(
-                  controller: emailController,
-                  label: 'Email (Optional)',
-                  hint: 'Enter email address',
-                  keyboardType: TextInputType.emailAddress,
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.tertiary,
-                fontFamily: 'Poppins',
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onPrimary.withValues(alpha: 0.3),
+                width: 1,
               ),
             ),
+            title: Text(
+              isEditing ? 'Edit Contact' : 'Add New Contact',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimary,
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            content: SizedBox(
+              width: MediaQuery.of(context).size.width * 0.85,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildDialogTextField(
+                      controller: titleController,
+                      label: 'Name',
+                      hint: 'Enter contact name',
+                    ),
+                    SizedBox(height: 16),
+                    _buildDialogTextField(
+                      controller: phoneController,
+                      label: 'Phone Number',
+                      hint: 'Enter phone number',
+                      keyboardType: TextInputType.phone,
+                    ),
+                    SizedBox(height: 16),
+                    _buildDialogTextField(
+                      controller: positionController,
+                      label: 'Position',
+                      hint: 'Enter position',
+                    ),
+                    SizedBox(height: 16),
+                    _buildDialogTextField(
+                      controller: organizationController,
+                      label: 'Organization',
+                      hint: 'Enter organization',
+                    ),
+                    SizedBox(height: 16),
+                    _buildDialogTextField(
+                      controller: emailController,
+                      label: 'Email (Optional)',
+                      hint: 'Enter email address',
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.tertiary,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed:
+                    () => _saveContact(
+                      contact: contact,
+                      name: titleController.text,
+                      phoneNumber: phoneController.text,
+                      position: positionController.text,
+                      organization: organizationController.text,
+                      email: emailController.text,
+                    ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.secondary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                ),
+                child: Text(
+                  isEditing ? 'Update' : 'Add',
+                  style: TextStyle(fontFamily: 'Poppins'),
+                ),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () => _saveContact(
-              contact: contact,
-              name: titleController.text,
-              phoneNumber: phoneController.text,
-              position: positionController.text,
-              organization: organizationController.text,
-              email: emailController.text,
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.secondary,
-              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-            ),
-            child: Text(
-              isEditing ? 'Update' : 'Add',
-              style: TextStyle(fontFamily: 'Poppins'),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -674,7 +684,9 @@ class _ContactsState extends State<Contacts> {
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.3),
+            color: Theme.of(
+              context,
+            ).colorScheme.tertiary.withValues(alpha: 0.3),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -696,18 +708,22 @@ class _ContactsState extends State<Contacts> {
     required String organization,
     required String email,
   }) async {
-    if (name.trim().isEmpty || phoneNumber.trim().isEmpty || 
-        position.trim().isEmpty || organization.trim().isEmpty) {
+    if (name.trim().isEmpty ||
+        phoneNumber.trim().isEmpty ||
+        position.trim().isEmpty ||
+        organization.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Name, phone, position, and organization are required')),
+        SnackBar(
+          content: Text('Name, phone, position, and organization are required'),
+        ),
       );
       return;
     }
 
     if (userId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please log in to save contacts')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Please log in to save contacts')));
       return;
     }
 
@@ -770,16 +786,14 @@ class _ContactsState extends State<Contacts> {
     if (!mounted) return;
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Contact updated successfully'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Contact updated successfully')));
       await begin();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save contact')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save contact')));
     }
   }
 
@@ -872,15 +886,18 @@ class _ContactsState extends State<Contacts> {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [                      if (!searching) ...[
+                    children: [
+                      if (!searching) ...[
                         Container(
-                          margin: EdgeInsets.only(left: 40),                          child: Row(
+                          margin: EdgeInsets.only(left: 40),
+                          child: Row(
                             children: [
                               Text(
                                 "Contacts",
                                 style: TextStyle(
                                   fontSize: 28,
-                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -898,20 +915,30 @@ class _ContactsState extends State<Contacts> {
                             ),
                             height: 45,
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.08),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimary.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(25),
                               border: Border.all(
-                                color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.15),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onPrimary.withValues(alpha: 0.15),
                                 width: 1,
                               ),
                             ),
                             child: Row(
                               children: [
                                 Padding(
-                                  padding: const EdgeInsets.only(left: 16, right: 12),
+                                  padding: const EdgeInsets.only(
+                                    left: 16,
+                                    right: 12,
+                                  ),
                                   child: Icon(
                                     Icons.search,
-                                    color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.6),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onPrimary
+                                        .withValues(alpha: 0.6),
                                     size: 20,
                                   ),
                                 ),
@@ -919,26 +946,36 @@ class _ContactsState extends State<Contacts> {
                                   child: TextField(
                                     controller: searchController,
                                     style: TextStyle(
-                                      color: Theme.of(context).colorScheme.onPrimary,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
                                       fontFamily: 'Poppins',
                                       fontSize: 15,
                                       fontWeight: FontWeight.w400,
                                     ),
-                                    cursorColor: Theme.of(context).colorScheme.tertiary,
+                                    cursorColor:
+                                        Theme.of(context).colorScheme.tertiary,
                                     decoration: InputDecoration(
                                       hintText: 'Search contacts...',
                                       hintStyle: TextStyle(
-                                        color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.5),
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onPrimary
+                                            .withValues(alpha: 0.5),
                                         fontFamily: 'Poppins',
                                         fontSize: 15,
                                         fontWeight: FontWeight.w400,
                                       ),
                                       border: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(vertical: 12),
+                                      contentPadding: EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
                                     ),
                                     onChanged: (value) {
                                       setState(() {
-                                        searchQuery = value.trim().toLowerCase();
+                                        searchQuery =
+                                            value.trim().toLowerCase();
                                       });
                                     },
                                   ),
@@ -957,12 +994,20 @@ class _ContactsState extends State<Contacts> {
                                         width: 20,
                                         height: 20,
                                         decoration: BoxDecoration(
-                                          color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.2),
-                                          borderRadius: BorderRadius.circular(10),
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onPrimary
+                                              .withValues(alpha: 0.2),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
                                         ),
                                         child: Icon(
                                           Icons.close,
-                                          color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.7),
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onPrimary
+                                              .withValues(alpha: 0.7),
                                           size: 14,
                                         ),
                                       ),
@@ -2086,101 +2131,108 @@ class _ContactDetailsState extends State<ContactDetails> {
   // Show edit contact dialog
   void _showEditContactDialog() {
     final nameController = TextEditingController(text: localContact.name);
-    final organizationController = TextEditingController(text: localContact.organization);
-    final positionController = TextEditingController(text: localContact.position);
-    final phoneController = TextEditingController(text: localContact.phoneNumber);
+    final organizationController = TextEditingController(
+      text: localContact.organization,
+    );
+    final positionController = TextEditingController(
+      text: localContact.position,
+    );
+    final phoneController = TextEditingController(
+      text: localContact.phoneNumber,
+    );
     final emailController = TextEditingController(text: localContact.email);
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.3),
-            width: 1,
-          ),
-        ),
-        title: Text(
-          'Edit Contact',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onPrimary,
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        content: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.85,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildDialogTextField(
-                  controller: nameController,
-                  label: 'Name',
-                  hint: 'Enter contact name',
-                ),
-                SizedBox(height: 16),
-                _buildDialogTextField(
-                  controller: phoneController,
-                  label: 'Phone Number',
-                  hint: 'Enter phone number',
-                  keyboardType: TextInputType.phone,
-                ),
-                SizedBox(height: 16),
-                _buildDialogTextField(
-                  controller: positionController,
-                  label: 'Position',
-                  hint: 'Enter position',
-                ),
-                SizedBox(height: 16),
-                _buildDialogTextField(
-                  controller: organizationController,
-                  label: 'Organization',
-                  hint: 'Enter organization',
-                ),
-                SizedBox(height: 16),
-                _buildDialogTextField(
-                  controller: emailController,
-                  label: 'Email (Optional)',
-                  hint: 'Enter email address',
-                  keyboardType: TextInputType.emailAddress,
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.tertiary,
-                fontFamily: 'Poppins',
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onPrimary.withValues(alpha: 0.3),
+                width: 1,
               ),
             ),
+            title: Text(
+              'Edit Contact',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimary,
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            content: SizedBox(
+              width: MediaQuery.of(context).size.width * 0.85,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildDialogTextField(
+                      controller: nameController,
+                      label: 'Name',
+                      hint: 'Enter contact name',
+                    ),
+                    SizedBox(height: 16),
+                    _buildDialogTextField(
+                      controller: phoneController,
+                      label: 'Phone Number',
+                      hint: 'Enter phone number',
+                      keyboardType: TextInputType.phone,
+                    ),
+                    SizedBox(height: 16),
+                    _buildDialogTextField(
+                      controller: positionController,
+                      label: 'Position',
+                      hint: 'Enter position',
+                    ),
+                    SizedBox(height: 16),
+                    _buildDialogTextField(
+                      controller: organizationController,
+                      label: 'Organization',
+                      hint: 'Enter organization',
+                    ),
+                    SizedBox(height: 16),
+                    _buildDialogTextField(
+                      controller: emailController,
+                      label: 'Email (Optional)',
+                      hint: 'Enter email address',
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.tertiary,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed:
+                    () => _saveEditedContact(
+                      name: nameController.text,
+                      phoneNumber: phoneController.text,
+                      position: positionController.text,
+                      organization: organizationController.text,
+                      email: emailController.text,
+                    ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.secondary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                ),
+                child: Text('Update', style: TextStyle(fontFamily: 'Poppins')),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () => _saveEditedContact(
-              name: nameController.text,
-              phoneNumber: phoneController.text,
-              position: positionController.text,
-              organization: organizationController.text,
-              email: emailController.text,
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.secondary,
-              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-            ),
-            child: Text(
-              'Update',
-              style: TextStyle(fontFamily: 'Poppins'),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -2211,7 +2263,9 @@ class _ContactDetailsState extends State<ContactDetails> {
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-            color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.3),
+            color: Theme.of(
+              context,
+            ).colorScheme.tertiary.withValues(alpha: 0.3),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -2232,10 +2286,14 @@ class _ContactDetailsState extends State<ContactDetails> {
     required String organization,
     required String email,
   }) async {
-    if (name.trim().isEmpty || phoneNumber.trim().isEmpty || 
-        position.trim().isEmpty || organization.trim().isEmpty) {
+    if (name.trim().isEmpty ||
+        phoneNumber.trim().isEmpty ||
+        position.trim().isEmpty ||
+        organization.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Name, phone, position, and organization are required')),
+        SnackBar(
+          content: Text('Name, phone, position, and organization are required'),
+        ),
       );
       return;
     }
