@@ -8,6 +8,8 @@ import 'user_session.dart';
 import 'services/projects_adapter.dart';
 import 'services/contacts_adapter.dart';
 import 'services/optimistic_updates.dart';
+import 'utils/dialog_helper.dart';
+import 'utils/date_formatter.dart';
 import 'services/project_tasks_sync.dart';
 
 class Projects extends StatefulWidget {
@@ -108,7 +110,6 @@ class _ProjectsState extends State<Projects> {
     }
   }
 
-  
   // Enhanced project tiles builder based on Figma design
   Widget buildEnhancedProjectTiles(List<Project> allProjects) {
     // Filter projects based on search query if searching
@@ -606,97 +607,41 @@ class _ProjectsState extends State<Projects> {
                     padding: EdgeInsets.zero,
                     onPressed: () async {
                       // Show confirmation dialog for project deletion
-                      final confirmed = await showDialog<bool>(
+                      DialogHelper.showDeleteConfirmation(
                         context: context,
-                        builder:
-                            (context) => AlertDialog(
-                              backgroundColor:
-                                  Theme.of(context).colorScheme.primary,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                side: BorderSide(
-                                  color:
-                                      Theme.of(context).colorScheme.onSecondary,
-                                  width: 1.5,
-                                ),
-                              ),
-                              title: Text(
-                                'Delete Project?',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                ),
-                              ),
-                              content: Text(
-                                'Project "${project.title}" will be permanently deleted.',
-                                style: TextStyle(
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                ),
-                              ),
-                              actions: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    IconButton(
-                                      onPressed:
-                                          () => Navigator.pop(context, false),
-                                      icon: Icon(
-                                        Icons.close,
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.onPrimary,
-                                        size: 30,
-                                      ),
-                                    ),
-                                    IconButton(
-                                      onPressed:
-                                          () => Navigator.pop(context, true),
-                                      icon: Icon(
-                                        Icons.check,
-                                        color:
-                                            Theme.of(context).colorScheme.error,
-                                        size: 30,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
+                        title: 'Delete Project?',
+                        content:
+                            'Project "${project.title}" will be permanently deleted.',
+                        onDelete: () async {
+                          // Use optimistic updates for project deletion
+                          await OptimisticUpdates.performListOperation<Project>(
+                            list: projects,
+                            operation: 'remove',
+                            item: project,
+                            databaseOperation: () async {
+                              return await ProjectsAdapter.deleteProject(
+                                project.id!,
+                              );
+                            },
+                            showSuccessMessage:
+                                'Project "${project.title}" deleted successfully',
+                            showErrorMessage: 'Failed to delete project',
+                            context: context,
+                            onSuccess: () {
+                              // Sync project deletion to Tasks tab
+                              ProjectTasksSync.removeProjectFromTasks(
+                                project.id.toString(),
+                              );
+                              setState(() {}); // Trigger rebuild
+                            },
+                            onError: (error) {
+                              setState(
+                                () {},
+                              ); // Trigger rebuild to restore deleted item                            print('Error deleting project: $error');
+                            },
+                          );
+                        },
                       );
-                      if (confirmed == true) {
-                        // Use optimistic updates for project deletion
-                        await OptimisticUpdates.performListOperation<Project>(
-                          list: projects,
-                          operation: 'remove',
-                          item: project,
-                          databaseOperation: () async {
-                            return await ProjectsAdapter.deleteProject(
-                              project.id!,
-                            );
-                          },
-                          showSuccessMessage:
-                              'Project "${project.title}" deleted successfully',
-                          showErrorMessage: 'Failed to delete project',
-                          context: context,
-                          onSuccess: () {
-                            // Sync project deletion to Tasks tab
-                            ProjectTasksSync.removeProjectFromTasks(
-                              project.id.toString(),
-                            );
-                            setState(() {}); // Trigger rebuild
-                          },
-                          onError: (error) {
-                            setState(
-                              () {},
-                            ); // Trigger rebuild to restore deleted item
-                            print('Error deleting project: $error');
-                          },
-                        );
-                      }
                     },
                     icon: Icon(
                       Icons.delete,
@@ -982,7 +927,6 @@ class _ProjectsState extends State<Projects> {
             final idx = projects.indexWhere((p) => p.id == updatedProject.id);
             if (idx != -1) {
               projects[idx] = updatedProject;
-              
             }
           });
         },
@@ -1542,7 +1486,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                 ),
                                 label: Text(
                                   selectedDate != null
-                                      ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
+                                      ? DateFormatter.formatDate(selectedDate!)
                                       : "Pick date",
                                   style: TextStyle(
                                     color:
@@ -1578,7 +1522,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                 ),
                                 label: Text(
                                   selectedTime != null
-                                      ? "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}"
+                                      ? DateFormatter.formatTimeOfDay(
+                                        selectedTime!,
+                                      )
                                       : "Pick time",
                                   style: TextStyle(
                                     color:
@@ -2135,7 +2081,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                           ),
                                           label: Text(
                                             selectedDate != null
-                                                ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
+                                                ? DateFormatter.formatDate(
+                                                  selectedDate!,
+                                                )
                                                 : "Pick date",
                                             style: TextStyle(
                                               color:
@@ -2171,7 +2119,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                           ),
                                           label: Text(
                                             selectedTime != null
-                                                ? "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}"
+                                                ? DateFormatter.formatTimeOfDay(
+                                                  selectedTime!,
+                                                )
                                                 : "Pick time",
                                             style: TextStyle(
                                               color:
@@ -2360,8 +2310,12 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                 ),
                               ),
                             ],
-                            
-                            if (project.projectTasks.where((task) => !completedTasks.contains(task.id),).isEmpty) ...[
+
+                            if (project.projectTasks
+                                .where(
+                                  (task) => !completedTasks.contains(task.id),
+                                )
+                                .isEmpty) ...[
                               Container(
                                 margin: EdgeInsets.symmetric(vertical: 10),
                                 child: Text(
@@ -2378,8 +2332,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                 ),
                               ),
                             ] else ...[
-                              
-                              ...project.projectTasks.where((task) => !completedTasks.contains(task.id)).map<Widget>((item) {
+                              ...project.projectTasks.where((task) => !completedTasks.contains(task.id)).map<
+                                Widget
+                              >((item) {
                                 return Row(
                                   children: [
                                     Checkbox(
@@ -2402,8 +2357,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                               .copyWith(
                                                 projectTasks:
                                                     project.projectTasks,
-                                                    completedTasks: completedTasks,
-                                                    completedTasksHistory: completedTasksHistory,
+                                                completedTasks: completedTasks,
+                                                completedTasksHistory:
+                                                    completedTasksHistory,
                                               );
                                           final projectData =
                                               updatedProject.toMap();
@@ -2420,7 +2376,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                               );
                                           if (success) {
                                             // Sync to Tasks tab
-                                            widget.onUpdate(updatedProject);    
+                                            widget.onUpdate(updatedProject);
                                             await ProjectTasksSync.syncProjectToTasks(
                                               updatedProject,
                                             );
@@ -2497,156 +2453,115 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                         size: 20,
                                       ),
                                       onPressed: () async {
-                                        // Show confirmation dialog
-                                        final confirmed = await showDialog<
-                                          bool
-                                        >(
+                                        // Show confirmation dialog using DialogHelper
+                                        DialogHelper.showDeleteConfirmation(
                                           context: context,
-                                          builder:
-                                              (context) => AlertDialog(
-                                                backgroundColor:
-                                                    Theme.of(
-                                                      context,
-                                                    ).colorScheme.primary,
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(10),
-                                                  side: BorderSide(
-                                                    color:
-                                                        Theme.of(context)
-                                                            .colorScheme
-                                                            .onSecondary,
-                                                    width: 1.5,
-                                                  ),
-                                                ),
-                                                title: Text(
-                                                  'Delete Task?',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    color:
-                                                        Theme.of(
-                                                          context,
-                                                        ).colorScheme.onPrimary,
-                                                  ),
-                                                ),
-                                                content: Text(
-                                                  'This task will be permanently deleted.',
-                                                  style: TextStyle(
-                                                    color:
-                                                        Theme.of(
-                                                          context,
-                                                        ).colorScheme.onPrimary,
-                                                  ),
-                                                ),
-                                                actions: [
-                                                  Row(
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment
-                                                            .spaceEvenly,
-                                                    children: [
-                                                      IconButton(
-                                                        onPressed:
-                                                            () => Navigator.pop(
-                                                              context,
-                                                              false,
-                                                            ),
-                                                        icon: Icon(
-                                                          Icons.close,
-                                                          color:
-                                                              Theme.of(context)
-                                                                  .colorScheme
-                                                                  .onPrimary,
-                                                          size: 30,
-                                                        ),
+                                          title: 'Delete Task?',
+                                          content:
+                                              'This task will be permanently deleted.',
+                                          onDelete: () async {
+                                            // Store original state for rollback
+                                            final originalTasks =
+                                                List<ToDoItem>.from(
+                                                  project.projectTasks,
+                                                );
+                                            final originalCompletedTasks =
+                                                List<String>.from(
+                                                  completedTasks,
+                                                );
+                                            final originalCompletedTasksHistory =
+                                                List<String>.from(
+                                                  completedTasksHistory,
+                                                );
+
+                                            // Remove task from local state
+                                            setState(() {
+                                              project.projectTasks.removeWhere(
+                                                (task) => task.id == item.id,
+                                              );
+                                              completedTasks.remove(
+                                                item.id,
+                                              ); // Also remove from completed tasks if present
+                                              completedTasksHistory.remove(
+                                                item.id,
+                                              ); // Also remove from history
+                                            });
+
+                                            // Update project in database
+                                            try {
+                                              final updatedProject = project
+                                                  .copyWith(
+                                                    projectTasks:
+                                                        project.projectTasks,
+                                                  );
+                                              final projectData =
+                                                  updatedProject.toMap();
+                                              projectData['_id'] =
+                                                  updatedProject.id;
+                                              projectData['completed_tasks'] =
+                                                  completedTasks;
+                                              projectData['completed_tasks_history'] =
+                                                  completedTasksHistory;
+
+                                              bool success =
+                                                  await ProjectsAdapter.updateProject(
+                                                    projectData,
+                                                  );
+                                              if (success) {
+                                                widget.onUpdate(updatedProject);
+                                                // Sync to Tasks tab
+                                                await ProjectTasksSync.syncProjectToTasks(
+                                                  updatedProject,
+                                                );
+                                                if (mounted) {
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'Task deleted successfully',
                                                       ),
-                                                      IconButton(
-                                                        onPressed:
-                                                            () => Navigator.pop(
-                                                              context,
-                                                              true,
-                                                            ),
-                                                        icon: Icon(
-                                                          Icons.check,
-                                                          color:
-                                                              Theme.of(context)
-                                                                  .colorScheme
-                                                                  .error,
-                                                          size: 30,
-                                                        ),
+                                                      duration: Duration(
+                                                        seconds: 2,
                                                       ),
-                                                    ],
-                                                  ),
-                                                ],
-                                              ),
-                                        );
-
-                                        if (confirmed == true) {
-                                          // Store original state for rollback
-                                          final originalTasks =
-                                              List<ToDoItem>.from(
-                                                project.projectTasks,
-                                              );
-                                          final originalCompletedTasks =
-                                              List<String>.from(completedTasks);
-                                          final originalCompletedTasksHistory =
-                                              List<String>.from(
-                                                completedTasksHistory,
-                                              );
-
-                                          // Remove task from local state
-                                          setState(() {
-                                            project.projectTasks.removeWhere(
-                                              (task) => task.id == item.id,
-                                            );
-                                            completedTasks.remove(
-                                              item.id,
-                                            ); // Also remove from completed tasks if present
-                                            completedTasksHistory.remove(
-                                              item.id,
-                                            ); // Also remove from history
-                                          });
-
-                                          // Update project in database
-                                          try {
-                                            final updatedProject = project
-                                                .copyWith(
-                                                  projectTasks:
-                                                      project.projectTasks,
-                                                );
-                                            final projectData =
-                                                updatedProject.toMap();
-                                            projectData['_id'] =
-                                                updatedProject.id;
-                                            projectData['completed_tasks'] =
-                                                completedTasks;
-                                            projectData['completed_tasks_history'] =
-                                                completedTasksHistory;
-
-                                            bool success =
-                                                await ProjectsAdapter.updateProject(
-                                                  projectData,
-                                                );
-                                            if (success) {
-                                              widget.onUpdate(updatedProject);
-                                              // Sync to Tasks tab
-                                              await ProjectTasksSync.syncProjectToTasks(
-                                                updatedProject,
-                                              );
-                                              if (mounted) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      'Task deleted successfully',
                                                     ),
-                                                    duration: Duration(
-                                                      seconds: 2,
+                                                  );
+                                                }
+                                              } else {
+                                                // Revert the local change if database update failed
+                                                setState(() {
+                                                  project.projectTasks.clear();
+                                                  project.projectTasks.addAll(
+                                                    originalTasks,
+                                                  );
+                                                  completedTasks.clear();
+                                                  completedTasks.addAll(
+                                                    originalCompletedTasks,
+                                                  );
+                                                  completedTasksHistory.clear();
+                                                  completedTasksHistory.addAll(
+                                                    originalCompletedTasksHistory,
+                                                  );
+                                                });
+                                                if (mounted) {
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'Failed to delete task',
+                                                      ),
+                                                      duration: Duration(
+                                                        seconds: 2,
+                                                      ),
                                                     ),
-                                                  ),
-                                                );
+                                                  );
+                                                }
                                               }
-                                            } else {
+                                            } catch (e) {
+                                              print(
+                                                'Error deleting project task: $e',
+                                              );
                                               // Revert the local change if database update failed
                                               setState(() {
                                                 project.projectTasks.clear();
@@ -2666,9 +2581,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                 ScaffoldMessenger.of(
                                                   context,
                                                 ).showSnackBar(
-                                                  const SnackBar(
+                                                  SnackBar(
                                                     content: Text(
-                                                      'Failed to delete task',
+                                                      'Error deleting task: $e',
                                                     ),
                                                     duration: Duration(
                                                       seconds: 2,
@@ -2677,41 +2592,8 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                 );
                                               }
                                             }
-                                          } catch (e) {
-                                            print(
-                                              'Error deleting project task: $e',
-                                            );
-                                            // Revert the local change if database update failed
-                                            setState(() {
-                                              project.projectTasks.clear();
-                                              project.projectTasks.addAll(
-                                                originalTasks,
-                                              );
-                                              completedTasks.clear();
-                                              completedTasks.addAll(
-                                                originalCompletedTasks,
-                                              );
-                                              completedTasksHistory.clear();
-                                              completedTasksHistory.addAll(
-                                                originalCompletedTasksHistory,
-                                              );
-                                            });
-                                            if (mounted) {
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                    'Error deleting task: $e',
-                                                  ),
-                                                  duration: Duration(
-                                                    seconds: 2,
-                                                  ),
-                                                ),
-                                              );
-                                            }
-                                          }
-                                        }
+                                          },
+                                        );
                                       },
                                     ),
                                   ],
@@ -2825,8 +2707,10 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                             size: 18,
                                           ),
                                           onPressed: () async {
-                                            if (completedTasksHistory.isNotEmpty) {
-                                              final taskToUndo = completedTasksHistory.last;
+                                            if (completedTasksHistory
+                                                .isNotEmpty) {
+                                              final taskToUndo =
+                                                  completedTasksHistory.last;
 
                                               setState(() {
                                                 completedTasks.remove(
@@ -2843,8 +2727,10 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                     .copyWith(
                                                       projectTasks:
                                                           project.projectTasks,
-                                                          completedTasks: completedTasks,
-                                                          completedTasksHistory: completedTasksHistory,
+                                                      completedTasks:
+                                                          completedTasks,
+                                                      completedTasksHistory:
+                                                          completedTasksHistory,
                                                     );
                                                 final projectData =
                                                     updatedProject.toMap();
@@ -2884,8 +2770,12 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                   }
                                                 } else {
                                                   // Sync undo completion to Tasks tab
-                                                  await ProjectTasksSync.syncProjectToTasks(updatedProject);
-                                                  widget.onUpdate(updatedProject);
+                                                  await ProjectTasksSync.syncProjectToTasks(
+                                                    updatedProject,
+                                                  );
+                                                  widget.onUpdate(
+                                                    updatedProject,
+                                                  );
                                                   if (mounted) {
                                                     ScaffoldMessenger.of(
                                                       context,
@@ -3588,141 +3478,82 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                 size: 16,
                                               ),
                                               onDeleted: () async {
-                                                // Show confirmation dialog
-                                                final confirmed = await showDialog<
-                                                  bool
-                                                >(
+                                                // Show confirmation dialog using DialogHelper
+                                                DialogHelper.showDeleteConfirmation(
                                                   context: context,
-                                                  builder:
-                                                      (context) => AlertDialog(
-                                                        backgroundColor:
-                                                            Theme.of(context)
-                                                                .colorScheme
-                                                                .primary,
-                                                        shape: RoundedRectangleBorder(
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                16,
-                                                              ),
-                                                          side: BorderSide(
-                                                            color:
-                                                                Theme.of(
-                                                                      context,
-                                                                    )
-                                                                    .colorScheme
-                                                                    .onPrimary,
-                                                            width: 1,
-                                                          ),
-                                                        ),
-                                                        title: Text(
-                                                          'Remove Collaborator',
-                                                          style: TextStyle(
-                                                            color:
-                                                                Theme.of(
-                                                                      context,
-                                                                    )
-                                                                    .colorScheme
-                                                                    .onPrimary,
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                          ),
-                                                        ),
-                                                        content: Text(
-                                                          'Remove ${contact.name} from this project?',
-                                                          style: TextStyle(
-                                                            color:
-                                                                Theme.of(
-                                                                      context,
-                                                                    )
-                                                                    .colorScheme
-                                                                    .onPrimary,
-                                                          ),
-                                                        ),
-                                                        actions: [
-                                                          Row(
-                                                            mainAxisAlignment:
-                                                                MainAxisAlignment
-                                                                    .spaceEvenly,
-                                                            children: [
-                                                              IconButton(
-                                                                onPressed:
-                                                                    () => Navigator.pop(
-                                                                      context,
-                                                                      false,
-                                                                    ),
-                                                                icon: Icon(
-                                                                  Icons.close,
-                                                                  color:
-                                                                      Theme.of(
-                                                                        context,
-                                                                      ).colorScheme.onPrimary,
-                                                                  size: 30,
-                                                                ),
-                                                              ),
-                                                              IconButton(
-                                                                onPressed:
-                                                                    () => Navigator.pop(
-                                                                      context,
-                                                                      true,
-                                                                    ),
-                                                                icon: Icon(
-                                                                  Icons.check,
-                                                                  color:
-                                                                      Theme.of(
-                                                                        context,
-                                                                      ).colorScheme.error,
-                                                                  size: 30,
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        ],
-                                                      ),
-                                                );
+                                                  title: 'Remove Collaborator',
+                                                  content:
+                                                      'Remove ${contact.name} from this project?',
+                                                  onDelete: () async {
+                                                    // Remove collaborator from local state
+                                                    setState(() {
+                                                      project.collaborators
+                                                          .remove(phoneNumber);
+                                                    });
 
-                                                if (confirmed == true) {
-                                                  // Remove collaborator from local state
-                                                  setState(() {
-                                                    project.collaborators
-                                                        .remove(phoneNumber);
-                                                  });
+                                                    // Update project in database
+                                                    try {
+                                                      final updatedProject =
+                                                          project.copyWith(
+                                                            collaborators:
+                                                                project
+                                                                    .collaborators,
+                                                          );
+                                                      final projectData =
+                                                          updatedProject
+                                                              .toMap();
+                                                      projectData['_id'] =
+                                                          updatedProject.id;
 
-                                                  // Update project in database
-                                                  try {
-                                                    final updatedProject =
-                                                        project.copyWith(
-                                                          collaborators:
-                                                              project
-                                                                  .collaborators,
+                                                      bool success =
+                                                          await ProjectsAdapter.updateProject(
+                                                            projectData,
+                                                          );
+                                                      if (success) {
+                                                        widget.onUpdate(
+                                                          updatedProject,
                                                         );
-                                                    final projectData =
-                                                        updatedProject.toMap();
-                                                    projectData['_id'] =
-                                                        updatedProject.id;
-
-                                                    bool success =
-                                                        await ProjectsAdapter.updateProject(
-                                                          projectData,
-                                                        );
-                                                    if (success) {
-                                                      widget.onUpdate(
-                                                        updatedProject,
-                                                      );
-                                                      if (mounted) {
-                                                        ScaffoldMessenger.of(
-                                                          context,
-                                                        ).showSnackBar(
-                                                          SnackBar(
-                                                            content: Text(
-                                                              '${contact.name} removed from project',
+                                                        if (mounted) {
+                                                          ScaffoldMessenger.of(
+                                                            context,
+                                                          ).showSnackBar(
+                                                            SnackBar(
+                                                              content: Text(
+                                                                '${contact.name} removed from project',
+                                                              ),
+                                                              duration:
+                                                                  Duration(
+                                                                    seconds: 2,
+                                                                  ),
                                                             ),
-                                                            duration: Duration(
-                                                              seconds: 2,
+                                                          );
+                                                        }
+                                                      } else {
+                                                        // Revert the local change if database update failed
+                                                        setState(() {
+                                                          project.collaborators
+                                                              .add(phoneNumber);
+                                                        });
+                                                        if (mounted) {
+                                                          ScaffoldMessenger.of(
+                                                            context,
+                                                          ).showSnackBar(
+                                                            const SnackBar(
+                                                              content: Text(
+                                                                'Failed to remove collaborator',
+                                                              ),
+                                                              duration:
+                                                                  Duration(
+                                                                    seconds: 2,
+                                                                  ),
                                                             ),
-                                                          ),
-                                                        );
+                                                          );
+                                                        }
                                                       }
-                                                    } else {
+                                                    } catch (e) {
+                                                      print(
+                                                        'Error removing collaborator: $e',
+                                                      );
                                                       // Revert the local change if database update failed
                                                       setState(() {
                                                         project.collaborators
@@ -3732,9 +3563,9 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                         ScaffoldMessenger.of(
                                                           context,
                                                         ).showSnackBar(
-                                                          const SnackBar(
+                                                          SnackBar(
                                                             content: Text(
-                                                              'Failed to remove collaborator',
+                                                              'Error removing collaborator: $e',
                                                             ),
                                                             duration: Duration(
                                                               seconds: 2,
@@ -3743,32 +3574,8 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                         );
                                                       }
                                                     }
-                                                  } catch (e) {
-                                                    print(
-                                                      'Error removing collaborator: $e',
-                                                    );
-                                                    // Revert the local change if database update failed
-                                                    setState(() {
-                                                      project.collaborators.add(
-                                                        phoneNumber,
-                                                      );
-                                                    });
-                                                    if (mounted) {
-                                                      ScaffoldMessenger.of(
-                                                        context,
-                                                      ).showSnackBar(
-                                                        SnackBar(
-                                                          content: Text(
-                                                            'Error removing collaborator: $e',
-                                                          ),
-                                                          duration: Duration(
-                                                            seconds: 2,
-                                                          ),
-                                                        ),
-                                                      );
-                                                    }
-                                                  }
-                                                }
+                                                  },
+                                                );
                                               },
                                             ),
                                           );

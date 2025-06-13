@@ -281,7 +281,9 @@ class _TasksState extends State<Tasks> {
                                   ),
                                   label: Text(
                                     selectedDate != null
-                                        ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
+                                        ? DateFormatter.formatDate(
+                                          selectedDate!,
+                                        )
                                         : "Pick date",
                                     style: TextStyle(
                                       color:
