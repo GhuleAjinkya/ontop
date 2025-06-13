@@ -7,6 +7,7 @@ import 'services/optimistic_updates.dart'; // Add optimistic updates
 import 'services/projects_adapter.dart'; // Add projects adapter
 import 'screens/contact_import_screen.dart'; // Add contact import screen
 import 'models/project.dart'; // Add project model
+import 'utils/dialog_helper.dart'; // Add dialog helper
 // Add app title widget
 
 import 'package:flutter/services.dart';
@@ -413,10 +414,10 @@ class _ContactsState extends State<Contacts> {
           for (var contact in contactsToUnstar) {
             // Update starred status
             contact.starred = 0;
-            
+
             // Remove from starred list
             starred.remove(contact);
-            
+
             // Add to appropriate section
             if (contact.name.isNotEmpty) {
               String firstLetter = contact.name[0].toUpperCase();
@@ -445,18 +446,18 @@ class _ContactsState extends State<Contacts> {
           for (var contact in contactsToUnstar) {
             // Revert starred status back to 1
             contact.starred = 1;
-            
+
             // Remove from sections if present
             sections.forEach((key, list) {
               list.removeWhere((c) => c.id.toString() == contact.id.toString());
             });
-            
+
             // Add back to starred list if not present
             if (!starred.any((c) => c.id.toString() == contact.id.toString())) {
               starred.add(contact);
             }
           }
-          
+
           // Sort starred list
           starred.sort((a, b) => a.name.compareTo(b.name));
         });
@@ -493,7 +494,6 @@ class _ContactsState extends State<Contacts> {
               (c) => selectedIDs.any((id) => id.toString() == c.id.toString()),
             )
             .toList();
-    
 
     print("🔴 DEBUG: contactsToDelete.length = ${contactsToDelete.length}");
     for (var contact in contactsToDelete) {
@@ -512,19 +512,19 @@ class _ContactsState extends State<Contacts> {
         setState(() {
           // Remove from main contacts list
           contacts.removeWhere(
-            (c) => selectedIDs.any((id) => id.toString() == c.id.toString())
+            (c) => selectedIDs.any((id) => id.toString() == c.id.toString()),
           );
-          
+
           // Remove from sections
           sections.forEach((key, list) {
             list.removeWhere(
-              (c) => selectedIDs.any((id) => id.toString() == c.id.toString())
+              (c) => selectedIDs.any((id) => id.toString() == c.id.toString()),
             );
           });
-          
+
           // Remove from starred if present
           starred.removeWhere(
-            (c) => selectedIDs.any((id) => id.toString() == c.id.toString())
+            (c) => selectedIDs.any((id) => id.toString() == c.id.toString()),
           );
 
           selectedIDs.clear();
@@ -549,7 +549,7 @@ class _ContactsState extends State<Contacts> {
         setState(() {
           // Add back to main contacts list
           contacts.addAll(contactsToDelete);
-          
+
           // Add back to sections
           for (var contact in contactsToDelete) {
             if (contact.starred == 0 && contact.name.isNotEmpty) {
@@ -559,16 +559,12 @@ class _ContactsState extends State<Contacts> {
               }
             }
           }
-          
+
           // Add back to starred if they were starred
-          starred.addAll(
-            contactsToDelete.where((c) => c.starred == 1)
-          );
+          starred.addAll(contactsToDelete.where((c) => c.starred == 1));
 
           // Re-select the contacts
-          selectedIDs.addAll(
-            contactsToDelete.map((c) => c.id)
-          );
+          selectedIDs.addAll(contactsToDelete.map((c) => c.id));
         });
       },
       showSuccessMessage: 'Contacts deleted successfully!',
@@ -1363,82 +1359,14 @@ class _ContactsState extends State<Contacts> {
                                   size: 28,
                                 ),
                                 onPressed: () {
-                                  showDialog(
+                                  DialogHelper.showDeleteConfirmation(
                                     context: context,
-                                    builder:
-                                        (context) => AlertDialog(
-                                          backgroundColor:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.primary,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                            side: BorderSide(
-                                              color:
-                                                  Theme.of(
-                                                    context,
-                                                  ).colorScheme.onSecondary,
-                                              width: 1.5,
-                                            ),
-                                          ),
-                                          title: Text(
-                                            'Delete Contacts?',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color:
-                                                  Theme.of(
-                                                    context,
-                                                  ).colorScheme.onPrimary,
-                                            ),
-                                          ),
-                                          content: Text(
-                                            'Selected contacts will be permanently deleted.',
-                                            style: TextStyle(
-                                              color:
-                                                  Theme.of(
-                                                    context,
-                                                  ).colorScheme.onPrimary,
-                                            ),
-                                          ),
-                                          actions: [
-                                            Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.spaceEvenly,
-                                              children: [
-                                                IconButton(
-                                                  onPressed:
-                                                      () => Navigator.pop(
-                                                        context,
-                                                      ),
-                                                  icon: Icon(
-                                                    Icons.close,
-                                                    color:
-                                                        Theme.of(
-                                                          context,
-                                                        ).colorScheme.onPrimary,
-                                                    size: 30,
-                                                  ),
-                                                ),
-                                                IconButton(
-                                                  onPressed: () {
-                                                    deleteSelected();
-                                                    Navigator.pop(context);
-                                                  },
-                                                  icon: Icon(
-                                                    Icons.check,
-                                                    color:
-                                                        Theme.of(
-                                                          context,
-                                                        ).colorScheme.error,
-                                                    size: 30,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
+                                    title: 'Delete Contacts?',
+                                    content:
+                                        'Selected contacts will be permanently deleted.',
+                                    onDelete: () {
+                                      deleteSelected();
+                                    },
                                   );
                                 },
                               ),
@@ -2569,7 +2497,7 @@ class _ContactDetailsState extends State<ContactDetails> {
                                     localContact = originalContact;
                                     editingContact = true;
                                     widget.onUpdate(localContact);
-                                  }); 
+                                  });
                                 },
                                 showSuccessMessage:
                                     'Contact updated successfully!',
@@ -3037,7 +2965,10 @@ class _ContactDetailsState extends State<ContactDetails> {
                             widget.onUpdate(localContact);
                           });
                         },
-                        showSuccessMessage: !starred ? 'Contact starred!' : 'Contact unstarred!',
+                        showSuccessMessage:
+                            !starred
+                                ? 'Contact starred!'
+                                : 'Contact unstarred!',
                         showErrorMessage: 'Failed to update star status',
                         context: context,
                       );

@@ -302,20 +302,20 @@ class _EventsState extends State<Events> {
                   _buildFilterChips(),
                   _buildTabSelector(), // Add tab selector here
                   Expanded(
-                    child: Builder(builder: (context) {
-                      if (isLoading && allEvents.isEmpty) {
-                        print("loading anim triggered");
-                        return Center(
-                          child: CircularProgressIndicator(
-                            
-                            color: Theme.of(context).colorScheme.tertiary,
-                          ),
-                        );
-                      }
-                      else {
-                        return _buildEventsList();
-                      }
-                    })
+                    child: Builder(
+                      builder: (context) {
+                        if (isLoading && allEvents.isEmpty) {
+                          print("loading anim triggered");
+                          return Center(
+                            child: CircularProgressIndicator(
+                              color: Theme.of(context).colorScheme.tertiary,
+                            ),
+                          );
+                        } else {
+                          return _buildEventsList();
+                        }
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -609,7 +609,6 @@ class _EventsState extends State<Events> {
   }
 
   Widget _buildEventsList() {
-   
     // Separate filtered events into upcoming and concluded
     final now = DateTime.now();
     final filteredUpcoming =
@@ -972,9 +971,9 @@ class _EventsState extends State<Events> {
                 onPressed: () async {
                   final date = await showDatePicker(
                     context: context,
+
                     //initialDate: selectedDate,
-                    
-                    initialDate: DateTime.now().add(const Duration( days: 7)),
+                    initialDate: DateTime.now().add(const Duration(days: 7)),
                     firstDate: DateTime.now(),
                     lastDate: DateTime.now().add(Duration(days: 365)),
                   );
@@ -1026,7 +1025,8 @@ class _EventsState extends State<Events> {
     );
   }
 
-  void _saveEvent({ // localled
+  void _saveEvent({
+    // localled
     Event? event,
     required String title,
     required String description,
@@ -1046,7 +1046,7 @@ class _EventsState extends State<Events> {
       title: title.trim(),
       description: description.trim(),
       dateTime: dateTime,
-      userId: userSession.currentUser?['_id'], 
+      userId: userSession.currentUser?['_id'],
       createdAt: DateTime.now(),
     );
     bool success;
@@ -1132,12 +1132,15 @@ class _EventsState extends State<Events> {
   void _showDeleteConfirmation(Event event) {
     showDialog(
       context: context,
-      builder:          (context) => AlertDialog(
+      builder:
+          (context) => AlertDialog(
             backgroundColor: Theme.of(context).colorScheme.primary,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
               side: BorderSide(
-                color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.3),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onPrimary.withValues(alpha: 0.3),
                 width: 1,
               ),
             ),
@@ -1180,7 +1183,8 @@ class _EventsState extends State<Events> {
     );
   }
 
-  void _deleteEventById(Event event) async { // localled
+  void _deleteEventById(Event event) async {
+    // localled
     Navigator.pop(context);
 
     if (event.id != null) {
@@ -1192,7 +1196,7 @@ class _EventsState extends State<Events> {
           concludedEvents.remove(event);
         }
       });
-      
+
       final success = await _deleteEvent(event.id!);
 
       if (!mounted) return;
@@ -1205,7 +1209,7 @@ class _EventsState extends State<Events> {
       } else {
         setState(() {
           allEvents.add(event);
-            if (event.dateTime.isAfter(DateTime.now())) {
+          if (event.dateTime.isAfter(DateTime.now())) {
             upcomingEvents.add(event);
           } else {
             concludedEvents.add(event);
