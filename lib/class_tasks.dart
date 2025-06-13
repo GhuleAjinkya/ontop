@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'dart:ui'; // For ImageFilter
 import 'main.dart';
 import 'services/tasks_adapter.dart';
 import 'services/optimistic_updates.dart';
 import 'services/project_tasks_sync.dart';
 import 'utils/date_formatter.dart';
+
 ScaffoldFeatureController<SnackBar, SnackBarClosedReason> updatingSnackBar(
   BuildContext context,
 ) {
@@ -889,7 +891,8 @@ class _TasksState extends State<Tasks> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              InkWell(                onTap: () {
+              InkWell(
+                onTap: () {
                   if (!completed) {
                     _showTaskDialog(sectionKey);
                   }
@@ -930,7 +933,10 @@ class _TasksState extends State<Tasks> {
                                   child: Text(
                                     'Cancel',
                                     style: TextStyle(
-                                      color: Theme.of(context).colorScheme.tertiary,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.tertiary,
                                       fontFamily: 'Poppins',
                                     ),
                                   ),
@@ -1034,21 +1040,24 @@ class _TasksState extends State<Tasks> {
                                                 ).colorScheme.error,
                                           ),
                                         );
-                                      }                                      // Reload data to ensure consistency
+                                      } // Reload data to ensure consistency
                                       _loadTasksFromDatabase();
                                     }
                                   },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.red,
                                     foregroundColor: Colors.white,
-                                  ),                                  child: Text(
+                                  ),
+                                  child: Text(
                                     'Delete',
                                     style: TextStyle(fontFamily: 'Poppins'),
                                   ),
                                 ),
                               ],
+                            ),
+                          ],
                         ),
-            ]));
+                  );
                 },
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -1095,7 +1104,8 @@ class _TasksState extends State<Tasks> {
               ),
               IconButton(
                 alignment: Alignment.topCenter,
-                onPressed: () {                  if (empty) {
+                onPressed: () {
+                  if (empty) {
                     showDialog(
                       context: context,
                       builder:
@@ -1122,127 +1132,128 @@ class _TasksState extends State<Tasks> {
                               style: TextStyle(
                                 color: Theme.of(context).colorScheme.onPrimary,
                               ),
-                            ),                            actions: [
+                            ),
+                            actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(context),
                                 child: Text(
                                   'Cancel',
                                   style: TextStyle(
-                                    color: Theme.of(context).colorScheme.tertiary,
+                                    color:
+                                        Theme.of(context).colorScheme.tertiary,
                                     fontFamily: 'Poppins',
                                   ),
                                 ),
                               ),
                               ElevatedButton(
-                                    onPressed: () async {
-                                      // Find the section to delete
-                                      final sectionToDelete = taskSections
-                                          .firstWhere(
-                                            (section) =>
-                                                section.name == sectionKey,
-                                            orElse:
-                                                () =>
-                                                    throw Exception(
-                                                      'Section not found',
-                                                    ),
-                                          );
+                                onPressed: () async {
+                                  // Find the section to delete
+                                  final sectionToDelete = taskSections
+                                      .firstWhere(
+                                        (section) => section.name == sectionKey,
+                                        orElse:
+                                            () =>
+                                                throw Exception(
+                                                  'Section not found',
+                                                ),
+                                      );
 
-                                      // Store original state for rollback
-                                      final originalTaskSections =
-                                          List<TaskSection>.from(taskSections);
-                                      final originalSections =
-                                          Map<String, List<ToDoItem>>.from(
-                                            sections,
-                                          );
-                                      final originalCompletedSections =
-                                          Map<String, List<ToDoItem>>.from(
-                                            completedSections,
-                                          );
+                                  // Store original state for rollback
+                                  final originalTaskSections =
+                                      List<TaskSection>.from(taskSections);
+                                  final originalSections =
+                                      Map<String, List<ToDoItem>>.from(
+                                        sections,
+                                      );
+                                  final originalCompletedSections =
+                                      Map<String, List<ToDoItem>>.from(
+                                        completedSections,
+                                      );
 
-                                      // Step 1: Update local state immediately (remove section)
-                                      setState(() {
-                                        taskSections.removeWhere(
-                                          (s) => s.id == sectionToDelete.id,
+                                  // Step 1: Update local state immediately (remove section)
+                                  setState(() {
+                                    taskSections.removeWhere(
+                                      (s) => s.id == sectionToDelete.id,
+                                    );
+                                    sections.remove(sectionKey);
+                                    completedSections.remove(sectionKey);
+                                  });
+
+                                  if (mounted) {
+                                    Navigator.pop(context);
+                                  }
+
+                                  // Step 2: Perform database operation
+                                  try {
+                                    final success =
+                                        await TasksAdapter.deleteSection(
+                                          sectionToDelete.id,
                                         );
-                                        sections.remove(sectionKey);
-                                        completedSections.remove(sectionKey);
-                                      });
 
-                                      if (mounted) {
-                                        Navigator.pop(context);
-                                      }
+                                    if (!success) {
+                                      throw Exception(
+                                        'Database operation failed',
+                                      );
+                                    }
 
-                                      // Step 2: Perform database operation
-                                      try {
-                                        final success =
-                                            await TasksAdapter.deleteSection(
-                                              sectionToDelete.id,
-                                            );
+                                    // Step 3: Show success message
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Section "$sectionKey" deleted successfully',
+                                          ),
+                                          backgroundColor:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.tertiary,
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    // Step 4: Revert local state if database operation failed
+                                    setState(() {
+                                      taskSections.clear();
+                                      taskSections.addAll(originalTaskSections);
+                                      sections.clear();
+                                      sections.addAll(originalSections);
+                                      completedSections.clear();
+                                      completedSections.addAll(
+                                        originalCompletedSections,
+                                      );
+                                    });
 
-                                        if (!success) {
-                                          throw Exception(
-                                            'Database operation failed',
-                                          );
-                                        }
-
-                                        // Step 3: Show success message
-                                        if (mounted) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'Section "$sectionKey" deleted successfully',
-                                              ),
-                                              backgroundColor:
-                                                  Theme.of(
-                                                    context,
-                                                  ).colorScheme.tertiary,
-                                            ),
-                                          );
-                                        }
-                                      } catch (e) {
-                                        // Step 4: Revert local state if database operation failed
-                                        setState(() {
-                                          taskSections.clear();
-                                          taskSections.addAll(
-                                            originalTaskSections,
-                                          );
-                                          sections.clear();
-                                          sections.addAll(originalSections);
-                                          completedSections.clear();
-                                          completedSections.addAll(
-                                            originalCompletedSections,
-                                          );
-                                        });
-
-                                        // Step 5: Show error message
-                                        print('Error deleting section: $e');
-                                        if (mounted) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'Failed to delete section: $e',
-                                              ),
-                                              backgroundColor:
-                                                  Theme.of(
-                                                    context,
-                                                  ).colorScheme.error,
-                                            ),
-                                          );
-                                        }                                        // Reload data to ensure consistency
-                                        _loadTasksFromDatabase();                                      }
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.red,
-                                      foregroundColor: Colors.white,
-                                    ),                                    child: Text(
-                                      'Delete',
-                                      style: TextStyle(fontFamily: 'Poppins'),
-                                    ),
-                                  ),
+                                    // Step 5: Show error message
+                                    print('Error deleting section: $e');
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Failed to delete section: $e',
+                                          ),
+                                          backgroundColor:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.error,
+                                        ),
+                                      );
+                                    } // Reload data to ensure consistency
+                                    _loadTasksFromDatabase();
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red,
+                                  foregroundColor: Colors.white,
+                                ),
+                                child: Text(
+                                  'Delete',
+                                  style: TextStyle(fontFamily: 'Poppins'),
+                                ),
+                              ),
                             ],
                           ),
                     );
@@ -1250,7 +1261,8 @@ class _TasksState extends State<Tasks> {
                     setState(() {
                       if (collapseSection) {
                         collapsedSections.remove(sectionKey);
-                      } else {                        collapsedSections.add(sectionKey);
+                      } else {
+                        collapsedSections.add(sectionKey);
                       }
                     });
                   }
@@ -1294,117 +1306,104 @@ class _TasksState extends State<Tasks> {
                               ),
                             ),
                             ElevatedButton(
-                                  onPressed: () async {
-                                    // Find the section to delete
-                                    final sectionToDelete = taskSections
-                                        .firstWhere(
-                                          (section) =>
-                                              section.name == sectionKey,
-                                          orElse:
-                                              () =>
-                                                  throw Exception(
-                                                    'Section not found',
-                                                  ),
-                                        );
+                              onPressed: () async {
+                                // Find the section to delete
+                                final sectionToDelete = taskSections.firstWhere(
+                                  (section) => section.name == sectionKey,
+                                  orElse:
+                                      () =>
+                                          throw Exception('Section not found'),
+                                );
 
-                                    // Store original state for rollback
-                                    final originalTaskSections =
-                                        List<TaskSection>.from(taskSections);
-                                    final originalSections =
-                                        Map<String, List<ToDoItem>>.from(
-                                          sections,
-                                        );
-                                    final originalCompletedSections =
-                                        Map<String, List<ToDoItem>>.from(
-                                          completedSections,
-                                        );
+                                // Store original state for rollback
+                                final originalTaskSections =
+                                    List<TaskSection>.from(taskSections);
+                                final originalSections =
+                                    Map<String, List<ToDoItem>>.from(sections);
+                                final originalCompletedSections =
+                                    Map<String, List<ToDoItem>>.from(
+                                      completedSections,
+                                    );
 
-                                    // Step 1: Update local state immediately (remove section)
-                                    setState(() {
-                                      taskSections.removeWhere(
-                                        (s) => s.id == sectionToDelete.id,
+                                // Step 1: Update local state immediately (remove section)
+                                setState(() {
+                                  taskSections.removeWhere(
+                                    (s) => s.id == sectionToDelete.id,
+                                  );
+                                  sections.remove(sectionKey);
+                                  completedSections.remove(sectionKey);
+                                });
+
+                                if (mounted) {
+                                  Navigator.pop(context);
+                                }
+
+                                // Step 2: Perform database operation
+                                try {
+                                  final success =
+                                      await TasksAdapter.deleteSection(
+                                        sectionToDelete.id,
                                       );
-                                      sections.remove(sectionKey);
-                                      completedSections.remove(sectionKey);
-                                    });
 
-                                    if (mounted) {
-                                      Navigator.pop(context);
-                                    }
+                                  if (!success) {
+                                    throw Exception(
+                                      'Database operation failed',
+                                    );
+                                  }
 
-                                    // Step 2: Perform database operation
-                                    try {
-                                      final success =
-                                          await TasksAdapter.deleteSection(
-                                            sectionToDelete.id,
-                                          );
+                                  // Step 3: Show success message
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Section "$sectionKey" deleted successfully',
+                                        ),
+                                        backgroundColor:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.tertiary,
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  // Step 4: Revert local state if database operation failed
+                                  setState(() {
+                                    taskSections.clear();
+                                    taskSections.addAll(originalTaskSections);
+                                    sections.clear();
+                                    sections.addAll(originalSections);
+                                    completedSections.clear();
+                                    completedSections.addAll(
+                                      originalCompletedSections,
+                                    );
+                                  });
 
-                                      if (!success) {
-                                        throw Exception(
-                                          'Database operation failed',
-                                        );
-                                      }
-
-                                      // Step 3: Show success message
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Section "$sectionKey" deleted successfully',
-                                            ),
-                                            backgroundColor:
-                                                Theme.of(
-                                                  context,
-                                                ).colorScheme.tertiary,
-                                          ),
-                                        );
-                                      }
-                                    } catch (e) {
-                                      // Step 4: Revert local state if database operation failed
-                                      setState(() {
-                                        taskSections.clear();
-                                        taskSections.addAll(
-                                          originalTaskSections,
-                                        );
-                                        sections.clear();
-                                        sections.addAll(originalSections);
-                                        completedSections.clear();
-                                        completedSections.addAll(
-                                          originalCompletedSections,
-                                        );
-                                      });
-
-                                      // Step 5: Show error message
-                                      print('Error deleting section: $e');
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Failed to delete section: $e',
-                                            ),
-                                            backgroundColor:
-                                                Theme.of(
-                                                  context,
-                                                ).colorScheme.error,
-                                          ),
-                                        );
-                                      }                                      // Reload data to ensure consistency
-                                      _loadTasksFromDatabase();
-                                    }
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red,
-                                    foregroundColor: Colors.white,
-                                  ),                                  child: Text(
-                                    'Delete',
-                                    style: TextStyle(fontFamily: 'Poppins'),
-                                  ),
-                                ),
-                              ],
+                                  // Step 5: Show error message
+                                  print('Error deleting section: $e');
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Failed to delete section: $e',
+                                        ),
+                                        backgroundColor:
+                                            Theme.of(context).colorScheme.error,
+                                      ),
+                                    );
+                                  } // Reload data to ensure consistency
+                                  _loadTasksFromDatabase();
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: Text(
+                                'Delete',
+                                style: TextStyle(fontFamily: 'Poppins'),
+                              ),
+                            ),
+                          ],
                         ),
                   );
                 },
@@ -2181,387 +2180,612 @@ class _TasksState extends State<Tasks> {
       extendBodyBehindAppBar: false,
       backgroundColor: Theme.of(context).colorScheme.primary,
       body: SafeArea(
-        child: Container(
-          color: Theme.of(context).colorScheme.primary,
-          child: Column(
-            children: [
-              Container(
-                color: Theme.of(context).colorScheme.primary,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      if (!searching) ...[
-                        Container(
-                          margin: EdgeInsets.only(left: 40),
-                          child: Text(
-                            'Tasks',
-                            style: TextStyle(
-                              fontSize: 28,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ] else ...[
-                        Expanded(
-                          child: Container(
-                            margin: const EdgeInsets.only(
-                              left: 40,
-                              top: 8,
-                              bottom: 8,
-                              right: 20,
-                            ),
-                            height: 45,
-                            decoration: BoxDecoration(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onPrimary.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(25),
-                              border: Border.all(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onPrimary.withValues(alpha: 0.15),
-                                width: 1,
+        child: Stack(
+          children: [
+            // Purple blob 1 - Top left, small and playful
+            Positioned(
+              top: 60,
+              left: -20,
+              child: Container(
+                width: 120,
+                height: 160,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.secondary.withValues(
+                    alpha: 0.7,
+                  ), // Slightly more visible for tasks
+                  borderRadius: BorderRadius.circular(80),
+                ),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 55, sigmaY: 40),
+                  child: Container(color: Colors.transparent),
+                ),
+              ),
+            ),
+            // Purple blob 2 - Diagonal middle right, medium
+            Positioned(
+              top: MediaQuery.of(context).size.height * 0.25,
+              right: -40,
+              child: Container(
+                width: 160,
+                height: 140,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.secondary.withValues(alpha: 0.6),
+                ),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 75, sigmaY: 75),
+                  child: Container(color: Colors.transparent),
+                ),
+              ),
+            ),
+            // Purple blob 3 - Diagonal lower left, large and dreamy
+            Positioned(
+              top: MediaQuery.of(context).size.height * 0.5,
+              left: -60,
+              child: Container(
+                width: 200,
+                height: 180,
+                decoration: BoxDecoration(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.secondary.withValues(alpha: 0.4), // More subtle
+                  borderRadius: BorderRadius.circular(90),
+                ),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 85, sigmaY: 70),
+                  child: Container(color: Colors.transparent),
+                ),
+              ),
+            ),
+            // Purple blob 4 - Bottom right corner, small accent
+            Positioned(
+              bottom: -30,
+              right: 20,
+              child: Container(
+                width: 110,
+                height: 90,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.secondary.withValues(alpha: 0.5),
+                ),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+                  child: Container(color: Colors.transparent),
+                ),
+              ),
+            ),
+            // Main content
+            Container(
+              color: Colors.transparent, // Changed from primary to transparent
+              child: Column(
+                children: [
+                  Container(
+                    color: Theme.of(context).colorScheme.primary,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          if (!searching) ...[
+                            Container(
+                              margin: EdgeInsets.only(left: 40),
+                              child: Text(
+                                'Tasks',
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
-                            child: Row(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    left: 16,
-                                    right: 12,
-                                  ),
-                                  child: Icon(
-                                    Icons.search,
+                          ] else ...[
+                            Expanded(
+                              child: Container(
+                                margin: const EdgeInsets.only(
+                                  left: 40,
+                                  top: 8,
+                                  bottom: 8,
+                                  right: 20,
+                                ),
+                                height: 45,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.onPrimary
+                                      .withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(25),
+                                  border: Border.all(
                                     color: Theme.of(context)
                                         .colorScheme
                                         .onPrimary
-                                        .withValues(alpha: 0.6),
-                                    size: 20,
+                                        .withValues(alpha: 0.15),
+                                    width: 1,
                                   ),
                                 ),
-                                Expanded(
-                                  child: TextField(
-                                    controller: searchController,
-                                    style: TextStyle(
+                                child: Row(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        left: 16,
+                                        right: 12,
+                                      ),
+                                      child: Icon(
+                                        Icons.search,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onPrimary
+                                            .withValues(alpha: 0.6),
+                                        size: 20,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: searchController,
+                                        style: TextStyle(
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.onPrimary,
+                                          fontFamily: 'Poppins',
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                        cursorColor:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.tertiary,
+                                        decoration: InputDecoration(
+                                          hintText: 'Search tasks...',
+                                          hintStyle: TextStyle(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onPrimary
+                                                .withValues(alpha: 0.5),
+                                            fontFamily: 'Poppins',
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w400,
+                                          ),
+                                          border: InputBorder.none,
+                                          contentPadding: EdgeInsets.symmetric(
+                                            vertical: 12,
+                                          ),
+                                        ),
+                                        onChanged: (value) {
+                                          setState(() {
+                                            searchQuery =
+                                                value.trim().toLowerCase();
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                    if (searchController.text.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: 16,
+                                        ),
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            setState(() {
+                                              searchController.clear();
+                                              searchQuery = '';
+                                            });
+                                          },
+                                          child: Container(
+                                            width: 20,
+                                            height: 20,
+                                            decoration: BoxDecoration(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onPrimary
+                                                  .withValues(alpha: 0.2),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                            child: Icon(
+                                              Icons.close,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onPrimary
+                                                  .withValues(alpha: 0.7),
+                                              size: 14,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                          Container(
+                            margin: EdgeInsets.only(right: 20),
+                            child: Row(
+                              children: [
+                                if (areSelectedTasksEmpty()) ...[
+                                  IconButton(
+                                    icon: Icon(
+                                      !searching
+                                          ? Icons.search
+                                          : Icons.cancel_outlined,
                                       color:
                                           Theme.of(
                                             context,
                                           ).colorScheme.onPrimary,
-                                      fontFamily: 'Poppins',
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w400,
+                                      size: !searching ? 30 : 25,
                                     ),
-                                    cursorColor:
-                                        Theme.of(context).colorScheme.tertiary,
-                                    decoration: InputDecoration(
-                                      hintText: 'Search tasks...',
-                                      hintStyle: TextStyle(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onPrimary
-                                            .withValues(alpha: 0.5),
-                                        fontFamily: 'Poppins',
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w400,
-                                      ),
-                                      border: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
-                                    ),
-                                    onChanged: (value) {
+                                    onPressed: () {
                                       setState(() {
-                                        searchQuery =
-                                            value.trim().toLowerCase();
+                                        searching = !searching;
+                                        searchController.clear();
                                       });
                                     },
                                   ),
-                                ),
-                                if (searchController.text.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(right: 16),
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          searchController.clear();
-                                          searchQuery = '';
-                                        });
-                                      },
-                                      child: Container(
-                                        width: 20,
-                                        height: 20,
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onPrimary
-                                              .withValues(alpha: 0.2),
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                        child: Icon(
-                                          Icons.close,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onPrimary
-                                              .withValues(alpha: 0.7),
-                                          size: 14,
-                                        ),
+                                  if (!searching) ...[
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.add,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimary,
+                                        size: 30,
                                       ),
+                                      onPressed: () => _showSectionDialog(),
                                     ),
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.more_vert,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimary,
+                                        size: 26,
+                                      ),
+                                      onPressed: () {},
+                                    ),
+                                  ],
+                                ] else ...[
+                                  IconButton(
+                                    icon: Icon(
+                                      // ignore: dead_code
+                                      allSelectedFromSection
+                                          ? Icons.check_circle_outline_rounded
+                                          : Icons.circle_outlined,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                      size: 30,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        if (allSelectedFromSection) {
+                                          selectedTaskIDs.clear();
+                                        } else {
+                                          selectAllFromSections();
+                                        }
+                                      });
+                                    },
                                   ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                      Container(
-                        margin: EdgeInsets.only(right: 20),
-                        child: Row(
-                          children: [
-                            if (areSelectedTasksEmpty()) ...[
-                              IconButton(
-                                icon: Icon(
-                                  !searching
-                                      ? Icons.search
-                                      : Icons.cancel_outlined,
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                  size: !searching ? 30 : 25,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    searching = !searching;
-                                    searchController.clear();
-                                  });
-                                },
-                              ),
-                              if (!searching) ...[
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.add,
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                    size: 30,
+                                  IconButton(
+                                    icon: Icon(
+                                      // ignore: dead_code
+                                      Icons.check,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                      size: 26,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        completeOrUncomplete();
+                                      });
+                                    },
                                   ),
-                                  onPressed: () => _showSectionDialog(),
-                                ),
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.more_vert,
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                    size: 26,
-                                  ),
-                                  onPressed: () {},
-                                ),
-                              ],
-                            ] else ...[
-                              IconButton(
-                                icon: Icon(
-                                  // ignore: dead_code
-                                  allSelectedFromSection
-                                      ? Icons.check_circle_outline_rounded
-                                      : Icons.circle_outlined,
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                  size: 30,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    if (allSelectedFromSection) {
-                                      selectedTaskIDs.clear();
-                                    } else {
-                                      selectAllFromSections();
-                                    }
-                                  });
-                                },
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  // ignore: dead_code
-                                  Icons.check,
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                  size: 26,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    completeOrUncomplete();
-                                  });
-                                },
-                              ),
 
-                              IconButton(
-                                icon: Icon(
-                                  Icons.delete_outline_rounded,
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                  size: 28,
-                                ),
-                                onPressed: () {
-                                  showDialog(
-                                    context: context,
-                                    builder:
-                                        (context) => AlertDialog(
-                                          backgroundColor:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.primary,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                            side: BorderSide(
-                                              color:
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.delete_outline_rounded,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                      size: 28,
+                                    ),
+                                    onPressed: () {
+                                      showDialog(
+                                        context: context,
+                                        builder:
+                                            (context) => AlertDialog(
+                                              backgroundColor:
                                                   Theme.of(
                                                     context,
-                                                  ).colorScheme.onSecondary,
-                                              width: 1.5,
-                                            ),
-                                          ),                                          title: Text(
-                                            'Delete Tasks?',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color:
-                                                  Theme.of(
-                                                    context,
-                                                  ).colorScheme.onPrimary,
-                                            ),
-                                          ),
-                                          content: Text(
-                                            'Selected tasks will be permanently deleted.',
-                                            style: TextStyle(
-                                              color:
-                                                  Theme.of(
-                                                    context,
-                                                  ).colorScheme.onPrimary,
-                                            ),
-                                          ),                                          actions: [
-                                            TextButton(
-                                              onPressed:
-                                                  () => Navigator.pop(
-                                                    context,
-                                                  ),
-                                              child: Text(
-                                                'Cancel',
-                                                style: TextStyle(
-                                                  color: Theme.of(context).colorScheme.tertiary,
-                                                  fontFamily: 'Poppins',
+                                                  ).colorScheme.primary,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                                side: BorderSide(
+                                                  color:
+                                                      Theme.of(
+                                                        context,
+                                                      ).colorScheme.onSecondary,
+                                                  width: 1.5,
                                                 ),
                                               ),
-                                            ),
-                                            ElevatedButton(
+                                              title: Text(
+                                                'Delete Tasks?',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color:
+                                                      Theme.of(
+                                                        context,
+                                                      ).colorScheme.onPrimary,
+                                                ),
+                                              ),
+                                              content: Text(
+                                                'Selected tasks will be permanently deleted.',
+                                                style: TextStyle(
+                                                  color:
+                                                      Theme.of(
+                                                        context,
+                                                      ).colorScheme.onPrimary,
+                                                ),
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed:
+                                                      () => Navigator.pop(
+                                                        context,
+                                                      ),
+                                                  child: Text(
+                                                    'Cancel',
+                                                    style: TextStyle(
+                                                      color:
+                                                          Theme.of(context)
+                                                              .colorScheme
+                                                              .tertiary,
+                                                      fontFamily: 'Poppins',
+                                                    ),
+                                                  ),
+                                                ),
+                                                ElevatedButton(
                                                   onPressed: () {
                                                     deleteSelected();
                                                     Navigator.pop(context);
                                                   },
-                                                  style: ElevatedButton.styleFrom(
-                                                    backgroundColor: Colors.red,
-                                                    foregroundColor: Colors.white,
-                                                  ),                                                  child: Text(
-                                                    'Delete',                                                    style: TextStyle(fontFamily: 'Poppins'),
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                        backgroundColor:
+                                                            Colors.red,
+                                                        foregroundColor:
+                                                            Colors.white,
+                                                      ),
+                                                  child: Text(
+                                                    'Delete',
+                                                    style: TextStyle(
+                                                      fontFamily: 'Poppins',
+                                                    ),
                                                   ),
                                                 ),
                                               ],
-                                        ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ],
-                        ),
+                                            ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-              // Tab selector for To-Do vs Completed tasks (exact copy from Events)
-              Container(
-                margin: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildTabChip(
-                        label: "To-Do",
-                        isSelected: !openCompleted,
-                        onTap: () {
-                          setState(() {
-                            openCompleted = false;
-                            selectedTaskIDs.clear();
-                          });
-                        },
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: _buildTabChip(
-                        label: "Completed",
-                        isSelected: openCompleted,
-                        onTap: () {
-                          setState(() {
-                            openCompleted = true;
-                            selectedTaskIDs.clear();
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (!openCompleted) ...[
-                if (addingSection) ...[
+                  // Tab selector for To-Do vs Completed tasks (exact copy from Events)
                   Container(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 36,
-                      vertical: 5,
+                    margin: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildTabChip(
+                            label: "To-Do",
+                            isSelected: !openCompleted,
+                            onTap: () {
+                              setState(() {
+                                openCompleted = false;
+                                selectedTaskIDs.clear();
+                              });
+                            },
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: _buildTabChip(
+                            label: "Completed",
+                            isSelected: openCompleted,
+                            onTap: () {
+                              setState(() {
+                                openCompleted = true;
+                                selectedTaskIDs.clear();
+                              });
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                    decoration: standardTile(10),
-                    child: ListTile(
-                      contentPadding: EdgeInsets.symmetric(horizontal: 2),
-                      leading: IconButton(
-                        alignment: Alignment.centerLeft,
-                        onPressed: clearItem,
-                        icon: Icon(
-                          Icons.close,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                          size: 20,
+                  ),
+                  if (!openCompleted) ...[
+                    if (addingSection) ...[
+                      Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 36,
+                          vertical: 5,
                         ),
-                      ),
-                      title: TextField(
-                        controller: sectionName,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                        cursorColor: Theme.of(context).colorScheme.tertiary,
-                        decoration: InputDecoration(
-                          hintText: 'New Section',
-                          labelText: 'New Section',
-                          labelStyle: TextStyle(
-                            color: Theme.of(context).colorScheme.onSecondary,
+                        decoration: standardTile(10),
+                        child: ListTile(
+                          contentPadding: EdgeInsets.symmetric(horizontal: 2),
+                          leading: IconButton(
+                            alignment: Alignment.centerLeft,
+                            onPressed: clearItem,
+                            icon: Icon(
+                              Icons.close,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              size: 20,
+                            ),
                           ),
-                          hintStyle: TextStyle(
-                            color: Theme.of(context).colorScheme.onSecondary,
+                          title: TextField(
+                            controller: sectionName,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
+                            cursorColor: Theme.of(context).colorScheme.tertiary,
+                            decoration: InputDecoration(
+                              hintText: 'New Section',
+                              labelText: 'New Section',
+                              labelStyle: TextStyle(
+                                color:
+                                    Theme.of(context).colorScheme.onSecondary,
+                              ),
+                              hintStyle: TextStyle(
+                                color:
+                                    Theme.of(context).colorScheme.onSecondary,
+                              ),
+                              border: const UnderlineInputBorder(),
+                            ),
                           ),
-                          border: const UnderlineInputBorder(),
-                        ),
-                      ),
-                      trailing: IconButton(
-                        alignment: Alignment.centerRight,
-                        onPressed: () async {
-                          if (sectionName.text.isNotEmpty) {
-                            try {
-                              // Check if section already exists
-                              if (taskSections.any(
-                                (section) => section.name == sectionName.text,
-                              )) {
+                          trailing: IconButton(
+                            alignment: Alignment.centerRight,
+                            onPressed: () async {
+                              if (sectionName.text.isNotEmpty) {
+                                try {
+                                  // Check if section already exists
+                                  if (taskSections.any(
+                                    (section) =>
+                                        section.name == sectionName.text,
+                                  )) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Section "${sectionName.text}" already exists.',
+                                          style: TextStyle(
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.onError,
+                                          ),
+                                        ),
+                                        backgroundColor:
+                                            Theme.of(context).colorScheme.error,
+                                        duration: Duration(seconds: 2),
+                                        showCloseIcon: true,
+                                        closeIconColor:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimary,
+                                      ),
+                                    );
+                                    return;
+                                  } // Implement optimistic section creation
+                                  final tempSection = TaskSection(
+                                    id:
+                                        'temp_${DateTime.now().millisecondsSinceEpoch}',
+                                    name: sectionName.text.trim(),
+                                    isCompleted: false,
+                                  );
+
+                                  // Step 1: Update local state immediately
+                                  setState(() {
+                                    taskSections.add(tempSection);
+                                    sections[sectionName.text.trim()] =
+                                        []; // Create empty section
+                                    addingSection = false;
+                                    sectionName.clear();
+                                  });
+
+                                  // Step 2: Perform database operation
+                                  try {
+                                    final success =
+                                        await TasksAdapter.createSection(
+                                          tempSection.name,
+                                        );
+
+                                    if (!success) {
+                                      throw Exception(
+                                        'Database operation failed',
+                                      );
+                                    }
+
+                                    // Step 3: Reload data to get real section ID
+                                    await _loadTasksFromDatabase();
+
+                                    // Step 4: Show success message
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Section "${tempSection.name}" created successfully',
+                                          ),
+                                          backgroundColor:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.tertiary,
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    // Step 5: Revert local state if database operation failed
+                                    setState(() {
+                                      taskSections.removeWhere(
+                                        (section) =>
+                                            section.id == tempSection.id,
+                                      );
+                                      sections.remove(tempSection.name);
+                                      addingSection = false;
+                                      sectionName.clear();
+                                    });
+
+                                    // Step 6: Show error message
+                                    print('Error creating section: $e');
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Failed to create section: $e',
+                                          ),
+                                          backgroundColor:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.error,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                } catch (e) {
+                                  print('Error creating section: $e');
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Failed to create section: $e',
+                                        ),
+                                        backgroundColor:
+                                            Theme.of(context).colorScheme.error,
+                                      ),
+                                    );
+                                  }
+                                }
+                              } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      'Section "${sectionName.text}" already exists.',
+                                      'Section Name not entered.',
                                       style: TextStyle(
                                         color:
                                             Theme.of(
@@ -2577,186 +2801,89 @@ class _TasksState extends State<Tasks> {
                                         Theme.of(context).colorScheme.onPrimary,
                                   ),
                                 );
-                                return;
-                              } // Implement optimistic section creation
-                              final tempSection = TaskSection(
-                                id:
-                                    'temp_${DateTime.now().millisecondsSinceEpoch}',
-                                name: sectionName.text.trim(),
-                                isCompleted: false,
-                              );
-
-                              // Step 1: Update local state immediately
-                              setState(() {
-                                taskSections.add(tempSection);
-                                sections[sectionName.text.trim()] =
-                                    []; // Create empty section
-                                addingSection = false;
-                                sectionName.clear();
-                              });
-
-                              // Step 2: Perform database operation
-                              try {
-                                final success =
-                                    await TasksAdapter.createSection(
-                                      tempSection.name,
-                                    );
-
-                                if (!success) {
-                                  throw Exception('Database operation failed');
-                                }
-
-                                // Step 3: Reload data to get real section ID
-                                await _loadTasksFromDatabase();
-
-                                // Step 4: Show success message
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Section "${tempSection.name}" created successfully',
-                                      ),
-                                      backgroundColor:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.tertiary,
-                                    ),
-                                  );
-                                }
-                              } catch (e) {
-                                // Step 5: Revert local state if database operation failed
-                                setState(() {
-                                  taskSections.removeWhere(
-                                    (section) => section.id == tempSection.id,
-                                  );
-                                  sections.remove(tempSection.name);
-                                  addingSection = false;
-                                  sectionName.clear();
-                                });
-
-                                // Step 6: Show error message
-                                print('Error creating section: $e');
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Failed to create section: $e',
-                                      ),
-                                      backgroundColor:
-                                          Theme.of(context).colorScheme.error,
-                                    ),
-                                  );
-                                }
                               }
-                            } catch (e) {
-                              print('Error creating section: $e');
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Failed to create section: $e',
-                                    ),
-                                    backgroundColor:
-                                        Theme.of(context).colorScheme.error,
-                                  ),
-                                );
-                              }
-                            }
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Section Name not entered.',
-                                  style: TextStyle(
-                                    color:
-                                        Theme.of(context).colorScheme.onError,
-                                  ),
-                                ),
-                                backgroundColor:
-                                    Theme.of(context).colorScheme.error,
-                                duration: Duration(seconds: 2),
-                                showCloseIcon: true,
-                                closeIconColor:
-                                    Theme.of(context).colorScheme.onPrimary,
-                              ),
-                            );
-                          }
-                        },
-                        icon: Icon(
-                          Icons.check,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                          size: 20,
+                            },
+                            icon: Icon(
+                              Icons.check,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              size: 20,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                ],
-                Expanded(
-                  child: ListView(
-                    children: [
-                      if (!searching) ...[
-                        if (sections.isNotEmpty) ...[
-                          for (int i = 0; i < sections.keys.length; i++) ...[
-                            // Add separator between user and project sections
-                            if (i > 0 && _shouldShowSeparator(i, false))
-                              _buildSectionSeparator(),
-                            buildSectionWidget(i, false),
-                          ],
-                        ],
-                      ] else ...[
-                        for (
-                          int i = 0;
-                          i < filteredSectionKeys.length;
-                          i++
-                        ) ...[
-                          buildSectionWidget(
-                            sections.keys.toList().indexOf(
-                              filteredSectionKeys[i],
-                            ),
-                            false,
-                          ),
-                        ],
-                      ],
                     ],
-                  ),
-                ),
-              ] else ...[
-                if (completedSections.isNotEmpty) ...[
-                  Expanded(
-                    child: ListView(
-                      children: [
-                        if (!searching) ...[
-                          for (
-                            int i = 0;
-                            i < completedSections.keys.length;
-                            i++
-                          ) ...[
-                            // Add separator between user and project sections
-                            if (i > 0 && _shouldShowSeparator(i, true))
-                              _buildSectionSeparator(),
-                            buildSectionWidget(i, true),
-                          ],
-                        ] else ...[
-                          for (
-                            int i = 0;
-                            i < filteredCompletedSectionKeys.length;
-                            i++
-                          ) ...[
-                            buildSectionWidget(
-                              completedSections.keys.toList().indexOf(
-                                filteredSectionKeys[i],
+                    Expanded(
+                      child: ListView(
+                        children: [
+                          if (!searching) ...[
+                            if (sections.isNotEmpty) ...[
+                              for (
+                                int i = 0;
+                                i < sections.keys.length;
+                                i++
+                              ) ...[
+                                // Add separator between user and project sections
+                                if (i > 0 && _shouldShowSeparator(i, false))
+                                  _buildSectionSeparator(),
+                                buildSectionWidget(i, false),
+                              ],
+                            ],
+                          ] else ...[
+                            for (
+                              int i = 0;
+                              i < filteredSectionKeys.length;
+                              i++
+                            ) ...[
+                              buildSectionWidget(
+                                sections.keys.toList().indexOf(
+                                  filteredSectionKeys[i],
+                                ),
+                                false,
                               ),
-                              true,
-                            ),
+                            ],
                           ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
+                  ] else ...[
+                    if (completedSections.isNotEmpty) ...[
+                      Expanded(
+                        child: ListView(
+                          children: [
+                            if (!searching) ...[
+                              for (
+                                int i = 0;
+                                i < completedSections.keys.length;
+                                i++
+                              ) ...[
+                                // Add separator between user and project sections
+                                if (i > 0 && _shouldShowSeparator(i, true))
+                                  _buildSectionSeparator(),
+                                buildSectionWidget(i, true),
+                              ],
+                            ] else ...[
+                              for (
+                                int i = 0;
+                                i < filteredCompletedSectionKeys.length;
+                                i++
+                              ) ...[
+                                buildSectionWidget(
+                                  completedSections.keys.toList().indexOf(
+                                    filteredSectionKeys[i],
+                                  ),
+                                  true,
+                                ),
+                              ],
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
                 ],
-              ],
-            ],
-          ),
+              ),
+            ),
+          ],
         ),
       ),
     );

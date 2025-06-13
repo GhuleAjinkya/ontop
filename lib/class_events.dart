@@ -295,6 +295,102 @@ class _EventsState extends State<Events> {
           color: Theme.of(context).colorScheme.primary,
           child: Stack(
             children: [
+              // ✨ COSMIC CONSTELLATION BLOBS ✨
+              // Large mystical blob - top left like a moon
+              Positioned(
+                top: -40,
+                left: -30,
+                child: Container(
+                  width: 180,
+                  height: 220,
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.secondary.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(110),
+                  ),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 70, sigmaY: 80),
+                    child: Container(color: Colors.transparent),
+                  ),
+                ),
+              ),
+              // Medium star blob - top right
+              Positioned(
+                top: 60,
+                right: -20,
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.secondary.withValues(alpha: 0.5),
+                  ),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+                    child: Container(color: Colors.transparent),
+                  ),
+                ),
+              ),
+              // Small twinkling blob - middle left
+              Positioned(
+                top: MediaQuery.of(context).size.height * 0.35,
+                left: -15,
+                child: Container(
+                  width: 80,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.secondary.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 45, sigmaY: 55),
+                    child: Container(color: Colors.transparent),
+                  ),
+                ),
+              ),
+              // Dreamy medium blob - center right
+              Positioned(
+                top: MediaQuery.of(context).size.height * 0.5,
+                right: -40,
+                child: Container(
+                  width: 160,
+                  height: 140,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.secondary.withValues(alpha: 0.3),
+                  ),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 85, sigmaY: 75),
+                    child: Container(color: Colors.transparent),
+                  ),
+                ),
+              ),
+              // Floating bubble - bottom center
+              Positioned(
+                bottom: -50,
+                left: MediaQuery.of(context).size.width * 0.3,
+                child: Container(
+                  width: 140,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.secondary.withValues(alpha: 0.45),
+                  ),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 65, sigmaY: 65),
+                    child: Container(color: Colors.transparent),
+                  ),
+                ),
+              ),
               // Main content
               Column(
                 children: [

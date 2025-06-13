@@ -1,5 +1,6 @@
 // dependencies
 import 'dart:io';
+import 'dart:ui'; // For ImageFilter
 import 'dart:convert'; // For JSON encoding/decoding
 import 'user_session.dart';
 import 'services/contacts_adapter.dart'; // Add our new adapter
@@ -947,685 +948,810 @@ class _ContactsState extends State<Contacts> {
       extendBodyBehindAppBar: false,
       backgroundColor: Theme.of(context).colorScheme.primary,
       body: SafeArea(
-        child: Container(
-          color: Theme.of(context).colorScheme.primary,
-          child: Column(
-            children: [
-              Container(
-                color: Theme.of(context).colorScheme.primary,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      if (!searching) ...[
-                        Container(
-                          margin: EdgeInsets.only(left: 40),
-                          child: Row(
-                            children: [
-                              Text(
-                                "Contacts",
-                                style: TextStyle(
-                                  fontSize: 28,
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ] else ...[
-                        Expanded(
-                          child: Container(
-                            margin: const EdgeInsets.only(
-                              left: 40,
-                              top: 8,
-                              bottom: 8,
-                              right: 36,
-                            ),
-                            height: 45,
-                            decoration: BoxDecoration(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onPrimary.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(25),
-                              border: Border.all(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onPrimary.withValues(alpha: 0.15),
-                                width: 1,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    left: 16,
-                                    right: 12,
+        child: Stack(
+          children: [
+            // Purple blob 1 - Top left area (shifted more towards center)
+            Positioned(
+              top: 80,
+              left: 10, // Moved further right towards center
+              child: Container(
+                width: 140,
+                height: 200,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.secondary.withValues(
+                    alpha: 0.6,
+                  ), // Lighter than original
+                  borderRadius: BorderRadius.circular(100),
+                ),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 60, sigmaY: 45),
+                  child: Container(color: Colors.transparent),
+                ),
+              ),
+            ),
+            // Purple blob 2 - Middle right area (shifted more towards center)
+            Positioned(
+              top: MediaQuery.of(context).size.height * 0.4,
+              right: -50, // Moved further left towards center
+              child: Container(
+                width: 170,
+                height: 200,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Theme.of(context).colorScheme.secondary.withValues(
+                    alpha: 0.5,
+                  ), // Even lighter
+                ),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 90, sigmaY: 90),
+                  child: Container(color: Colors.transparent),
+                ),
+              ),
+            ),
+            // Purple blob 3 - Bottom center area (new magical blob!)
+            Positioned(
+              bottom: -60,
+              left:
+                  MediaQuery.of(context).size.width *
+                  0.3, // Centered horizontally
+              child: Container(
+                width: 150,
+                height: 110,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Theme.of(context).colorScheme.secondary.withValues(
+                    alpha: 0.4,
+                  ), // Even more subtle
+                ),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 70, sigmaY: 70),
+                  child: Container(color: Colors.transparent),
+                ),
+              ),
+            ),
+            // Purple blob 4 - Middle center area, floating dreamily! ✨
+            Positioned(
+              top: MediaQuery.of(context).size.height * 0.6,
+              left: MediaQuery.of(context).size.width * 0.15,
+              child: Container(
+                width: 100,
+                height: 130,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.secondary.withValues(
+                    alpha: 0.3,
+                  ), // Very subtle and dreamy
+                  borderRadius: BorderRadius.circular(60),
+                ),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 50, sigmaY: 65),
+                  child: Container(color: Colors.transparent),
+                ),
+              ),
+            ),
+            // Main content
+            Container(
+              color: Colors.transparent, // Changed from primary to transparent
+              child: Column(
+                children: [
+                  Container(
+                    color: Theme.of(context).colorScheme.primary,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          if (!searching) ...[
+                            Container(
+                              margin: EdgeInsets.only(left: 40),
+                              child: Row(
+                                children: [
+                                  Text(
+                                    "Contacts",
+                                    style: TextStyle(
+                                      fontSize: 28,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                                  child: Icon(
-                                    Icons.search,
+                                ],
+                              ),
+                            ),
+                          ] else ...[
+                            Expanded(
+                              child: Container(
+                                margin: const EdgeInsets.only(
+                                  left: 40,
+                                  top: 8,
+                                  bottom: 8,
+                                  right: 36,
+                                ),
+                                height: 45,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.onPrimary
+                                      .withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(25),
+                                  border: Border.all(
                                     color: Theme.of(context)
                                         .colorScheme
                                         .onPrimary
-                                        .withValues(alpha: 0.6),
-                                    size: 20,
+                                        .withValues(alpha: 0.15),
+                                    width: 1,
                                   ),
                                 ),
-                                Expanded(
-                                  child: TextField(
-                                    controller: searchController,
+                                child: Row(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        left: 16,
+                                        right: 12,
+                                      ),
+                                      child: Icon(
+                                        Icons.search,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onPrimary
+                                            .withValues(alpha: 0.6),
+                                        size: 20,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: searchController,
+                                        style: TextStyle(
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.onPrimary,
+                                          fontFamily: 'Poppins',
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w400,
+                                        ),
+                                        cursorColor:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.tertiary,
+                                        decoration: InputDecoration(
+                                          hintText: 'Search contacts...',
+                                          hintStyle: TextStyle(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onPrimary
+                                                .withValues(alpha: 0.5),
+                                            fontFamily: 'Poppins',
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w400,
+                                          ),
+                                          border: InputBorder.none,
+                                          contentPadding: EdgeInsets.symmetric(
+                                            vertical: 12,
+                                          ),
+                                        ),
+                                        onChanged: (value) {
+                                          setState(() {
+                                            searchQuery =
+                                                value.trim().toLowerCase();
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                    if (searchController.text.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: 16,
+                                        ),
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            setState(() {
+                                              searchController.clear();
+                                              searchQuery = '';
+                                            });
+                                          },
+                                          child: Container(
+                                            width: 20,
+                                            height: 20,
+                                            decoration: BoxDecoration(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onPrimary
+                                                  .withValues(alpha: 0.2),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                            child: Icon(
+                                              Icons.close,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onPrimary
+                                                  .withValues(alpha: 0.7),
+                                              size: 14,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                          if (selectedIDs.isEmpty) ...[
+                            Container(
+                              margin: EdgeInsets.only(right: 36),
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    icon: Icon(
+                                      !searching ? Icons.search : Icons.close,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                      size: 30,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        searchController.clear();
+                                        searchQuery = '';
+                                        searching = !searching;
+                                      });
+                                    },
+                                  ),
+                                  if (!searching) ...[
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.add,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimary,
+                                        size: 26,
+                                      ),
+                                      onPressed: () => _showContactDialog(),
+                                    ),
+                                    PopupMenuButton<String>(
+                                      icon: Icon(
+                                        Icons.more_vert,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimary,
+                                        size: 28,
+                                      ),
+                                      onSelected: (value) async {
+                                        if (userId.isEmpty) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Please log in to import/export contacts',
+                                              ),
+                                            ),
+                                          );
+                                          return;
+                                        }
+
+                                        if (value == 'import_phone') {
+                                          // Navigate to phone contact import screen
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder:
+                                                  (
+                                                    context,
+                                                  ) => ContactImportScreen(
+                                                    onContactsImported: () {
+                                                      // Reload contacts after import
+                                                      begin();
+                                                    },
+                                                  ),
+                                            ),
+                                          );
+                                          return;
+                                        }
+
+                                        await requestStoragePermission(); // ask for permission first
+
+                                        final jsonPath =
+                                            '/storage/emulated/0/Download/contacts_export.json';
+                                        final jsonFile = File(jsonPath);
+                                        if (value == 'export') {
+                                          try {
+                                            // Get JSON export from adapter (via Node.js API or MongoDB)
+                                            final jsonData =
+                                                await ContactsAdapter.exportContactsAsJson();
+                                            if (jsonData == null) {
+                                              throw Exception(
+                                                'No contacts to export',
+                                              );
+                                            }
+
+                                            // Write to JSON file
+                                            await jsonFile.writeAsString(
+                                              jsonData,
+                                            );
+
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    'Exported successfully to Download/contacts_export.json!',
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          } catch (e) {
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    'Export failed: $e',
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          }
+                                        } else if (value == 'import') {
+                                          try {
+                                            if (await jsonFile.exists()) {
+                                              // Read JSON data
+                                              final jsonString =
+                                                  await jsonFile.readAsString();
+                                              final List<dynamic> contactsData =
+                                                  jsonDecode(jsonString);
+
+                                              // Convert to proper format
+                                              final contactsList =
+                                                  contactsData
+                                                      .map(
+                                                        (item) => Map<
+                                                          String,
+                                                          dynamic
+                                                        >.from(item),
+                                                      )
+                                                      .toList(); // Import using our adapter (Node.js API first, then MongoDB fallback)
+                                              await ContactsAdapter.importContacts(
+                                                contactsList,
+                                              );
+
+                                              await begin(); // refresh contacts
+
+                                              if (context.mounted) {
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      'Imported successfully!',
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                            } else {
+                                              if (context.mounted) {
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      'contacts_export.json not found in Downloads',
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                            }
+                                          } catch (e) {
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    'Import failed: $e',
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          }
+                                        }
+                                      },
+                                      itemBuilder:
+                                          (context) => [
+                                            PopupMenuItem(
+                                              value: 'import_phone',
+                                              child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                children: const [
+                                                  Text('Import from Phone'),
+                                                  Icon(Icons.phone_android),
+                                                ],
+                                              ),
+                                            ),
+                                            PopupMenuItem(
+                                              value: 'import',
+                                              child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                children: const [
+                                                  Text('Import from File'),
+                                                  Icon(
+                                                    Icons
+                                                        .file_download_outlined,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            PopupMenuItem(
+                                              value: 'export',
+                                              child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                children: const [
+                                                  Text('Export'),
+                                                  Icon(
+                                                    Icons.file_upload_outlined,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ] else ...[
+                            Container(
+                              margin: EdgeInsets.only(right: 20),
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    icon: Icon(
+                                      // ignore: dead_code
+                                      allSelected
+                                          ? Icons.check_circle_outline_rounded
+                                          : Icons.circle_outlined,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                      size: 30,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        if (allSelected) {
+                                          selectedIDs.clear();
+                                        } else {
+                                          selectAll();
+                                        }
+                                      });
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: Icon(
+                                      // ignore: dead_code
+                                      allStarred
+                                          ? Icons.star_outline_rounded
+                                          : Icons.star_rounded,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                      size: 26,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        if (allStarred) {
+                                          deStarSelected();
+                                        } else {
+                                          starSelected();
+                                        }
+                                      });
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.delete_outline_rounded,
+                                      color:
+                                          Theme.of(
+                                            context,
+                                          ).colorScheme.onPrimary,
+                                      size: 28,
+                                    ),
+                                    onPressed: () {
+                                      DialogHelper.showDeleteConfirmation(
+                                        context: context,
+                                        title: 'Delete Contacts?',
+                                        content:
+                                            'Selected contacts will be permanently deleted.',
+                                        onDelete: () {
+                                          deleteSelected();
+                                        },
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: ListView(
+                      children: [
+                        if (starred.isEmpty &&
+                            sections.entries.every((c) => c.value.isEmpty)) ...[
+                          Container(
+                            // Fetching Contacts widget
+                            margin: EdgeInsets.only(top: 150),
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                spacing: 10,
+                                children: [
+                                  fetchingContacts
+                                      ? CircularProgressIndicator(
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.tertiary,
+                                      )
+                                      : Icon(
+                                        Icons.person,
+                                        size: 80,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.tertiary,
+                                      ),
+                                  Text(
+                                    fetchingContacts
+                                        ? 'Fetching Contacts...'
+                                        : 'No added contacts.',
                                     style: TextStyle(
                                       color:
                                           Theme.of(
                                             context,
                                           ).colorScheme.onPrimary,
-                                      fontFamily: 'Poppins',
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w400,
-                                    ),
-                                    cursorColor:
-                                        Theme.of(context).colorScheme.tertiary,
-                                    decoration: InputDecoration(
-                                      hintText: 'Search contacts...',
-                                      hintStyle: TextStyle(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onPrimary
-                                            .withValues(alpha: 0.5),
-                                        fontFamily: 'Poppins',
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w400,
-                                      ),
-                                      border: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
-                                    ),
-                                    onChanged: (value) {
-                                      setState(() {
-                                        searchQuery =
-                                            value.trim().toLowerCase();
-                                      });
-                                    },
-                                  ),
-                                ),
-                                if (searchController.text.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(right: 16),
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          searchController.clear();
-                                          searchQuery = '';
-                                        });
-                                      },
-                                      child: Container(
-                                        width: 20,
-                                        height: 20,
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onPrimary
-                                              .withValues(alpha: 0.2),
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                        child: Icon(
-                                          Icons.close,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onPrimary
-                                              .withValues(alpha: 0.7),
-                                          size: 14,
-                                        ),
-                                      ),
+                                      fontSize: 16,
                                     ),
                                   ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                      if (selectedIDs.isEmpty) ...[
-                        Container(
-                          margin: EdgeInsets.only(right: 36),
-                          child: Row(
-                            children: [
-                              IconButton(
-                                icon: Icon(
-                                  !searching ? Icons.search : Icons.close,
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                  size: 30,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    searchController.clear();
-                                    searchQuery = '';
-                                    searching = !searching;
-                                  });
-                                },
-                              ),
-                              if (!searching) ...[
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.add,
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                    size: 26,
-                                  ),
-                                  onPressed: () => _showContactDialog(),
-                                ),
-                                PopupMenuButton<String>(
-                                  icon: Icon(
-                                    Icons.more_vert,
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                    size: 28,
-                                  ),
-                                  onSelected: (value) async {
-                                    if (userId.isEmpty) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Please log in to import/export contacts',
-                                          ),
-                                        ),
-                                      );
-                                      return;
-                                    }
-
-                                    if (value == 'import_phone') {
-                                      // Navigate to phone contact import screen
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder:
-                                              (context) => ContactImportScreen(
-                                                onContactsImported: () {
-                                                  // Reload contacts after import
-                                                  begin();
-                                                },
-                                              ),
-                                        ),
-                                      );
-                                      return;
-                                    }
-
-                                    await requestStoragePermission(); // ask for permission first
-
-                                    final jsonPath =
-                                        '/storage/emulated/0/Download/contacts_export.json';
-                                    final jsonFile = File(jsonPath);
-                                    if (value == 'export') {
-                                      try {
-                                        // Get JSON export from adapter (via Node.js API or MongoDB)
-                                        final jsonData =
-                                            await ContactsAdapter.exportContactsAsJson();
-                                        if (jsonData == null) {
-                                          throw Exception(
-                                            'No contacts to export',
-                                          );
-                                        }
-
-                                        // Write to JSON file
-                                        await jsonFile.writeAsString(jsonData);
-
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'Exported successfully to Download/contacts_export.json!',
-                                              ),
-                                            ),
-                                          );
-                                        }
-                                      } catch (e) {
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'Export failed: $e',
-                                              ),
-                                            ),
-                                          );
-                                        }
-                                      }
-                                    } else if (value == 'import') {
-                                      try {
-                                        if (await jsonFile.exists()) {
-                                          // Read JSON data
-                                          final jsonString =
-                                              await jsonFile.readAsString();
-                                          final List<dynamic> contactsData =
-                                              jsonDecode(jsonString);
-
-                                          // Convert to proper format
-                                          final contactsList =
-                                              contactsData
-                                                  .map(
-                                                    (item) => Map<
-                                                      String,
-                                                      dynamic
-                                                    >.from(item),
-                                                  )
-                                                  .toList(); // Import using our adapter (Node.js API first, then MongoDB fallback)
-                                          await ContactsAdapter.importContacts(
-                                            contactsList,
-                                          );
-
-                                          await begin(); // refresh contacts
-
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  'Imported successfully!',
-                                                ),
-                                              ),
-                                            );
-                                          }
-                                        } else {
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  'contacts_export.json not found in Downloads',
-                                                ),
-                                              ),
-                                            );
-                                          }
-                                        }
-                                      } catch (e) {
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                'Import failed: $e',
-                                              ),
-                                            ),
-                                          );
-                                        }
-                                      }
-                                    }
-                                  },
-                                  itemBuilder:
-                                      (context) => [
-                                        PopupMenuItem(
-                                          value: 'import_phone',
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: const [
-                                              Text('Import from Phone'),
-                                              Icon(Icons.phone_android),
-                                            ],
-                                          ),
-                                        ),
-                                        PopupMenuItem(
-                                          value: 'import',
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: const [
-                                              Text('Import from File'),
-                                              Icon(
-                                                Icons.file_download_outlined,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        PopupMenuItem(
-                                          value: 'export',
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: const [
-                                              Text('Export'),
-                                              Icon(Icons.file_upload_outlined),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ] else ...[
-                        Container(
-                          margin: EdgeInsets.only(right: 20),
-                          child: Row(
-                            children: [
-                              IconButton(
-                                icon: Icon(
-                                  // ignore: dead_code
-                                  allSelected
-                                      ? Icons.check_circle_outline_rounded
-                                      : Icons.circle_outlined,
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                  size: 30,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    if (allSelected) {
-                                      selectedIDs.clear();
-                                    } else {
-                                      selectAll();
-                                    }
-                                  });
-                                },
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  // ignore: dead_code
-                                  allStarred
-                                      ? Icons.star_outline_rounded
-                                      : Icons.star_rounded,
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                  size: 26,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    if (allStarred) {
-                                      deStarSelected();
-                                    } else {
-                                      starSelected();
-                                    }
-                                  });
-                                },
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.delete_outline_rounded,
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                  size: 28,
-                                ),
-                                onPressed: () {
-                                  DialogHelper.showDeleteConfirmation(
-                                    context: context,
-                                    title: 'Delete Contacts?',
-                                    content:
-                                        'Selected contacts will be permanently deleted.',
-                                    onDelete: () {
-                                      deleteSelected();
-                                    },
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-              Expanded(
-                child: ListView(
-                  children: [
-                    if (starred.isEmpty &&
-                        sections.entries.every((c) => c.value.isEmpty)) ...[
-                      Container(
-                        // Fetching Contacts widget
-                        margin: EdgeInsets.only(top: 150),
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            spacing: 10,
-                            children: [
-                              fetchingContacts
-                                  ? CircularProgressIndicator(
-                                    color:
-                                        Theme.of(context).colorScheme.tertiary,
-                                  )
-                                  : Icon(
-                                    Icons.person,
-                                    size: 80,
-                                    color:
-                                        Theme.of(context).colorScheme.tertiary,
-                                  ),
-                              Text(
-                                fetchingContacts
-                                    ? 'Fetching Contacts...'
-                                    : 'No added contacts.',
-                                style: TextStyle(
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ] else ...[
-                      if (searchQuery.isEmpty) ...[
-                        ...(() {
-                          if (starred.isNotEmpty) {
-                            return [
-                              // Starred return widget
-                              Container(
-                                margin: const EdgeInsets.only(left: 40),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.star_rounded,
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimary,
-                                      size: 20,
-                                    ),
-                                    Expanded(
-                                      child: Container(
-                                        margin: const EdgeInsets.only(
-                                          left: 10,
-                                          right: 40,
-                                        ),
-                                        height: 5,
-                                        decoration: BoxDecoration(
-                                          color: Colors.transparent,
-                                          border: Border(
-                                            bottom: BorderSide(
-                                              color:
-                                                  Theme.of(
-                                                    context,
-                                                  ).colorScheme.onPrimary,
-                                              width: 0.75,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              buildContactTiles(starred, starred: true),
-                            ];
-                          }
-                          return <Widget>[];
-                        })(),
-                        // Show alphabetical sections
-                        for (var entry in sections.entries)
-                          ...(() {
-                            if (entry.value.isNotEmpty) {
-                              return [
-                                // regular sections return widget
-                                const Divider(
-                                  height: 1,
-                                  color: Colors.transparent,
-                                ),
-                                Container(
-                                  margin: const EdgeInsets.only(left: 40),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        entry.key,
-                                        style: TextStyle(
-                                          fontSize: 16,
+                        ] else ...[
+                          if (searchQuery.isEmpty) ...[
+                            ...(() {
+                              if (starred.isNotEmpty) {
+                                return [
+                                  // Starred return widget
+                                  Container(
+                                    margin: const EdgeInsets.only(left: 40),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.star_rounded,
                                           color:
                                               Theme.of(
                                                 context,
                                               ).colorScheme.onPrimary,
+                                          size: 20,
                                         ),
-                                      ),
-                                      Expanded(
-                                        child: Container(
-                                          margin: const EdgeInsets.only(
-                                            left: 10,
-                                            right: 40,
-                                          ),
-                                          height: 5,
-                                          decoration: BoxDecoration(
-                                            color: Colors.transparent,
-                                            border: Border(
-                                              bottom: BorderSide(
-                                                color:
-                                                    Theme.of(
-                                                      context,
-                                                    ).colorScheme.onPrimary,
-                                                width: 0.75,
+                                        Expanded(
+                                          child: Container(
+                                            margin: const EdgeInsets.only(
+                                              left: 10,
+                                              right: 40,
+                                            ),
+                                            height: 5,
+                                            decoration: BoxDecoration(
+                                              color: Colors.transparent,
+                                              border: Border(
+                                                bottom: BorderSide(
+                                                  color:
+                                                      Theme.of(
+                                                        context,
+                                                      ).colorScheme.onPrimary,
+                                                  width: 0.75,
+                                                ),
                                               ),
                                             ),
                                           ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                buildContactTiles(entry.value),
-                              ];
-                            } else {
+                                  buildContactTiles(starred, starred: true),
+                                ];
+                              }
                               return <Widget>[];
-                            }
-                          })(),
-                      ] else ...[
-                        // Search view - flat list without sections
-                        ...(() {
-                          List<Contact> allFilteredContacts = [];
-
-                          // Filter starred contacts by search query
-                          final filteredStarredContacts =
-                              starred
-                                  .where(
-                                    (contact) =>
-                                        contact.name.toLowerCase().contains(
-                                          searchQuery.toLowerCase(),
-                                        ) ||
-                                        contact.phoneNumber
-                                            .toLowerCase()
-                                            .contains(
-                                              searchQuery.toLowerCase(),
+                            })(),
+                            // Show alphabetical sections
+                            for (var entry in sections.entries)
+                              ...(() {
+                                if (entry.value.isNotEmpty) {
+                                  return [
+                                    // regular sections return widget
+                                    const Divider(
+                                      height: 1,
+                                      color: Colors.transparent,
+                                    ),
+                                    Container(
+                                      margin: const EdgeInsets.only(left: 40),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            entry.key,
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onPrimary,
                                             ),
-                                  )
-                                  .toList();
+                                          ),
+                                          Expanded(
+                                            child: Container(
+                                              margin: const EdgeInsets.only(
+                                                left: 10,
+                                                right: 40,
+                                              ),
+                                              height: 5,
+                                              decoration: BoxDecoration(
+                                                color: Colors.transparent,
+                                                border: Border(
+                                                  bottom: BorderSide(
+                                                    color:
+                                                        Theme.of(
+                                                          context,
+                                                        ).colorScheme.onPrimary,
+                                                    width: 0.75,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    buildContactTiles(entry.value),
+                                  ];
+                                } else {
+                                  return <Widget>[];
+                                }
+                              })(),
+                          ] else ...[
+                            // Search view - flat list without sections
+                            ...(() {
+                              List<Contact> allFilteredContacts = [];
 
-                          // Filter all other contacts by search query
-                          final filteredRegularContacts =
-                              contacts
-                                  .where(
-                                    (contact) =>
-                                        contact.starred == 0 &&
-                                        (contact.name.toLowerCase().contains(
+                              // Filter starred contacts by search query
+                              final filteredStarredContacts =
+                                  starred
+                                      .where(
+                                        (contact) =>
+                                            contact.name.toLowerCase().contains(
                                               searchQuery.toLowerCase(),
                                             ) ||
                                             contact.phoneNumber
                                                 .toLowerCase()
                                                 .contains(
                                                   searchQuery.toLowerCase(),
-                                                )),
-                                  )
-                                  .toList();
+                                                ),
+                                      )
+                                      .toList();
 
-                          // Combine all filtered contacts
-                          allFilteredContacts.addAll(filteredStarredContacts);
-                          allFilteredContacts.addAll(filteredRegularContacts);
+                              // Filter all other contacts by search query
+                              final filteredRegularContacts =
+                                  contacts
+                                      .where(
+                                        (contact) =>
+                                            contact.starred == 0 &&
+                                            (contact.name
+                                                    .toLowerCase()
+                                                    .contains(
+                                                      searchQuery.toLowerCase(),
+                                                    ) ||
+                                                contact.phoneNumber
+                                                    .toLowerCase()
+                                                    .contains(
+                                                      searchQuery.toLowerCase(),
+                                                    )),
+                                      )
+                                      .toList();
 
-                          // Sort all contacts: starts with query first, then contains query
-                          allFilteredContacts.sort((a, b) {
-                            final aNameStartsWith = a.name
-                                .toLowerCase()
-                                .startsWith(searchQuery.toLowerCase());
-                            final bNameStartsWith = b.name
-                                .toLowerCase()
-                                .startsWith(searchQuery.toLowerCase());
-                            final aPhoneStartsWith = a.phoneNumber
-                                .toLowerCase()
-                                .startsWith(searchQuery.toLowerCase());
-                            final bPhoneStartsWith = b.phoneNumber
-                                .toLowerCase()
-                                .startsWith(searchQuery.toLowerCase());
+                              // Combine all filtered contacts
+                              allFilteredContacts.addAll(
+                                filteredStarredContacts,
+                              );
+                              allFilteredContacts.addAll(
+                                filteredRegularContacts,
+                              );
 
-                            final aStartsWith =
-                                aNameStartsWith || aPhoneStartsWith;
-                            final bStartsWith =
-                                bNameStartsWith || bPhoneStartsWith;
+                              // Sort all contacts: starts with query first, then contains query
+                              allFilteredContacts.sort((a, b) {
+                                final aNameStartsWith = a.name
+                                    .toLowerCase()
+                                    .startsWith(searchQuery.toLowerCase());
+                                final bNameStartsWith = b.name
+                                    .toLowerCase()
+                                    .startsWith(searchQuery.toLowerCase());
+                                final aPhoneStartsWith = a.phoneNumber
+                                    .toLowerCase()
+                                    .startsWith(searchQuery.toLowerCase());
+                                final bPhoneStartsWith = b.phoneNumber
+                                    .toLowerCase()
+                                    .startsWith(searchQuery.toLowerCase());
 
-                            if (aStartsWith && !bStartsWith) return -1;
-                            if (!aStartsWith && bStartsWith) return 1;
+                                final aStartsWith =
+                                    aNameStartsWith || aPhoneStartsWith;
+                                final bStartsWith =
+                                    bNameStartsWith || bPhoneStartsWith;
 
-                            // If both start with query, prioritize name matches over phone matches
-                            if (aStartsWith && bStartsWith) {
-                              if (aNameStartsWith && !bNameStartsWith) {
-                                return -1;
-                              }
-                              if (!aNameStartsWith && bNameStartsWith) return 1;
-                            }
+                                if (aStartsWith && !bStartsWith) return -1;
+                                if (!aStartsWith && bStartsWith) return 1;
 
-                            // Finally sort by name
-                            return a.name.compareTo(b.name);
-                          });
+                                // If both start with query, prioritize name matches over phone matches
+                                if (aStartsWith && bStartsWith) {
+                                  if (aNameStartsWith && !bNameStartsWith) {
+                                    return -1;
+                                  }
+                                  if (!aNameStartsWith && bNameStartsWith) {
+                                    return 1;
+                                  }
+                                }
 
-                          if (allFilteredContacts.isNotEmpty) {
-                            return [buildContactTiles(allFilteredContacts)];
-                          } else {
-                            return [
-                              Container(
-                                margin: EdgeInsets.only(top: 50),
-                                child: Center(
-                                  child: Text(
-                                    'No contacts found',
-                                    style: TextStyle(
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.tertiary,
-                                      fontSize: 16,
+                                // Finally sort by name
+                                return a.name.compareTo(b.name);
+                              });
+
+                              if (allFilteredContacts.isNotEmpty) {
+                                return [buildContactTiles(allFilteredContacts)];
+                              } else {
+                                return [
+                                  Container(
+                                    margin: EdgeInsets.only(top: 50),
+                                    child: Center(
+                                      child: Text(
+                                        'No contacts found',
+                                        style: TextStyle(
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.tertiary,
+                                          fontSize: 16,
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ),
-                            ];
-                          }
-                        })(),
+                                ];
+                              }
+                            })(),
+                          ],
+                        ],
                       ],
-                    ],
-                  ],
-                ),
+                    ),
+                  ),
+                ], // Close the Stack children
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -2257,6 +2383,80 @@ class _ContactDetailsState extends State<ContactDetails> {
       body: Stack(
         clipBehavior: Clip.none,
         children: [
+          // Purple blob 1 - Top area, centered horizontally behind the box (BIGGER!)
+          Positioned(
+            top: 20, // Moved up a bit for more spread
+            left:
+                MediaQuery.of(context).size.width * 0.5 -
+                100, // Adjusted for larger size
+            child: Container(
+              width: 200, // Much bigger!
+              height: 240, // Much taller!
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.secondary.withValues(
+                  alpha: 0.5,
+                ), // Lighter for detail view
+                borderRadius: BorderRadius.circular(120),
+              ),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(
+                  sigmaX: 80,
+                  sigmaY: 60,
+                ), // More blur for bigger size
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+          ),
+          // Purple blob 2 - Middle area, centered horizontally behind the box (BIGGER!)
+          Positioned(
+            top:
+                MediaQuery.of(context).size.height *
+                0.4, // Slightly lower for more spread
+            left:
+                MediaQuery.of(context).size.width * 0.5 -
+                120, // Adjusted for larger size
+            child: Container(
+              width: 240, // Much bigger!
+              height: 200, // Bigger height!
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Theme.of(
+                  context,
+                ).colorScheme.secondary.withValues(alpha: 0.4), // Even lighter
+              ),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(
+                  sigmaX: 100,
+                  sigmaY: 100,
+                ), // More blur for bigger size
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+          ),
+          // Purple blob 3 - Bottom area, centered horizontally behind the box (BIGGER!)
+          Positioned(
+            bottom: -60, // Lower for more spread
+            left:
+                MediaQuery.of(context).size.width * 0.5 -
+                110, // Adjusted for larger size
+            child: Container(
+              width: 220, // Much bigger!
+              height: 160, // Bigger height!
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Theme.of(
+                  context,
+                ).colorScheme.secondary.withValues(alpha: 0.3), // Most subtle
+              ),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(
+                  sigmaX: 90,
+                  sigmaY: 90,
+                ), // More blur for bigger size
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+          ),
           Container(
             margin: EdgeInsets.only(left: 35, bottom: 30, right: 35, top: 60),
             alignment: AlignmentDirectional.topStart,
