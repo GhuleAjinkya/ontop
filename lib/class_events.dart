@@ -295,6 +295,102 @@ class _EventsState extends State<Events> {
           color: Theme.of(context).colorScheme.primary,
           child: Stack(
             children: [
+              // ✨ COSMIC CONSTELLATION BLOBS ✨
+              // Large mystical blob - top left like a moon
+              Positioned(
+                top: -40,
+                left: -30,
+                child: Container(
+                  width: 180,
+                  height: 220,
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.secondary.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(110),
+                  ),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 70, sigmaY: 80),
+                    child: Container(color: Colors.transparent),
+                  ),
+                ),
+              ),
+              // Medium star blob - top right
+              Positioned(
+                top: 60,
+                right: -20,
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.secondary.withValues(alpha: 0.5),
+                  ),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+                    child: Container(color: Colors.transparent),
+                  ),
+                ),
+              ),
+              // Small twinkling blob - middle left
+              Positioned(
+                top: MediaQuery.of(context).size.height * 0.35,
+                left: -15,
+                child: Container(
+                  width: 80,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.secondary.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 45, sigmaY: 55),
+                    child: Container(color: Colors.transparent),
+                  ),
+                ),
+              ),
+              // Dreamy medium blob - center right
+              Positioned(
+                top: MediaQuery.of(context).size.height * 0.5,
+                right: -40,
+                child: Container(
+                  width: 160,
+                  height: 140,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.secondary.withValues(alpha: 0.3),
+                  ),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 85, sigmaY: 75),
+                    child: Container(color: Colors.transparent),
+                  ),
+                ),
+              ),
+              // Floating bubble - bottom center
+              Positioned(
+                bottom: -50,
+                left: MediaQuery.of(context).size.width * 0.3,
+                child: Container(
+                  width: 140,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.secondary.withValues(alpha: 0.45),
+                  ),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 65, sigmaY: 65),
+                    child: Container(color: Colors.transparent),
+                  ),
+                ),
+              ),
               // Main content
               Column(
                 children: [
@@ -302,20 +398,20 @@ class _EventsState extends State<Events> {
                   _buildFilterChips(),
                   _buildTabSelector(), // Add tab selector here
                   Expanded(
-                    child: Builder(builder: (context) {
-                      if (isLoading && allEvents.isEmpty) {
-                        print("loading anim triggered");
-                        return Center(
-                          child: CircularProgressIndicator(
-                            
-                            color: Theme.of(context).colorScheme.tertiary,
-                          ),
-                        );
-                      }
-                      else {
-                        return _buildEventsList();
-                      }
-                    })
+                    child: Builder(
+                      builder: (context) {
+                        if (isLoading && allEvents.isEmpty) {
+                          print("loading anim triggered");
+                          return Center(
+                            child: CircularProgressIndicator(
+                              color: Theme.of(context).colorScheme.tertiary,
+                            ),
+                          );
+                        } else {
+                          return _buildEventsList();
+                        }
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -412,36 +508,36 @@ class _EventsState extends State<Events> {
                           },
                         ),
                       ),
-                      if (searchController.text.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 16),
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                searchController.clear();
-                                searchQuery = '';
-                              });
-                              _applyFilter();
-                            },
-                            child: Container(
-                              width: 20,
-                              height: 20,
-                              decoration: BoxDecoration(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onPrimary.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(
-                                Icons.close,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onPrimary.withValues(alpha: 0.7),
-                                size: 14,
-                              ),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 16),
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              searchController.clear();
+                              searchQuery = '';
+                              searching = false;
+                            });
+                            _applyFilter();
+                          },
+                          child: Container(
+                            width: 20,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimary.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              Icons.close,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimary.withValues(alpha: 0.7),
+                              size: 14,
                             ),
                           ),
                         ),
+                      ),
                     ],
                   ),
                 ),
@@ -451,22 +547,20 @@ class _EventsState extends State<Events> {
               margin: EdgeInsets.only(right: 20),
               child: Row(
                 children: [
-                  IconButton(
-                    icon: Icon(
-                      !searching ? Icons.search : Icons.close,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      size: !searching ? 30 : 25,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        searching = !searching;
-                        searchController.clear();
-                        searchQuery = '';
-                      });
-                      _applyFilter();
-                    },
-                  ),
                   if (!searching) ...[
+                    IconButton(
+                      icon: Icon(
+                        Icons.search,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                        size: 30,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          searching = true;
+                        });
+                        _applyFilter();
+                      },
+                    ),
                     IconButton(
                       onPressed: () => _showEventDialog(),
                       icon: Icon(
@@ -609,7 +703,6 @@ class _EventsState extends State<Events> {
   }
 
   Widget _buildEventsList() {
-   
     // Separate filtered events into upcoming and concluded
     final now = DateTime.now();
     final filteredUpcoming =
@@ -665,6 +758,7 @@ class _EventsState extends State<Events> {
     }
 
     return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -972,9 +1066,9 @@ class _EventsState extends State<Events> {
                 onPressed: () async {
                   final date = await showDatePicker(
                     context: context,
+
                     //initialDate: selectedDate,
-                    
-                    initialDate: DateTime.now().add(const Duration( days: 7)),
+                    initialDate: DateTime.now().add(const Duration(days: 7)),
                     firstDate: DateTime.now(),
                     lastDate: DateTime.now().add(Duration(days: 365)),
                   );
@@ -1026,7 +1120,8 @@ class _EventsState extends State<Events> {
     );
   }
 
-  void _saveEvent({ // localled
+  void _saveEvent({
+    // localled
     Event? event,
     required String title,
     required String description,
@@ -1046,7 +1141,7 @@ class _EventsState extends State<Events> {
       title: title.trim(),
       description: description.trim(),
       dateTime: dateTime,
-      userId: userSession.currentUser?['_id'], 
+      userId: userSession.currentUser?['_id'],
       createdAt: DateTime.now(),
     );
     bool success;
@@ -1135,6 +1230,15 @@ class _EventsState extends State<Events> {
       builder:
           (context) => AlertDialog(
             backgroundColor: Theme.of(context).colorScheme.primary,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onPrimary.withValues(alpha: 0.3),
+                width: 1,
+              ),
+            ),
             title: Text(
               'Delete Event',
               style: TextStyle(
@@ -1174,7 +1278,8 @@ class _EventsState extends State<Events> {
     );
   }
 
-  void _deleteEventById(Event event) async { // localled
+  void _deleteEventById(Event event) async {
+    // localled
     Navigator.pop(context);
 
     if (event.id != null) {
@@ -1186,7 +1291,7 @@ class _EventsState extends State<Events> {
           concludedEvents.remove(event);
         }
       });
-      
+
       final success = await _deleteEvent(event.id!);
 
       if (!mounted) return;
@@ -1199,7 +1304,7 @@ class _EventsState extends State<Events> {
       } else {
         setState(() {
           allEvents.add(event);
-            if (event.dateTime.isAfter(DateTime.now())) {
+          if (event.dateTime.isAfter(DateTime.now())) {
             upcomingEvents.add(event);
           } else {
             concludedEvents.add(event);

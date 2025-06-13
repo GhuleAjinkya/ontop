@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'mongodb.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
+import 'utils/dialog_helper.dart'; // Add dialog helper!
 
 class UserProfile extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -297,71 +298,22 @@ class _UserProfileState extends State<UserProfile> {
   }
 
   void _handleLogout() async {
-    bool confirm =
-        await showDialog(
-          context: context,
-          builder:
-              (context) => AlertDialog(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(
-                    color: Theme.of(context).colorScheme.onSecondary,
-                    width: 1.5,
-                  ),
-                ),
-                title: Text(
-                  'Sign Out?',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onPrimary,
-                  ),
-                ),
-                content: Text(
-                  "You'll need to log back in to access your stored information.",
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onPrimary,
-                  ),
-                ),
-                actions: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        icon: Icon(
-                          Icons.close,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                          size: 30,
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        icon: Icon(
-                          Icons.check,
-                          color: Theme.of(context).colorScheme.error,
-                          size: 30,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-        ) ??
-        false;
+    // Use the consistent dialog helper for sign out confirmation! ✨
+    DialogHelper.showSignOutConfirmation(
+      context: context,
+      onSignOut: () async {
+        // Clear user session
+        await userSession.clearSession();
 
-    if (confirm) {
-      // Clear user session
-      await userSession.clearSession();
-
-      // Navigate to login page
-      if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => LoginPage()),
-          (route) => false,
-        );
-      }
-    }
+        // Navigate to login page
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => LoginPage()),
+            (route) => false,
+          );
+        }
+      },
+    );
   }
 
   @override
@@ -391,253 +343,331 @@ class _UserProfileState extends State<UserProfile> {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 20),
-
-              // Modern Profile Header with Glassmorphism
-              _buildGlassmorphicCard(
-                child: Column(
-                  children: [
-                    // Animated Profile Avatar
-                    Hero(
-                      tag: 'profile-avatar',
-                      child: Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Theme.of(context).colorScheme.secondary,
-                              Theme.of(
-                                context,
-                              ).colorScheme.secondary.withValues(alpha: 0.7),
-                            ],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.secondary.withValues(alpha: 0.3),
-                              blurRadius: 20,
-                              spreadRadius: 5,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.person_rounded,
-                          size: 60,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    // User Name with modern typography
-                    Text(
-                      userData?['name'] ?? 'Unknown User',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                        letterSpacing: 0.5,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+        child: Stack(
+          children: [
+            // BIG BOLD central blob - the STAR! 🌟
+            Positioned(
+              left:
+                  MediaQuery.of(context).size.width * 0.5 -
+                  150, // Adjusted for bigger size
+              top:
+                  MediaQuery.of(context).size.height * 0.4 -
+                  50, // Adjusted for bigger size
+              child: Container(
+                width: 300, // MUCH BIGGER!
+                height: 300, // HUGE!
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Theme.of(context).colorScheme.secondary.withValues(
+                    alpha: 0.6, // Much more visible!
+                  ),
+                ),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(
+                    sigmaX: 120,
+                    sigmaY: 120,
+                  ), // More dramatic blur
+                  child: Container(color: Colors.transparent),
                 ),
               ),
-
-              const SizedBox(height: 24),
-
-              // Personal Information with Modern Cards
-              _buildGlassmorphicCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSectionHeader(
-                      'Your Details',
-                      Icons.person_outline,
-                    ),
-                    const SizedBox(height: 20),
-                    _buildModernInfoTile(
-                      icon: Icons.person_outline,
-                      label: 'Full Name',
-                      value: userData?['name'] ?? 'Not provided',
-                      gradient: [
-                        Colors.deepPurple.withValues(alpha: 0.3),
-                        Colors.deepPurple.withValues(alpha: 0.15),
-                      ],
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    _buildModernInfoTile(
-                      icon: Icons.phone_outlined,
-                      label: 'Phone Number',
-                      value: userData?['number'] ?? 'Not provided',
-                      gradient: [
-                        Colors.deepPurple.withValues(alpha: 0.3),
-                        Colors.deepPurple.withValues(alpha: 0.15),
-                      ],
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    _buildModernInfoTile(
-                      icon: Icons.email_outlined,
-                      label: 'Email Address',
-                      value: userData?['email'] ?? 'Not provided',
-                      gradient: [
-                        Colors.deepPurple.withValues(alpha: 0.3),
-                        Colors.deepPurple.withValues(alpha: 0.15),
-                      ],
-                    ),
-                  ],
+            ),
+            // Small accent blob ABOVE - cute little satellite! ✨
+            Positioned(
+              left: MediaQuery.of(context).size.width * 0.5 - 60,
+              top:
+                  MediaQuery.of(context).size.height *
+                  0.15, // Above the main blob
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Theme.of(context).colorScheme.secondary.withValues(
+                    alpha: 0.4, // Lighter accent
+                  ),
+                ),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+                  child: Container(color: Colors.transparent),
                 ),
               ),
+            ),
+            // Small accent blob BELOW - another cute satellite! 💫
+            Positioned(
+              left: MediaQuery.of(context).size.width * 0.5 - 60,
+              top:
+                  MediaQuery.of(context).size.height *
+                  0.7, // Below the main blob
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Theme.of(context).colorScheme.secondary.withValues(
+                    alpha: 0.4, // Lighter accent
+                  ),
+                ),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 60, sigmaY: 60),
+                  child: Container(color: Colors.transparent),
+                ),
+              ),
+            ),
+            // Main content
+            SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 20),
 
-              const SizedBox(height: 24),
-
-              // Settings Section with Modern Toggle
-              _buildGlassmorphicCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSectionHeader('Settings', Icons.settings_outlined),
-                    const SizedBox(height: 20),
-
-                    // Modern Notifications Toggle
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: Colors.white.withValues(alpha: 0.05),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.1),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
+                  // Modern Profile Header with Glassmorphism
+                  _buildGlassmorphicCard(
+                    child: Column(
+                      children: [
+                        // Animated Profile Avatar
+                        Hero(
+                          tag: 'profile-avatar',
+                          child: Container(
+                            width: 120,
+                            height: 120,
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
+                              shape: BoxShape.circle,
                               gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                                 colors: [
-                                  Colors.orange.withValues(alpha: 0.2),
-                                  Colors.orange.withValues(alpha: 0.1),
+                                  Theme.of(context).colorScheme.secondary,
+                                  Theme.of(context).colorScheme.secondary
+                                      .withValues(alpha: 0.7),
                                 ],
                               ),
-                            ),
-                            child: Icon(
-                              Icons.notifications_outlined,
-                              color: Colors.orange,
-                              size: 24,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Call Notifications',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Receive notifications for incoming calls',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onPrimary
-                                        .withValues(alpha: 0.7),
-                                  ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Theme.of(context).colorScheme.secondary
+                                      .withValues(alpha: 0.3),
+                                  blurRadius: 20,
+                                  spreadRadius: 5,
+                                  offset: const Offset(0, 8),
                                 ),
                               ],
                             ),
-                          ),
-                          Transform.scale(
-                            scale: 0.8,
-                            child: Switch(
-                              value: _notificationsEnabled,
-                              onChanged: (value) async {
-                                HapticFeedback.lightImpact();
-                                setState(() {
-                                  _notificationsEnabled = value;
-                                });
-                                await _saveNotificationPreference(value);
-
-                                _showModernSnackBar(
-                                  value
-                                      ? 'Call notifications enabled'
-                                      : 'Call notifications disabled',
-                                );
-                              },
-                              activeColor:
-                                  Theme.of(context).colorScheme.secondary,
-                              activeTrackColor: Theme.of(
-                                context,
-                              ).colorScheme.secondary.withValues(alpha: 0.3),
-                              inactiveThumbColor: Colors.white.withValues(
-                                alpha: 0.8,
-                              ),
-                              inactiveTrackColor: Colors.white.withValues(
-                                alpha: 0.2,
-                              ),
+                            child: Icon(
+                              Icons.person_rounded,
+                              size: 60,
+                              color: Theme.of(context).colorScheme.onPrimary,
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Modern Change Password Button
-                    _buildModernActionButton(
-                      onPressed: _showChangePasswordDialog,
-                      icon: Icons.lock_outline,
-                      label: 'Change Password',
-                      gradient: [
-                        Theme.of(context).colorScheme.secondary,
-                        Theme.of(
-                          context,
-                        ).colorScheme.secondary.withValues(alpha: 0.8),
+                        ),
+                        const SizedBox(height: 20),
+                        // User Name with modern typography
+                        Text(
+                          userData?['name'] ?? 'Unknown User',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            letterSpacing: 0.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Personal Information with Modern Cards
+                  _buildGlassmorphicCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionHeader(
+                          'Your Details',
+                          Icons.person_outline,
+                        ),
+                        const SizedBox(height: 20),
+                        _buildModernInfoTile(
+                          icon: Icons.person_outline,
+                          label: 'Full Name',
+                          value: userData?['name'] ?? 'Not provided',
+                          gradient: [
+                            Colors.deepPurple.withValues(alpha: 0.3),
+                            Colors.deepPurple.withValues(alpha: 0.15),
+                          ],
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        _buildModernInfoTile(
+                          icon: Icons.phone_outlined,
+                          label: 'Phone Number',
+                          value: userData?['number'] ?? 'Not provided',
+                          gradient: [
+                            Colors.deepPurple.withValues(alpha: 0.3),
+                            Colors.deepPurple.withValues(alpha: 0.15),
+                          ],
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        _buildModernInfoTile(
+                          icon: Icons.email_outlined,
+                          label: 'Email Address',
+                          value: userData?['email'] ?? 'Not provided',
+                          gradient: [
+                            Colors.deepPurple.withValues(alpha: 0.3),
+                            Colors.deepPurple.withValues(alpha: 0.15),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Settings Section with Modern Toggle
+                  _buildGlassmorphicCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionHeader(
+                          'Settings',
+                          Icons.settings_outlined,
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Modern Notifications Toggle
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            color: Colors.white.withValues(alpha: 0.05),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.orange.withValues(alpha: 0.2),
+                                      Colors.orange.withValues(alpha: 0.1),
+                                    ],
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.notifications_outlined,
+                                  color: Colors.orange,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Call Notifications',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Receive notifications for incoming calls',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onPrimary
+                                            .withValues(alpha: 0.7),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Transform.scale(
+                                scale: 0.8,
+                                child: Switch(
+                                  value: _notificationsEnabled,
+                                  onChanged: (value) async {
+                                    HapticFeedback.lightImpact();
+                                    setState(() {
+                                      _notificationsEnabled = value;
+                                    });
+                                    await _saveNotificationPreference(value);
+
+                                    _showModernSnackBar(
+                                      value
+                                          ? 'Call notifications enabled'
+                                          : 'Call notifications disabled',
+                                    );
+                                  },
+                                  activeColor:
+                                      Theme.of(context)
+                                          .colorScheme
+                                          .tertiary, // Beautiful lilac accent!
+                                  activeTrackColor: Theme.of(context)
+                                      .colorScheme
+                                      .tertiary // Lilac accent track too!
+                                      .withValues(alpha: 0.3),
+                                  inactiveThumbColor: Colors.white.withValues(
+                                    alpha: 0.8,
+                                  ),
+                                  inactiveTrackColor: Colors.white.withValues(
+                                    alpha: 0.2,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // Modern Change Password Button
+                        _buildModernActionButton(
+                          onPressed: _showChangePasswordDialog,
+                          icon: Icons.lock_outline,
+                          label: 'Change Password',
+                          gradient: [
+                            Theme.of(context).colorScheme.secondary,
+                            Theme.of(
+                              context,
+                            ).colorScheme.secondary.withValues(alpha: 0.8),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Modern Logout Button
+                  _buildModernActionButton(
+                    onPressed: _handleLogout,
+                    icon: Icons.logout_rounded,
+                    label: 'Sign Out',
+                    gradient: [Colors.red.shade400, Colors.red.shade600],
+                    isDestructive: true,
+                  ),
+                  const SizedBox(height: 20),
+                ],
               ),
-
-              const SizedBox(height: 32),
-
-              // Modern Logout Button
-              _buildModernActionButton(
-                onPressed: _handleLogout,
-                icon: Icons.logout_rounded,
-                label: 'Sign Out',
-                gradient: [Colors.red.shade400, Colors.red.shade600],
-                isDestructive: true,
-              ),
-
-              const SizedBox(height: 20),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

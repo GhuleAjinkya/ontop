@@ -38,7 +38,12 @@ standardTile(double borderRadius, {bool isSelected = false}) {
     color:
         isSelected
             ? Color.fromARGB(100, 255, 255, 255)
-            : Color.fromARGB(25, 255, 255, 255),
+            : Color.fromARGB(
+              22,
+              255,
+              255,
+              255,
+            ), // Sweet spot between 18 and 25 for perfect purple glow balance
     borderRadius: BorderRadius.circular(borderRadius),
     boxShadow: [
       BoxShadow(
@@ -98,6 +103,12 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
+      // Set global date format configuration
+      localizationsDelegates: const [
+        DefaultMaterialLocalizations.delegate,
+        DefaultWidgetsLocalizations.delegate,
+      ],
+      locale: const Locale('en', 'GB'), // Use day/month format by default
       title: 'ontop.',
       // Theme stores details like the font and colours used
       theme: ThemeData(
@@ -109,6 +120,9 @@ class MyApp extends StatelessWidget {
           secondary: Color.fromARGB(255, 101, 28, 132),
           tertiary: Color.fromARGB(255, 200, 162, 200),
           onSecondary: Color.fromARGB(255, 88, 81, 111),
+        ),
+        textSelectionTheme: TextSelectionThemeData(
+          cursorColor: Color.fromARGB(255, 200, 162, 200), // Lilac cursor color
         ),
       ),
       // Show HomePage if user is logged in, otherwise show LoginPage
@@ -155,12 +169,52 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   String greetingTime = 'notInitialized';
+
+  // Animation controllers for magical blob animations! ✨
+  late AnimationController _pulseController;
+  late AnimationController _floatController;
+  late AnimationController _secondBlobController;
+  late Animation<double> _pulseAnimation;
+
   @override
   void initState() {
     super.initState();
-    greetingTime = widget.getGreetingTime();
+    greetingTime =
+        widget
+            .getGreetingTime(); // Initialize the magical animations! 🌟 (Made even more frequent for liveliness!)
+    _pulseController = AnimationController(
+      duration: Duration(milliseconds: 800), // Even faster! 1.2s → 0.8s
+      vsync: this,
+    );
+
+    _floatController = AnimationController(
+      duration: Duration(milliseconds: 1200), // Faster! 1.8s → 1.2s
+      vsync: this,
+    );
+
+    _secondBlobController = AnimationController(
+      duration: Duration(milliseconds: 700), // Faster! 1s → 0.7s
+      vsync: this,
+    );
+
+    _pulseAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    // Start the magical animations! ✨
+    _pulseController.repeat(reverse: true);
+    _floatController.repeat(reverse: true);
+    _secondBlobController.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _floatController.dispose();
+    _secondBlobController.dispose();
+    super.dispose();
   }
 
   @override
@@ -173,25 +227,34 @@ class _HomePageState extends State<HomePage> {
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
         flexibleSpace: Stack(
           children: [
-            Container(decoration: BoxDecoration(color: Colors.black)),
-            Positioned(
-              // Background blob
-              top: 25, // Negative value to position it partially off-screen
-              left: -35,
-              child: Container(
-                width: 130,
-                height: 175, // Make this larger for a longer blob
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.secondary,
-                  borderRadius: BorderRadius.circular(
-                    100,
-                  ), // Makes it oval/elliptical
-                ),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 55, sigmaY: 40),
-                  child: Container(color: Colors.transparent),
-                ),
-              ),
+            Container(
+              decoration: BoxDecoration(color: Colors.black),
+            ), // Animated background blob - Top left, brought down a bit! 💜
+            AnimatedBuilder(
+              animation: _pulseController,
+              builder: (context, child) {
+                return Positioned(
+                  top: 60, // Brought down from 25
+                  left: -35,
+                  child: Transform.scale(
+                    scale:
+                        1.0 +
+                        ((_pulseAnimation.value - 1.0) * 0.15), // Very subtle
+                    child: Container(
+                      width: 130,
+                      height: 175,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.secondary,
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 55, sigmaY: 40),
+                        child: Container(color: Colors.transparent),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
             Positioned(
               top: 35,
@@ -244,22 +307,70 @@ class _HomePageState extends State<HomePage> {
       ),
       body: Stack(
         children: [
-          Positioned(
-            // The purple blob you see in the background, set behind the text and tiles
-            right: -75,
-            top: MediaQuery.of(context).size.height * 0.35,
-            child: Container(
-              width: 160,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Theme.of(context).colorScheme.secondary,
-              ),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 100, sigmaY: 100),
-                child: Container(color: Colors.transparent),
-              ),
-            ),
+          // Big animated blob - Mid right, the star of the show! ✨
+          AnimatedBuilder(
+            animation: Listenable.merge([_pulseController, _floatController]),
+            builder: (context, child) {
+              return Positioned(
+                right: -80, // Positioned further out for dramatic effect
+                top: MediaQuery.of(context).size.height * 0.45, // Mid area
+                child: Transform.scale(
+                  scale:
+                      1.0 +
+                      ((_pulseAnimation.value - 1.0) *
+                          0.25), // Slightly more dramatic
+                  child: Container(
+                    width: 200, // BIG blob!
+                    height: 160,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Theme.of(context).colorScheme.secondary,
+                    ),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 120, sigmaY: 120),
+                      child: Container(color: Colors.transparent),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          // Soft center blob - Gentle and light! 💫
+          AnimatedBuilder(
+            animation: _pulseController,
+            builder: (context, child) {
+              return Positioned(
+                left:
+                    MediaQuery.of(context).size.width * 0.5 -
+                    60, // Perfectly centered
+                top:
+                    MediaQuery.of(context).size.height *
+                    0.55, // Center vertically
+                child: Transform.scale(
+                  scale:
+                      1.0 +
+                      ((_pulseAnimation.value - 1.0) *
+                          0.08), // Very gentle pulse
+                  child: Container(
+                    width: 120, // Nice medium size
+                    height: 90,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Theme.of(context).colorScheme.secondary.withValues(
+                        alpha: 0.25,
+                      ), // Very light and soft!
+                    ),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(
+                        sigmaX: 80,
+                        sigmaY: 80,
+                      ), // Soft dreamy blur
+                      child: Container(color: Colors.transparent),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
           Center(
             child: Column(
