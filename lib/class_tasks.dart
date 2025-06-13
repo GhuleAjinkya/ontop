@@ -4,7 +4,6 @@ import 'services/tasks_adapter.dart';
 import 'services/optimistic_updates.dart';
 import 'services/project_tasks_sync.dart';
 import 'utils/date_formatter.dart';
-
 ScaffoldFeatureController<SnackBar, SnackBarClosedReason> updatingSnackBar(
   BuildContext context,
 ) {
@@ -931,13 +930,12 @@ class _TasksState extends State<Tasks> {
                                   child: Text(
                                     'Cancel',
                                     style: TextStyle(
-                                      color: Theme.of(context).colorScheme.onPrimary,
+                                      color: Theme.of(context).colorScheme.tertiary,
                                       fontFamily: 'Poppins',
-                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ),
-                                TextButton(
+                                ElevatedButton(
                                   onPressed: () async {
                                     // Find the section to delete
                                     final sectionToDelete = taskSections
@@ -1040,20 +1038,17 @@ class _TasksState extends State<Tasks> {
                                       _loadTasksFromDatabase();
                                     }
                                   },
-                                  child: Text(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                    foregroundColor: Colors.white,
+                                  ),                                  child: Text(
                                     'Delete',
-                                    style: TextStyle(
-                                      color: Theme.of(context).colorScheme.error,
-                                      fontFamily: 'Poppins',
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                    style: TextStyle(fontFamily: 'Poppins'),
                                   ),
                                 ),
                               ],
-                            ),
-                          ],
                         ),
-                  );
+            ]));
                 },
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -1127,24 +1122,18 @@ class _TasksState extends State<Tasks> {
                               style: TextStyle(
                                 color: Theme.of(context).colorScheme.onPrimary,
                               ),
-                            ),
-                            actions: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: Text(
-                                      'Cancel',
-                                      style: TextStyle(
-                                        color: Theme.of(context).colorScheme.onPrimary,
-                                        fontFamily: 'Poppins',
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
+                            ),                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: Text(
+                                  'Cancel',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.tertiary,
+                                    fontFamily: 'Poppins',
                                   ),
-                                  TextButton(
+                                ),
+                              ),
+                              ElevatedButton(
                                     onPressed: () async {
                                       // Find the section to delete
                                       final sectionToDelete = taskSections
@@ -1244,20 +1233,16 @@ class _TasksState extends State<Tasks> {
                                             ),
                                           );
                                         }                                        // Reload data to ensure consistency
-                                        _loadTasksFromDatabase();
-                                      }
+                                        _loadTasksFromDatabase();                                      }
                                     },
-                                    child: Text(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red,
+                                      foregroundColor: Colors.white,
+                                    ),                                    child: Text(
                                       'Delete',
-                                      style: TextStyle(
-                                        color: Theme.of(context).colorScheme.error,
-                                        fontFamily: 'Poppins',
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                                      style: TextStyle(fontFamily: 'Poppins'),
                                     ),
                                   ),
-                                ],
-                              ),
                             ],
                           ),
                     );
@@ -1298,21 +1283,17 @@ class _TasksState extends State<Tasks> {
                             ),
                           ),
                           actions: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  child: Text(
-                                    'Cancel',
-                                    style: TextStyle(
-                                      color: Theme.of(context).colorScheme.onPrimary,
-                                      fontFamily: 'Poppins',
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: Text(
+                                'Cancel',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.tertiary,
+                                  fontFamily: 'Poppins',
                                 ),
-                                TextButton(
+                              ),
+                            ),
+                            ElevatedButton(
                                   onPressed: () async {
                                     // Find the section to delete
                                     final sectionToDelete = taskSections
@@ -1415,18 +1396,15 @@ class _TasksState extends State<Tasks> {
                                       _loadTasksFromDatabase();
                                     }
                                   },
-                                  child: Text(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                    foregroundColor: Colors.white,
+                                  ),                                  child: Text(
                                     'Delete',
-                                    style: TextStyle(
-                                      color: Theme.of(context).colorScheme.error,
-                                      fontFamily: 'Poppins',
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                    style: TextStyle(fontFamily: 'Poppins'),
                                   ),
                                 ),
                               ],
-                            ),
-                          ],
                         ),
                   );
                 },
@@ -2462,43 +2440,33 @@ class _TasksState extends State<Tasks> {
                                                     context,
                                                   ).colorScheme.onPrimary,
                                             ),
-                                          ),
-                                          actions: [
-                                            Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.spaceEvenly,
-                                              children: [
-                                                TextButton(
-                                                  onPressed:
-                                                      () => Navigator.pop(
-                                                        context,
-                                                      ),
-                                                  child: Text(
-                                                    'Cancel',
-                                                    style: TextStyle(
-                                                      color: Theme.of(context).colorScheme.onPrimary,
-                                                      fontFamily: 'Poppins',
-                                                      fontWeight: FontWeight.w500,
-                                                    ),
+                                          ),                                          actions: [
+                                            TextButton(
+                                              onPressed:
+                                                  () => Navigator.pop(
+                                                    context,
                                                   ),
+                                              child: Text(
+                                                'Cancel',
+                                                style: TextStyle(
+                                                  color: Theme.of(context).colorScheme.tertiary,
+                                                  fontFamily: 'Poppins',
                                                 ),
-                                                TextButton(
+                                              ),
+                                            ),
+                                            ElevatedButton(
                                                   onPressed: () {
                                                     deleteSelected();
                                                     Navigator.pop(context);
                                                   },
-                                                  child: Text(
-                                                    'Delete',
-                                                    style: TextStyle(
-                                                      color: Theme.of(context).colorScheme.error,
-                                                      fontFamily: 'Poppins',
-                                                      fontWeight: FontWeight.w500,
-                                                    ),
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: Colors.red,
+                                                    foregroundColor: Colors.white,
+                                                  ),                                                  child: Text(
+                                                    'Delete',                                                    style: TextStyle(fontFamily: 'Poppins'),
                                                   ),
                                                 ),
                                               ],
-                                            ),
-                                          ],
                                         ),
                                   );
                                 },
