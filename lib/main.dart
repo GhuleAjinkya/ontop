@@ -121,6 +121,9 @@ class MyApp extends StatelessWidget {
           tertiary: Color.fromARGB(255, 200, 162, 200),
           onSecondary: Color.fromARGB(255, 88, 81, 111),
         ),
+        textSelectionTheme: TextSelectionThemeData(
+          cursorColor: Color.fromARGB(255, 200, 162, 200), // Lilac cursor color
+        ),
       ),
       // Show HomePage if user is logged in, otherwise show LoginPage
       home: _buildHomePage(),

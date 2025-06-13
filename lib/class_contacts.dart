@@ -1066,7 +1066,7 @@ class _ContactsState extends State<Contacts> {
                                   left: 40,
                                   top: 8,
                                   bottom: 8,
-                                  right: 36,
+                                  right: 20,
                                 ),
                                 height: 45,
                                 decoration: BoxDecoration(
@@ -1137,40 +1137,39 @@ class _ContactsState extends State<Contacts> {
                                         },
                                       ),
                                     ),
-                                    if (searchController.text.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          right: 16,
-                                        ),
-                                        child: GestureDetector(
-                                          onTap: () {
-                                            setState(() {
-                                              searchController.clear();
-                                              searchQuery = '';
-                                            });
-                                          },
-                                          child: Container(
-                                            width: 20,
-                                            height: 20,
-                                            decoration: BoxDecoration(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onPrimary
-                                                  .withValues(alpha: 0.2),
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 16),
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            searchController.clear();
+                                            searchQuery = '';
+                                            searching = false;
+                                          });
+                                        },
+                                        child: Container(
+                                          width: 20,
+                                          height: 20,
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onPrimary
+                                                .withValues(alpha: 0.2),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
                                             ),
-                                            child: Icon(
-                                              Icons.close,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onPrimary
-                                                  .withValues(alpha: 0.7),
-                                              size: 14,
-                                            ),
+                                          ),
+                                          child: Icon(
+                                            Icons.close,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onPrimary
+                                                .withValues(alpha: 0.7),
+                                            size: 14,
                                           ),
                                         ),
                                       ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -1178,27 +1177,25 @@ class _ContactsState extends State<Contacts> {
                           ],
                           if (selectedIDs.isEmpty) ...[
                             Container(
-                              margin: EdgeInsets.only(right: 36),
+                              margin: EdgeInsets.only(right: 20),
                               child: Row(
                                 children: [
-                                  IconButton(
-                                    icon: Icon(
-                                      !searching ? Icons.search : Icons.close,
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimary,
-                                      size: 30,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        searchController.clear();
-                                        searchQuery = '';
-                                        searching = !searching;
-                                      });
-                                    },
-                                  ),
                                   if (!searching) ...[
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.search,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimary,
+                                        size: 30,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          searching = true;
+                                        });
+                                      },
+                                    ),
                                     IconButton(
                                       icon: Icon(
                                         Icons.add,
@@ -1489,6 +1486,7 @@ class _ContactsState extends State<Contacts> {
                   ),
                   Expanded(
                     child: ListView(
+                      physics: const BouncingScrollPhysics(),
                       children: [
                         if (starred.isEmpty &&
                             sections.entries.every((c) => c.value.isEmpty)) ...[

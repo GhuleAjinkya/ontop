@@ -2361,40 +2361,39 @@ class _TasksState extends State<Tasks> {
                                         },
                                       ),
                                     ),
-                                    if (searchController.text.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          right: 16,
-                                        ),
-                                        child: GestureDetector(
-                                          onTap: () {
-                                            setState(() {
-                                              searchController.clear();
-                                              searchQuery = '';
-                                            });
-                                          },
-                                          child: Container(
-                                            width: 20,
-                                            height: 20,
-                                            decoration: BoxDecoration(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onPrimary
-                                                  .withValues(alpha: 0.2),
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 16),
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            searchController.clear();
+                                            searchQuery = '';
+                                            searching = false;
+                                          });
+                                        },
+                                        child: Container(
+                                          width: 20,
+                                          height: 20,
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onPrimary
+                                                .withValues(alpha: 0.2),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
                                             ),
-                                            child: Icon(
-                                              Icons.close,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onPrimary
-                                                  .withValues(alpha: 0.7),
-                                              size: 14,
-                                            ),
+                                          ),
+                                          child: Icon(
+                                            Icons.close,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onPrimary
+                                                .withValues(alpha: 0.7),
+                                            size: 14,
                                           ),
                                         ),
                                       ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -2405,25 +2404,22 @@ class _TasksState extends State<Tasks> {
                             child: Row(
                               children: [
                                 if (areSelectedTasksEmpty()) ...[
-                                  IconButton(
-                                    icon: Icon(
-                                      !searching
-                                          ? Icons.search
-                                          : Icons.cancel_outlined,
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimary,
-                                      size: !searching ? 30 : 25,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        searching = !searching;
-                                        searchController.clear();
-                                      });
-                                    },
-                                  ),
                                   if (!searching) ...[
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.search,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimary,
+                                        size: 30,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          searching = true;
+                                        });
+                                      },
+                                    ),
                                     IconButton(
                                       icon: Icon(
                                         Icons.add,
@@ -2814,6 +2810,7 @@ class _TasksState extends State<Tasks> {
                     ],
                     Expanded(
                       child: ListView(
+                        physics: const BouncingScrollPhysics(),
                         children: [
                           if (!searching) ...[
                             if (sections.isNotEmpty) ...[
