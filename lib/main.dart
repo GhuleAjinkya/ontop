@@ -98,6 +98,12 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
+      // Set global date format configuration
+      localizationsDelegates: const [
+        DefaultMaterialLocalizations.delegate,
+        DefaultWidgetsLocalizations.delegate,
+      ],
+      locale: const Locale('en', 'GB'), // Use day/month format by default
       title: 'ontop.',
       // Theme stores details like the font and colours used
       theme: ThemeData(

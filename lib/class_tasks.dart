@@ -3,6 +3,7 @@ import 'main.dart';
 import 'services/tasks_adapter.dart';
 import 'services/optimistic_updates.dart';
 import 'services/project_tasks_sync.dart';
+import 'utils/date_formatter.dart';
 
 ScaffoldFeatureController<SnackBar, SnackBarClosedReason> updatingSnackBar(
   BuildContext context,
@@ -297,6 +298,7 @@ class _TasksState extends State<Tasks> {
                                       initialDate: selectedDate ?? now,
                                       firstDate: now,
                                       lastDate: DateTime(now.year + 5),
+                                      builder: DateFormatter.datePickerBuilder,
                                     );
                                     if (picked != null) {
                                       setDialogState(() {
@@ -317,7 +319,9 @@ class _TasksState extends State<Tasks> {
                                   ),
                                   label: Text(
                                     selectedTime != null
-                                        ? "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}"
+                                        ? DateFormatter.formatTimeOfDay(
+                                          selectedTime!,
+                                        )
                                         : "Pick time",
                                     style: TextStyle(
                                       color:
@@ -814,9 +818,11 @@ class _TasksState extends State<Tasks> {
               subtitle: Text(
                 !completed
                     ? isSameDay(toDoItem.deadlineDate, DateTime.now())
-                        ? "Due Today, ${toDoItem.deadlineDate.hour.toString().padLeft(2, '0')}:${toDoItem.deadlineDate.minute.toString().padLeft(2, '0')}"
-                        : "Due ${toDoItem.deadlineDate.day}/${toDoItem.deadlineDate.month}/${toDoItem.deadlineDate.year % 2000}"
-                    : "Completed on ${toDoItem.deadlineDate.day}/${toDoItem.deadlineDate.month}/${toDoItem.deadlineDate.year % 2000}",
+                        ? "Due Today, ${DateFormatter.formatTime(toDoItem.deadlineDate)}"
+                        : "Due ${DateFormatter.formatDate(toDoItem.deadlineDate)}"
+                    : toDoItem.completedAt != null
+                    ? DateFormatter.formatCompletedDate(toDoItem.completedAt!)
+                    : DateFormatter.formatCompletedDate(toDoItem.deadlineDate),
                 style: TextStyle(
                   fontSize: 10,
                   color: Theme.of(context).colorScheme.tertiary,
@@ -1479,7 +1485,7 @@ class _TasksState extends State<Tasks> {
                       ),
                       label: Text(
                         selectedDate != null
-                            ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
+                            ? DateFormatter.formatDate(selectedDate!)
                             : "Pick date",
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onPrimary,
@@ -1493,6 +1499,7 @@ class _TasksState extends State<Tasks> {
                           initialDate: selectedDate ?? now,
                           firstDate: now,
                           lastDate: DateTime(now.year + 5),
+                          builder: DateFormatter.datePickerBuilder,
                         );
                         if (picked != null) {
                           setState(() {
@@ -1509,7 +1516,7 @@ class _TasksState extends State<Tasks> {
                       ),
                       label: Text(
                         selectedTime != null
-                            ? "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}"
+                            ? DateFormatter.formatTimeOfDay(selectedTime!)
                             : "Pick time",
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onPrimary,

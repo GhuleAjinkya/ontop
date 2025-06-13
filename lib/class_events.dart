@@ -1132,9 +1132,15 @@ class _EventsState extends State<Events> {
   void _showDeleteConfirmation(Event event) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
+      builder:          (context) => AlertDialog(
             backgroundColor: Theme.of(context).colorScheme.primary,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.3),
+                width: 1,
+              ),
+            ),
             title: Text(
               'Delete Event',
               style: TextStyle(
