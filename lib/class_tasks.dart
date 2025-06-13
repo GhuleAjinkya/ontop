@@ -4,7 +4,6 @@ import 'services/tasks_adapter.dart';
 import 'services/optimistic_updates.dart';
 import 'services/project_tasks_sync.dart';
 import 'utils/date_formatter.dart';
-import 'utils/dialog_helper.dart';
 
 ScaffoldFeatureController<SnackBar, SnackBarClosedReason> updatingSnackBar(
   BuildContext context,
@@ -891,8 +890,7 @@ class _TasksState extends State<Tasks> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              InkWell(
-                onTap: () {
+              InkWell(                onTap: () {
                   if (!completed) {
                     _showTaskDialog(sectionKey);
                   }
@@ -928,16 +926,18 @@ class _TasksState extends State<Tasks> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
-                                IconButton(
+                                TextButton(
                                   onPressed: () => Navigator.pop(context),
-                                  icon: Icon(
-                                    Icons.close,
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                    size: 30,
+                                  child: Text(
+                                    'Cancel',
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.onPrimary,
+                                      fontFamily: 'Poppins',
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
-                                IconButton(
+                                TextButton(
                                   onPressed: () async {
                                     // Find the section to delete
                                     final sectionToDelete = taskSections
@@ -1036,16 +1036,17 @@ class _TasksState extends State<Tasks> {
                                                 ).colorScheme.error,
                                           ),
                                         );
-                                      }
-
-                                      // Reload data to ensure consistency
+                                      }                                      // Reload data to ensure consistency
                                       _loadTasksFromDatabase();
                                     }
                                   },
-                                  icon: Icon(
-                                    Icons.check,
-                                    color: Theme.of(context).colorScheme.error,
-                                    size: 30,
+                                  child: Text(
+                                    'Delete',
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.error,
+                                      fontFamily: 'Poppins',
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -1099,8 +1100,7 @@ class _TasksState extends State<Tasks> {
               ),
               IconButton(
                 alignment: Alignment.topCenter,
-                onPressed: () {
-                  if (empty) {
+                onPressed: () {                  if (empty) {
                     showDialog(
                       context: context,
                       builder:
@@ -1133,18 +1133,18 @@ class _TasksState extends State<Tasks> {
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceEvenly,
                                 children: [
-                                  IconButton(
+                                  TextButton(
                                     onPressed: () => Navigator.pop(context),
-                                    icon: Icon(
-                                      Icons.close,
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimary,
-                                      size: 30,
+                                    child: Text(
+                                      'Cancel',
+                                      style: TextStyle(
+                                        color: Theme.of(context).colorScheme.onPrimary,
+                                        fontFamily: 'Poppins',
+                                        fontWeight: FontWeight.w500,
+                                      ),
                                     ),
                                   ),
-                                  IconButton(
+                                  TextButton(
                                     onPressed: () async {
                                       // Find the section to delete
                                       final sectionToDelete = taskSections
@@ -1243,17 +1243,17 @@ class _TasksState extends State<Tasks> {
                                                   ).colorScheme.error,
                                             ),
                                           );
-                                        }
-
-                                        // Reload data to ensure consistency
+                                        }                                        // Reload data to ensure consistency
                                         _loadTasksFromDatabase();
                                       }
                                     },
-                                    icon: Icon(
-                                      Icons.check,
-                                      color:
-                                          Theme.of(context).colorScheme.error,
-                                      size: 30,
+                                    child: Text(
+                                      'Delete',
+                                      style: TextStyle(
+                                        color: Theme.of(context).colorScheme.error,
+                                        fontFamily: 'Poppins',
+                                        fontWeight: FontWeight.w500,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -1265,8 +1265,7 @@ class _TasksState extends State<Tasks> {
                     setState(() {
                       if (collapseSection) {
                         collapsedSections.remove(sectionKey);
-                      } else {
-                        collapsedSections.add(sectionKey);
+                      } else {                        collapsedSections.add(sectionKey);
                       }
                     });
                   }
@@ -1302,16 +1301,18 @@ class _TasksState extends State<Tasks> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
-                                IconButton(
+                                TextButton(
                                   onPressed: () => Navigator.pop(context),
-                                  icon: Icon(
-                                    Icons.close,
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                    size: 30,
+                                  child: Text(
+                                    'Cancel',
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.onPrimary,
+                                      fontFamily: 'Poppins',
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
-                                IconButton(
+                                TextButton(
                                   onPressed: () async {
                                     // Find the section to delete
                                     final sectionToDelete = taskSections
@@ -1410,16 +1411,17 @@ class _TasksState extends State<Tasks> {
                                                 ).colorScheme.error,
                                           ),
                                         );
-                                      }
-
-                                      // Reload data to ensure consistency
+                                      }                                      // Reload data to ensure consistency
                                       _loadTasksFromDatabase();
                                     }
                                   },
-                                  icon: Icon(
-                                    Icons.check,
-                                    color: Theme.of(context).colorScheme.error,
-                                    size: 30,
+                                  child: Text(
+                                    'Delete',
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.error,
+                                      fontFamily: 'Poppins',
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -2442,8 +2444,7 @@ class _TasksState extends State<Tasks> {
                                                   ).colorScheme.onSecondary,
                                               width: 1.5,
                                             ),
-                                          ),
-                                          title: Text(
+                                          ),                                          title: Text(
                                             'Delete Tasks?',
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
@@ -2467,32 +2468,32 @@ class _TasksState extends State<Tasks> {
                                               mainAxisAlignment:
                                                   MainAxisAlignment.spaceEvenly,
                                               children: [
-                                                IconButton(
+                                                TextButton(
                                                   onPressed:
                                                       () => Navigator.pop(
                                                         context,
                                                       ),
-                                                  icon: Icon(
-                                                    Icons.close,
-                                                    color:
-                                                        Theme.of(
-                                                          context,
-                                                        ).colorScheme.onPrimary,
-                                                    size: 30,
+                                                  child: Text(
+                                                    'Cancel',
+                                                    style: TextStyle(
+                                                      color: Theme.of(context).colorScheme.onPrimary,
+                                                      fontFamily: 'Poppins',
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
                                                   ),
                                                 ),
-                                                IconButton(
+                                                TextButton(
                                                   onPressed: () {
                                                     deleteSelected();
                                                     Navigator.pop(context);
                                                   },
-                                                  icon: Icon(
-                                                    Icons.check,
-                                                    color:
-                                                        Theme.of(
-                                                          context,
-                                                        ).colorScheme.error,
-                                                    size: 30,
+                                                  child: Text(
+                                                    'Delete',
+                                                    style: TextStyle(
+                                                      color: Theme.of(context).colorScheme.error,
+                                                      fontFamily: 'Poppins',
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
                                                   ),
                                                 ),
                                               ],
