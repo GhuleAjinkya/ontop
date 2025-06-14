@@ -1,0 +1,25 @@
+{
+  "name": "asep_app",
+  "version": "1.0.0",
+  "description": "* Title Not Decided\r * ASEP II Group Project for Group 7 FY-CS-A\r * By Ajinkya, Alesha and Aliza",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ghuleajinkya/asep_app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ghuleajinkya/asep_app/issues"
+  },
+  "homepage": "https://github.com/ghuleajinkya/asep_app#readme"
+}

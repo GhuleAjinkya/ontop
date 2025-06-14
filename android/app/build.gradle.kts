@@ -3,6 +3,8 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -13,6 +15,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -38,14 +41,16 @@ android {
         }
     }
 
-    applicationVariants.all {
-        outputs.forEach { output ->
+    applicationVariants.all {        outputs.forEach { output ->
             val outputImpl = output as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            outputImpl.outputFileName = "onTop-${name}.apk"
+            outputImpl.outputFileName = "ontop.-${name}.apk"
         }
     }
 }
 
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")  // Add this line
+}
 flutter {
     source = "../.."
 }

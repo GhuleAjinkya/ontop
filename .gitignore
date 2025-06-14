@@ -9,6 +9,10 @@
 .buildlog/
 .history
 .svn/
+
+# Environment files
+.env
+!.env.template
 .swiftpm/
 migrate_working_dir/
 
@@ -47,5 +51,5 @@ app.*.map.json
 # Personal Reference Material
 /references/
 
-# Assets folder which stores nothing rn
+# Assets folder 
 /assets/
