@@ -2424,17 +2424,6 @@ class _TasksState extends State<Tasks> {
                                       ),
                                       onPressed: () => _showSectionDialog(),
                                     ),
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.more_vert,
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.onPrimary,
-                                        size: 26,
-                                      ),
-                                      onPressed: () {},
-                                    ),
                                   ],
                                 ] else ...[
                                   IconButton(

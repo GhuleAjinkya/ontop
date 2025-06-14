@@ -8,11 +8,23 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'main.dart';
 
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
 class CallNotificationService {
   final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
   List<Contact> globalContacts = [];
+  
+  Future<void> reloadNotificationPreference() async {
+    // You can simply restart the listener, or just reload the preference if you cache it
+    listenForCalls();
+  }
+  String normalizeNumber(String number) {
+    // Remove all non-digit characters
+    String digits = number.replaceAll(RegExp(r'\D'), '');
+    // If it starts with '91' and is longer than 10 digits, use last 10 digits
+    if (digits.length > 10 && digits.startsWith('91')) {
+      digits = digits.substring(digits.length - 10);
+    }
+    return digits;
+  }
 
   Future<void> updateContacts() async {
     print("Updating notification service contacts...");
@@ -54,8 +66,12 @@ class CallNotificationService {
       final number = details.payload; // This will be the phone number
       if (number != null) {
         // Find contact with this number
+        final normalizedNumber = normalizeNumber(number);
         final contact = globalContacts.firstWhere(
-          (c) => c.phoneNumber == number,
+          (c) {
+            final contactNumber = normalizeNumber(c.phoneNumber);
+            return contactNumber == normalizedNumber;
+          } ,
           orElse: () => Contact(
             id: '',
             name: 'Unknown Caller',
@@ -93,17 +109,17 @@ class CallNotificationService {
 
   Future<void> showIncomingCallNotification(String? number) async {
     try {
-      final normalizedNumber = number?.replaceFirst('+91', '').trim();
+      final normalizedNumber = number != null ? normalizeNumber(number) : '';
       
       // Check if number exists in globalContacts
       final contactExists = globalContacts.any(
-        (c) => c.phoneNumber == normalizedNumber
+        (c) => normalizeNumber(c.phoneNumber) == normalizedNumber
       );
       
       // Only proceed if contact exists
       if (contactExists) {
         final contact = globalContacts.firstWhere(
-          (c) => c.phoneNumber == normalizedNumber
+          (c) => normalizeNumber(c.phoneNumber) == normalizedNumber
         );
 
         const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
