@@ -8,7 +8,6 @@ import 'class_contacts.dart';
 // ignore: unused_import
 import 'dart:io';
 // ignore: unused_import
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'class_projects.dart';
 import 'class_events.dart';
 import 'class_tasks.dart';
@@ -66,7 +65,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   print("!!!!! APPLICATION STARTING !!!!!");
-  WidgetsFlutterBinding.ensureInitialized(); // Required for sqflite to work properly
 
   // Load environment variables
   print("Loading environment variables...");
@@ -76,6 +74,7 @@ void main() async {
   print("Connecting to MongoDB...");
   bool connected = await MongoDatabase.connect();
   print("MongoDB connection status: $connected");
+
   // Initialize user session
   print("Initializing user session...");
   bool sessionInitialized = await userSession.initialize();
@@ -85,9 +84,9 @@ void main() async {
     print("Current user: ${userSession.currentUser}");
   }
 
+  // Initialize call notification service for incoming call detection
   final callService = CallNotificationService();
   await callService.init();
-  // Initialize call notification service for incoming call detection
   callService.listenForCalls();
 
   // Run the app
