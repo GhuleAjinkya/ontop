@@ -5,20 +5,20 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:ui';
-import '../contacts/class_contacts.dart';
+import 'contacts/class_contacts.dart';
 // ignore: unused_import
 import 'dart:io';
 // ignore: unused_import
-import '../projects/class_projects.dart';
-import '../events/class_events.dart';
-import '../tasks/class_tasks.dart';
-import '../projects/project.dart';
-import '../shared/mongodb.dart';
-import '../login/login.dart';
-import '../shared/user_session.dart';
-import '../notifications/call_notifs/call_notifications.dart';
-import 'class_user_profile.dart';
-import '../shared/app_title.dart';
+import 'projects/class_projects.dart';
+import 'events/class_events.dart';
+import 'tasks/class_tasks.dart';
+import 'projects/project.dart';
+import 'shared/mongodb.dart';
+import 'login/login.dart';
+import 'shared/user_session.dart';
+import 'notifications/call_notifs/call_notifications.dart';
+import 'home/class_user_profile.dart';
+import 'shared/app_title.dart';
 
 // Global navigator key for navigation from anywhere in the app
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();

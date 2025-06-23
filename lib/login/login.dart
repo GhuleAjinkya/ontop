@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../home/main.dart';
+import '../main.dart';
 import '../shared/mongodb.dart';
 import 'dart:async';
 import '../shared/user_session.dart';

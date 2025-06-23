@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui'; // For ImageFilter
-import '../home/main.dart';
+import '../main.dart';
 import 'tasks_adapter.dart';
 import '../shared/optimistic_updates.dart';
 import 'project_tasks_sync.dart';

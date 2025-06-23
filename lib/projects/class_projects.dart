@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'project.dart';
 import '../tasks/to_do_item.dart';
-import '../home/main.dart';
+import '../main.dart';
 import '../contacts/class_contacts.dart';
 import '../shared/user_session.dart';
 import 'projects_adapter.dart';

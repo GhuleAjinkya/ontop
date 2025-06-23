@@ -6,7 +6,7 @@ import '../../shared/user_session.dart';
 import '../../contacts/class_contacts.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../home/main.dart';
+import '../../main.dart';
 
 class CallNotificationService {
   final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();

@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'package:mongo_dart/mongo_dart.dart';
+
 import '../shared/mongodb.dart';
 import '../shared/user_session.dart';
 import '../shared/node_js_api.dart';
@@ -174,6 +176,11 @@ class ContactsAdapter {
     // Ensure all contacts have type field
     for (var contact in contacts) {
       contact['type'] = 'contact';
+      if (contact.containsKey('_id') &&
+          contact['_id'] is String &&
+          ObjectId.isValidHexId(contact['_id'])) {
+        contact['_id'] = ObjectId.fromHexString(contact['_id']);
+      }
     }
 
     if (useNodeJsApi) {

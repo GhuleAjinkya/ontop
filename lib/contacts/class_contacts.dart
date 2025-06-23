@@ -13,7 +13,7 @@ import '../shared/dialog_helper.dart'; // Add dialog helper
 
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
-import '../home/main.dart';
+import '../main.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -232,6 +232,7 @@ class _ContactsState extends State<Contacts> {
       contacts = fetchedContacts.map((doc) => Contact.fromMongo(doc)).toList();
 
       print("Successfully loaded ${contacts.length} contacts for user $userId");
+      print(contacts);
       setState(() {
         fetchingContacts = false;
       });

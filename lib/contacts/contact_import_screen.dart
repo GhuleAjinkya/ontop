@@ -3,7 +3,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../notifications/call_notifs/phone_contacts_service.dart';
 import 'contacts_adapter.dart';
 import 'class_contacts.dart' as app_contacts;
-import '../home/main.dart';
+import '../main.dart';
 
 class ContactImportScreen extends StatefulWidget {
   final VoidCallback onContactsImported;
