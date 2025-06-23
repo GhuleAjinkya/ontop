@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
-import 'models/project.dart';
-import 'models/to_do_item.dart';
-import 'main.dart';
-import 'class_contacts.dart';
-import 'user_session.dart';
-import 'services/projects_adapter.dart';
-import 'services/contacts_adapter.dart';
-import 'services/optimistic_updates.dart';
-import 'utils/dialog_helper.dart';
-import 'utils/date_formatter.dart';
-import 'services/project_tasks_sync.dart';
+import 'project.dart';
+import '../tasks/to_do_item.dart';
+import '../home/main.dart';
+import '../contacts/class_contacts.dart';
+import '../shared/user_session.dart';
+import 'projects_adapter.dart';
+import '../contacts/contacts_adapter.dart';
+import '../shared/optimistic_updates.dart';
+import '../shared/dialog_helper.dart';
+import '../shared/date_formatter.dart';
+import '../tasks/project_tasks_sync.dart';
 
 class Projects extends StatefulWidget {
   const Projects({super.key, this.initialProject});

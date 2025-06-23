@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:ui'; // For ImageFilter
-import 'main.dart';
-import 'services/tasks_adapter.dart';
-import 'services/optimistic_updates.dart';
-import 'services/project_tasks_sync.dart';
-import 'utils/date_formatter.dart';
+import '../home/main.dart';
+import 'tasks_adapter.dart';
+import '../shared/optimistic_updates.dart';
+import 'project_tasks_sync.dart';
+import '../shared/date_formatter.dart';
 
 ScaffoldFeatureController<SnackBar, SnackBarClosedReason> updatingSnackBar(
   BuildContext context,

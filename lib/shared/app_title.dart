@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../main.dart';
+import '../home/main.dart';
 
 class AppTitle extends StatelessWidget {
   final TextStyle? style;

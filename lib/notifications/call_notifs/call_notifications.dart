@@ -1,12 +1,12 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:phone_state/phone_state.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'services/contacts_adapter.dart';
-import 'user_session.dart';
-import 'class_contacts.dart';
+import '../../contacts/contacts_adapter.dart';
+import '../../shared/user_session.dart';
+import '../../contacts/class_contacts.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'main.dart';
+import '../../home/main.dart';
 
 class CallNotificationService {
   final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();

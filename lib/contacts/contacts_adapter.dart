@@ -1,8 +1,8 @@
 import 'dart:convert';
-import '../mongodb.dart';
-import '../user_session.dart';
-import 'node_js_api.dart';
-import '../call_notifications.dart';
+import '../shared/mongodb.dart';
+import '../shared/user_session.dart';
+import '../shared/node_js_api.dart';
+import '../notifications/call_notifs/call_notifications.dart';
 
 // Contacts adapter service that works with both Node.js API and direct MongoDB
 class ContactsAdapter {

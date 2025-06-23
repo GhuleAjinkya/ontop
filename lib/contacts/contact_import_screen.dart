@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../services/phone_contacts_service.dart';
-import '../services/contacts_adapter.dart';
-import '../class_contacts.dart' as app_contacts;
-import '../main.dart';
+import '../notifications/call_notifs/phone_contacts_service.dart';
+import 'contacts_adapter.dart';
+import 'class_contacts.dart' as app_contacts;
+import '../home/main.dart';
 
 class ContactImportScreen extends StatefulWidget {
   final VoidCallback onContactsImported;

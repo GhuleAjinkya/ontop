@@ -1,6 +1,6 @@
 import 'dart:developer';
-import '../mongodb.dart';
-import '../user_session.dart';
+import '../shared/mongodb.dart';
+import '../shared/user_session.dart';
 
 enum SectionType { userCreated, projectLinked }
 

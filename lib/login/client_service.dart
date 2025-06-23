@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../models/client.dart';
+import 'client.dart';
 
 const String baseUrl = 'http://10.0.2.2:3000/clients'; // use 10.0.2.2 for Android emulator, localhost for browser
 

@@ -1,7 +1,7 @@
 import 'dart:convert';
-import '../mongodb.dart';
-import '../user_session.dart';
-import 'node_js_api.dart';
+import '../shared/mongodb.dart';
+import '../shared/user_session.dart';
+import '../shared/node_js_api.dart';
 
 // Projects adapter service that works with both Node.js API and direct MongoDB
 class ProjectsAdapter {

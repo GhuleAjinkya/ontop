@@ -1,4 +1,4 @@
-import 'to_do_item.dart';
+import '../tasks/to_do_item.dart';
 
 class Project {
   final dynamic id; // Can be ObjectId or its string representation

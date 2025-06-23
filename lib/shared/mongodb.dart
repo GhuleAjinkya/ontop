@@ -649,6 +649,7 @@ class MongoDatabase {
     }
   }
 
+  // TODO remove these specific methods and rely on updateData or create similirly specfic methods for other fields
   // Toggle contact star status
   static Future<bool> toggleStarContact(
     dynamic contactId,

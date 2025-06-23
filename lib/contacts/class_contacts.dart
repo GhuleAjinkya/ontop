@@ -2,18 +2,18 @@
 import 'dart:io';
 import 'dart:ui'; // For ImageFilter
 import 'dart:convert'; // For JSON encoding/decoding
-import 'user_session.dart';
-import 'services/contacts_adapter.dart'; // Add our new adapter
-import 'services/optimistic_updates.dart'; // Add optimistic updates
-import 'services/projects_adapter.dart'; // Add projects adapter
-import 'screens/contact_import_screen.dart'; // Add contact import screen
-import 'models/project.dart'; // Add project model
-import 'utils/dialog_helper.dart'; // Add dialog helper
+import '../shared/user_session.dart';
+import 'contacts_adapter.dart'; // Add our new adapter
+import '../shared/optimistic_updates.dart'; // Add optimistic updates
+import '../projects/projects_adapter.dart'; // Add projects adapter
+import 'contact_import_screen.dart'; // Add contact import screen
+import '../projects/project.dart'; // Add project model
+import '../shared/dialog_helper.dart'; // Add dialog helper
 // Add app title widget
 
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
-import 'main.dart';
+import '../home/main.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';

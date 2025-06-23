@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
-import 'user_session.dart';
-import 'login.dart';
+import '../shared/user_session.dart';
+import '../login/login.dart';
 // ignore: unused_import
-import 'call_notifications.dart';
+import '../notifications/call_notifs/call_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'mongodb.dart';
+import '../shared/mongodb.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
-import 'utils/dialog_helper.dart'; // Add dialog helper!
+import '../shared/dialog_helper.dart'; // Add dialog helper!
 
 
 class UserProfile extends StatefulWidget {

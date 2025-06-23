@@ -1,3 +1,4 @@
+/*
 import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
@@ -159,3 +160,4 @@ class JsonBackupService {
         contact1['starred'] == contact2['starred'];
   }
 }
+*/

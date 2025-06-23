@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../user_session.dart';
+import 'user_session.dart';
 
 // Node.js API connection helper
 class NodeJsApi {

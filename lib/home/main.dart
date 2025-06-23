@@ -2,25 +2,28 @@
 
 // Dependencies
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:ui';
-import 'class_contacts.dart';
+import '../contacts/class_contacts.dart';
 // ignore: unused_import
 import 'dart:io';
 // ignore: unused_import
-import 'class_projects.dart';
-import 'class_events.dart';
-import 'class_tasks.dart';
-import 'models/project.dart';
-import 'mongodb.dart';
-import 'login.dart';
-import 'user_session.dart';
-import 'call_notifications.dart';
+import '../projects/class_projects.dart';
+import '../events/class_events.dart';
+import '../tasks/class_tasks.dart';
+import '../projects/project.dart';
+import '../shared/mongodb.dart';
+import '../login/login.dart';
+import '../shared/user_session.dart';
+import '../notifications/call_notifs/call_notifications.dart';
 import 'class_user_profile.dart';
-import 'widgets/app_title.dart';
+import '../shared/app_title.dart';
 
 // Global navigator key for navigation from anywhere in the app
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+String appVersion = "";
 
 // Function to navigate to home page from anywhere in the app
 void navigateToHome() {
@@ -88,6 +91,9 @@ void main() async {
   final callService = CallNotificationService();
   await callService.init();
   callService.listenForCalls();
+
+  final info = await PackageInfo.fromPlatform();
+  appVersion = "v${info.version}+${info.buildNumber}";
 
   // Run the app
   runApp(const MyApp());
@@ -608,19 +614,30 @@ class _TabsState extends State<Tabs> {
                 ),
               ),
               // Profile and Settings Button (back at bottom, just a little above lower boundary)
-              IconButton(
-                padding: EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-                icon: Icon(Icons.person_outline, color: Colors.white, size: 30),
-                onPressed: () {
-                  Navigator.pop(context); // Close drawer first
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (context) => UserProfile(userData: widget.userData),
+              Container(
+                margin: EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      appVersion,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
                     ),
-                  );
-                },
+                    IconButton(
+                      icon: Icon(Icons.person_outline, color: Colors.white, size: 30),
+                      onPressed: () {
+                        Navigator.pop(context); // Close drawer first
+                        Navigator.push(context,
+                          MaterialPageRoute(
+                            builder: (context) => UserProfile(userData: widget.userData),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

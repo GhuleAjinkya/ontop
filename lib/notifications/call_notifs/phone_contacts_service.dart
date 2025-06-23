@@ -1,6 +1,6 @@
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../class_contacts.dart' as app_contacts;
+import '../../contacts/class_contacts.dart' as app_contacts;
 
 class PhoneContactsService {
   /// Request permission to access contacts
