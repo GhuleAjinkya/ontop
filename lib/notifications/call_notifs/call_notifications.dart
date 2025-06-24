@@ -3,7 +3,7 @@ import 'package:phone_state/phone_state.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../contacts/contacts_adapter.dart';
 import '../../shared/user_session.dart';
-import '../../contacts/class_contacts.dart';
+import '../../contacts/contact_model.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../main.dart';

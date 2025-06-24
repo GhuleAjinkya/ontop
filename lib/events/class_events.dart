@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:mongo_dart/mongo_dart.dart' show ObjectId;
 import '../shared/mongodb.dart';
 import '../shared/user_session.dart';
-import 'event.dart';
+import 'event_model.dart';
 
 class Events extends StatefulWidget {
   const Events({super.key});
@@ -33,7 +33,7 @@ class _EventsState extends State<Events> {
       if (userId == null) return [];
 
       final List<Map<String, dynamic>> results =
-          await MongoDatabase.getContacts(userId: userId, type: 'event');
+          await MongoDatabase.getData(userId: userId, type: 'event');
 
       return results.map((eventDoc) => Event.fromMap(eventDoc)).toList();
     } catch (e) {

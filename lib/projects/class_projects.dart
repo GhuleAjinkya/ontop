@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
-import 'project.dart';
-import '../tasks/to_do_item.dart';
+import 'project_model.dart';
+import '../tasks/to_do_item_model.dart';
 import '../main.dart';
 import '../contacts/class_contacts.dart';
 import '../shared/user_session.dart';
@@ -11,6 +11,7 @@ import '../shared/optimistic_updates.dart';
 import '../shared/dialog_helper.dart';
 import '../shared/date_formatter.dart';
 import '../tasks/project_tasks_sync.dart';
+import '../contacts/contact_model.dart';
 
 class Projects extends StatefulWidget {
   const Projects({super.key, this.initialProject});

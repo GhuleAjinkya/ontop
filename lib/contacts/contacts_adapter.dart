@@ -31,7 +31,7 @@ class ContactsAdapter {
     }
 
     // Fallback to MongoDB
-    return await MongoDatabase.getContacts(userId: userId, type: 'contact');
+    return await MongoDatabase.getData(userId: userId, type: 'contact');
   }
 
   // Add a new contact

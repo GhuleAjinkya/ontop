@@ -184,7 +184,7 @@ class MongoDatabase {
     }
   }
 
-  static Future<List<Map<String, dynamic>>> getContacts({
+  static Future<List<Map<String, dynamic>>> getData({
     String? userId,
     String? type,
   }) async {

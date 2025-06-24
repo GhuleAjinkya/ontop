@@ -6,13 +6,14 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:ui';
 import 'contacts/class_contacts.dart';
+import 'contacts/contact_model.dart';
 // ignore: unused_import
 import 'dart:io';
 // ignore: unused_import
 import 'projects/class_projects.dart';
 import 'events/class_events.dart';
 import 'tasks/class_tasks.dart';
-import 'projects/project.dart';
+import 'projects/project_model.dart';
 import 'shared/mongodb.dart';
 import 'login/login.dart';
 import 'shared/user_session.dart';

@@ -153,7 +153,7 @@ class TasksAdapter {
     }
 
     try {
-      final docs = await MongoDatabase.getContacts(
+      final docs = await MongoDatabase.getData(
         userId: userId,
         type: 'task_section',
       );
@@ -175,7 +175,7 @@ class TasksAdapter {
     }
 
     try {
-      final docs = await MongoDatabase.getContacts(
+      final docs = await MongoDatabase.getData(
         userId: userId,
         type: 'task_item',
       );
@@ -496,7 +496,7 @@ class TasksAdapter {
     if (userId == null) return null;
 
     try {
-      final docs = await MongoDatabase.getContacts(
+      final docs = await MongoDatabase.getData(
         userId: userId,
         type: 'task_section',
       );

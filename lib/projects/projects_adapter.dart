@@ -1,4 +1,3 @@
-import 'dart:convert';
 import '../shared/mongodb.dart';
 import '../shared/user_session.dart';
 import '../shared/node_js_api.dart';
@@ -28,7 +27,7 @@ class ProjectsAdapter {
     }
 
     // Fallback to MongoDB
-    return await MongoDatabase.getContacts(userId: userId, type: 'project');
+    return await MongoDatabase.getData(userId: userId, type: 'project');
   }
 
   // Add a new project
@@ -137,7 +136,7 @@ class ProjectsAdapter {
 
     // Fallback to MongoDB - get current project and update collaborators array
     try {
-      final projects = await MongoDatabase.getContacts(
+      final projects = await MongoDatabase.getData(
         userId: userId,
         type: 'project',
       );
@@ -195,7 +194,7 @@ class ProjectsAdapter {
 
     // Fallback to MongoDB - get current project and update collaborators array
     try {
-      final projects = await MongoDatabase.getContacts(
+      final projects = await MongoDatabase.getData(
         userId: userId,
         type: 'project',
       );
@@ -236,7 +235,7 @@ class ProjectsAdapter {
 
     try {
       // Get the project
-      final projects = await MongoDatabase.getContacts(
+      final projects = await MongoDatabase.getData(
         userId: userId,
         type: 'project',
       );
@@ -250,7 +249,7 @@ class ProjectsAdapter {
       );
 
       // Get all contacts
-      final contacts = await MongoDatabase.getContacts(
+      final contacts = await MongoDatabase.getData(
         userId: userId,
         type: 'contact',
       );
@@ -265,48 +264,5 @@ class ProjectsAdapter {
       print('Error getting project collaborators: $e');
       return [];
     }
-  }
-
-  // Export projects as JSON string
-  static Future<String?> exportProjectsAsJson() async {
-    final projects = await getProjects();
-    if (projects.isEmpty) return null;
-
-    return jsonEncode(projects);
-  }
-
-  // Import multiple projects
-  static Future<bool> importProjects(
-    List<Map<String, dynamic>> projects,
-  ) async {
-    final userId = UserSession().userId;
-    if (userId == null) return false;
-
-    // Ensure all projects have type field
-    for (var project in projects) {
-      project['type'] = 'project';
-    }
-
-    if (useNodeJsApi) {
-      try {
-        // Try Node.js API first
-        final importData = {'projects': projects};
-        final response = await NodeJsApi.post(
-          '/api/projects/import',
-          importData,
-        );
-        if (response['success']) return true;
-      } catch (e) {
-        print('Error importing projects via Node.js API: $e');
-        // Continue to MongoDB fallback
-      }
-    }
-
-    // Fallback to MongoDB
-    return await MongoDatabase.insertMany(
-      projects,
-      userId: userId,
-      type: 'project',
-    );
   }
 }

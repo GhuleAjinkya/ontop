@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../notifications/call_notifs/phone_contacts_service.dart';
 import 'contacts_adapter.dart';
-import 'class_contacts.dart' as app_contacts;
+import 'contact_model.dart' as app_contacts;
 import '../main.dart';
 
 class ContactImportScreen extends StatefulWidget {

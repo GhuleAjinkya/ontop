@@ -1,8 +1,8 @@
 import 'dart:developer';
 import 'tasks_adapter.dart' as tasks_adapter;
 import '../projects/projects_adapter.dart';
-import '../projects/project.dart';
-import 'to_do_item.dart';
+import '../projects/project_model.dart';
+import 'to_do_item_model.dart';
 
 /// Service to sync project tasks with task sections
 class ProjectTasksSync {
