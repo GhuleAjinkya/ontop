@@ -2189,7 +2189,7 @@ class _ContactDetailsState extends State<ContactDetails> {
           'email': email.trim(),
           'notes': localContact.notes,
           'starred': localContact.starred,
-          'type': 'contact',
+          'type': 'contact', // TODO shouldn't require this field
         });
       },
       revertLocalState: () {
