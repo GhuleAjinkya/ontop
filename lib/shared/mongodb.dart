@@ -126,7 +126,7 @@ class MongoDatabase {
 
       // Only add starred field for contacts (default to 0 if not provided)
       if (type == 'contact' && !data.containsKey('starred')) {
-        data['starred'] = 0;
+        data['starred'] = false;
       }
 
       // Add type field to the document to identify what kind of data it is
@@ -163,7 +163,7 @@ class MongoDatabase {
       for (var data in dataList) {
         // Only add starred field for contacts (default to 0 if not provided)
         if (type == 'contact' && !data.containsKey('starred')) {
-          data['starred'] = 0;
+          data['starred'] = false;
         }
         // Add type field to each document
         data['type'] = type;
@@ -474,7 +474,7 @@ class MongoDatabase {
       // Add an index on the 'starred' field for faster contact queries
       // This index will only be useful for contact documents, but won't hurt other document types
       var userCollection = _db!.collection(userId);
-      await userCollection.createIndex(keys: {'starred': 1});
+      await userCollection.createIndex(keys: {'starred': true});
 
       // Add an index on the 'type' field for faster filtering by document type
       await userCollection.createIndex(keys: {'type': 1});
@@ -686,7 +686,7 @@ class MongoDatabase {
       var query = where.eq('_id', queryId);
 
       // Update the starred field
-      var updateData = {'starred': starred ? 1 : 0};
+      var updateData = {'starred': starred};
 
       var result = await userCollection.updateOne(query, {'\$set': updateData});
 

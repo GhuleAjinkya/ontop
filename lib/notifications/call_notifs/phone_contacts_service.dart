@@ -154,7 +154,7 @@ class PhoneContactsService {
       phoneNumber: phoneNumber.isEmpty ? 'No Phone' : phoneNumber,
       position: 'Unknown', // Default placeholder
       organization: 'Personal', // Default placeholder for personal contacts
-      starred: 0,
+      starred: false,
     );
   }
 

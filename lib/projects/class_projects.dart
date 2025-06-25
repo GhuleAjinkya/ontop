@@ -138,7 +138,7 @@ class _ProjectsState extends State<Projects> {
                       organization: "",
                       phoneNumber: phone,
                       position: "",
-                      starred: 0,
+                      starred: false,
                     ),
               );
               return contact.name.toLowerCase().contains(
@@ -277,7 +277,7 @@ class _ProjectsState extends State<Projects> {
             project.collaborators.isEmpty
                 ? "No collaborators"
                 : "Collaborators: ${project.collaborators.map((phone) {
-                  final contact = globalContacts.firstWhere((c) => c.phoneNumber == phone, orElse: () => Contact(id: 0, name: "Unknown", organization: "", phoneNumber: phone, position: "", starred: 0));
+                  final contact = globalContacts.firstWhere((c) => c.phoneNumber == phone, orElse: () => Contact(id: 0, name: "Unknown", organization: "", phoneNumber: phone, position: "", starred: false));
                   return contact.name;
                 }).take(2).join(", ")}${project.collaborators.length > 2 ? "..." : ""}";
 
@@ -3686,7 +3686,7 @@ class _ProjectDetailsState extends State<ProjectDetails> {
                                                           phoneNumber:
                                                               phoneNumber,
                                                           position: "",
-                                                          starred: 0,
+                                                          starred: false,
                                                         ),
                                                   );
                                               return GestureDetector(

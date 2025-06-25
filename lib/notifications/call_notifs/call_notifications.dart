@@ -78,7 +78,7 @@ class CallNotificationService {
             phoneNumber: number,
             organization: '',
             position: '',
-            starred: 0,
+            starred: false,
           ),
         );
         

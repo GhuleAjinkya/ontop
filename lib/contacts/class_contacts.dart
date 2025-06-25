@@ -217,7 +217,7 @@ class _ContactsState extends State<Contacts> {
     };
 
     // Sort contacts into sections
-    for (var contact in contacts.where((c) => c.starred == 0)) {
+    for (var contact in contacts.where((c) => c.starred == false)) {
       if (contact.name.isNotEmpty) {
         // Check for empty name
         String firstLetter = contact.name[0].toUpperCase();
@@ -235,7 +235,7 @@ class _ContactsState extends State<Contacts> {
       }
     });
 
-    starred = contacts.where((c) => c.starred == 1).toList();
+    starred = contacts.where((c) => c.starred == true).toList();
     if (starred.isNotEmpty) {
       starred.sort((a, b) => a.name.compareTo(b.name));
     }
@@ -276,7 +276,7 @@ class _ContactsState extends State<Contacts> {
       updateLocalState: () {
         setState(() {
           for (var contact in contactsToStar) {
-            contact.starred = 1;
+            contact.starred = true;
             sections.forEach((key, list) {
               list.removeWhere((c) => c.id.toString() == contact.id.toString());
             });
@@ -301,7 +301,7 @@ class _ContactsState extends State<Contacts> {
       revertLocalState: () {
         setState(() {
           for (var contact in contactsToStar) {
-            contact.starred = 0;
+            contact.starred = false;
             starred.remove(contact);
             if (contact.name.isNotEmpty) {
               String firstLetter = contact.name[0].toUpperCase();
@@ -348,7 +348,7 @@ class _ContactsState extends State<Contacts> {
         setState(() {
           for (var contact in contactsToUnstar) {
             // Update starred status
-            contact.starred = 0;
+            contact.starred = false;
 
             // Remove from starred list
             starred.remove(contact);
@@ -380,7 +380,7 @@ class _ContactsState extends State<Contacts> {
         setState(() {
           for (var contact in contactsToUnstar) {
             // Revert starred status back to 1
-            contact.starred = 1;
+            contact.starred = true;
 
             // Remove from sections if present
             sections.forEach((key, list) {
@@ -487,7 +487,7 @@ class _ContactsState extends State<Contacts> {
 
           // Add back to sections
           for (var contact in contactsToDelete) {
-            if (contact.starred == 0 && contact.name.isNotEmpty) {
+            if (contact.starred == false && contact.name.isNotEmpty) {
               String firstLetter = contact.name[0].toUpperCase();
               if (sections.containsKey(firstLetter)) {
                 sections[firstLetter]!.add(contact);
@@ -496,7 +496,7 @@ class _ContactsState extends State<Contacts> {
           }
 
           // Add back to starred if they were starred
-          starred.addAll(contactsToDelete.where((c) => c.starred == 1));
+          starred.addAll(contactsToDelete.where((c) => c.starred == true));
 
           // Re-select the contacts
           selectedIDs.addAll(contactsToDelete.map((c) => c.id));
@@ -533,7 +533,7 @@ class _ContactsState extends State<Contacts> {
         var contact = contacts.firstWhere(
           (c) => c.id.toString() == id.toString(),
         );
-        return contact.starred == 1;
+        return contact.starred == true;
       } catch (e) {
         // If contact not found, consider it not starred
         print(
@@ -743,7 +743,7 @@ class _ContactsState extends State<Contacts> {
       'position': position.trim(),
       'email': email.trim(),
       'notes': contact?.notes ?? '',
-      'starred': contact?.starred ?? 0,
+      'starred': contact?.starred ?? false,
       'type': 'contact',
       'created_at': DateTime.now(),
     };
@@ -757,7 +757,7 @@ class _ContactsState extends State<Contacts> {
       position: contactData['position'] as String,
       email: contactData['email'] as String,
       notes: contactData['notes'] as String,
-      starred: contactData['starred'] as int,
+      starred: contactData['starred'] as bool,
     );
 
     bool success;
@@ -847,7 +847,7 @@ class _ContactsState extends State<Contacts> {
             final starredIdx = starred.indexWhere(
               (c) => c.id.toString() == updatedContact.id.toString(),
             );
-            if (updatedContact.starred == 1) {
+            if (updatedContact.starred) {
               // Add to starred if not present
               if (starredIdx == -1) {
                 starred.add(updatedContact);
@@ -1594,7 +1594,7 @@ class _ContactsState extends State<Contacts> {
                                   contacts
                                       .where(
                                         (contact) =>
-                                            contact.starred == 0 &&
+                                            contact.starred == false &&
                                             (contact.name
                                                     .toLowerCase()
                                                     .contains(
@@ -1953,7 +1953,7 @@ class _ContactDetailsState extends State<ContactDetails> {
     emailController.text = localContact.email; // Initialize email field
     notesController.text = localContact.notes; // Initialize notes field
 
-    starred = localContact.starred == 1;
+    starred = localContact.starred == true;
 
     // Load projects for this contact
     loadContactProjects();
@@ -2600,7 +2600,7 @@ class _ContactDetailsState extends State<ContactDetails> {
                                       notes:
                                           localContact
                                               .notes, // Keep existing notes
-                                      starred: starred ? 1 : 0,
+                                      starred: starred,
                                     );
                                     editingContact = false;
                                     widget.onUpdate(localContact);
@@ -2620,7 +2620,7 @@ class _ContactDetailsState extends State<ContactDetails> {
                                     'notes':
                                         localContact
                                             .notes, // Keep existing notes
-                                    'starred': starred ? 1 : 0,
+                                    'starred': starred,
                                     'type': 'contact',
                                   });
                                 },
@@ -3083,7 +3083,7 @@ class _ContactDetailsState extends State<ContactDetails> {
                           setState(() {
                             starred = !starred; 
                             localContact = localContact.copyWith(
-                              starred: starred ? 1 : 0,
+                              starred: starred,
                             );
                             widget.onUpdate(localContact);
                           });
@@ -3098,7 +3098,7 @@ class _ContactDetailsState extends State<ContactDetails> {
                           setState(() {
                             starred = !starred;
                             localContact = localContact.copyWith(
-                              starred: starred ? 1 : 0,
+                              starred: starred,
                             );
                             widget.onUpdate(localContact);
                           });

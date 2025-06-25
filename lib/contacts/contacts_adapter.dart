@@ -146,7 +146,7 @@ class ContactsAdapter {
     if (useNodeJsApi) {
       try {
         // Try Node.js API first
-        final starData = {'starred': starred ? 1 : 0};
+        final starData = {'starred': starred};
         final response = await NodeJsApi.put(
           '/api/contacts/${contactId.toString()}/star',
           starData,

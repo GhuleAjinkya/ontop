@@ -4,9 +4,9 @@ class Contact {
   final String organization;
   final String position;
   final String phoneNumber;
-  final String email; // Add email field
-  final String notes; // Add notes field
-  int starred;
+  final String email; 
+  final String notes; 
+  bool starred;
   // TODO make starred bool
   Contact({
     required this.id,
@@ -27,7 +27,7 @@ class Contact {
       position: doc['position'] ?? '',
       email: doc['email'] ?? '', // Add email field
       notes: doc['notes'] ?? '', // Add notes field
-      starred: doc['starred'] ?? 0,
+      starred: doc['starred'] ?? false,
     );
   } // Create a copy of Contact with updated values
   Contact copyWith({
@@ -38,7 +38,7 @@ class Contact {
     String? phoneNumber,
     String? email,
     String? notes,
-    int? starred,
+    bool? starred,
   }) {
     return Contact(
       id: id ?? this.id,
