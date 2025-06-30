@@ -5,11 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:ui';
-import 'contacts/class_contacts.dart';
+import 'contacts/contacts_list.dart';
 import 'contacts/contact_model.dart';
 // ignore: unused_import
 import 'dart:io';
-// ignore: unused_import
 import 'projects/class_projects.dart';
 import 'events/class_events.dart';
 import 'tasks/class_tasks.dart';
@@ -153,7 +152,7 @@ class MyApp extends StatelessWidget {
     }
   }
 }
-
+// TODO move home page to seperate file
 class HomePage extends StatefulWidget {
   HomePage({super.key, this.userData});
   final Map<String, dynamic>? userData;
@@ -177,7 +176,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   String greetingTime = 'notInitialized';
-
   // Animation controllers for magical blob animations! ✨
   late AnimationController _pulseController;
   late AnimationController _floatController;
@@ -189,7 +187,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     super.initState();
     greetingTime =
         widget
-            .getGreetingTime(); // Initialize the magical animations! 🌟 (Made even more frequent for liveliness!)
+            .getGreetingTime(); // Initialize the magical animations!  (Made even more frequent for liveliness!)
     _pulseController = AnimationController(
       duration: Duration(milliseconds: 800), // Even faster! 1.2s → 0.8s
       vsync: this,

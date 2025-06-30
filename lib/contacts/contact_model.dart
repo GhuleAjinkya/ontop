@@ -7,7 +7,7 @@ class Contact {
   final String email; 
   final String notes; 
   bool starred;
-  // TODO make starred bool
+  
   Contact({
     required this.id,
     required this.name,

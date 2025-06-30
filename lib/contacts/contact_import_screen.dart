@@ -192,7 +192,7 @@ class _ContactImportScreenState extends State<ContactImportScreen> {
             'organization': contact.organization,
             'phoneNumber': contact.phoneNumber,
             'position': contact.position,
-            'starred': 0,
+            'starred': false,
             'type': 'contact',
             'created_at': DateTime.now(),
           };

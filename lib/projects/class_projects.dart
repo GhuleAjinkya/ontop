@@ -3,7 +3,7 @@ import 'dart:ui';
 import 'project_model.dart';
 import '../tasks/to_do_item_model.dart';
 import '../main.dart';
-import '../contacts/class_contacts.dart';
+import '../contacts/contact_details.dart';
 import '../shared/user_session.dart';
 import 'projects_adapter.dart';
 import '../contacts/contacts_adapter.dart';
