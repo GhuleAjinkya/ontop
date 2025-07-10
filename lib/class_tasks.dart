@@ -457,57 +457,52 @@ class _TasksState extends State<Tasks> {
 
     Navigator.pop(context);
 
-    // Implement optimistic section creation
     final tempSection = TaskSection(
       id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
       name: sectionName.trim(),
       isCompleted: false,
+      type: SectionType.userCreated,
+      lastInteracted: DateTime.now(),
     );
-
-    // Step 1: Update local state immediately
-    setState(() {
-      taskSections.add(tempSection);
-      sections[sectionName.trim()] = []; // Create empty section
-    });
-
-    // Step 2: Perform database operation
-    try {
-      final success = await TasksAdapter.createSection(tempSection.name);
-
-      if (!success) {
-        throw Exception('Database operation failed');
-      }
-
-      // Step 3: Reload data to get real section ID
-      await _loadTasksFromDatabase();
-
-      // Step 4: Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Section "${tempSection.name}" created successfully'),
-            backgroundColor: Theme.of(context).colorScheme.tertiary,
-          ),
+    
+    OptimisticUpdates.perform(
+      updateLocalState: () {
+        setState(() {
+          taskSections.add(tempSection);
+          sections = {
+            tempSection.name: [],
+            ...sections,
+          };
+        });
+      }, 
+      databaseOperation: () => TasksAdapter.createSection(tempSection.name), 
+      revertLocalState: () {
+        setState(() {
+          taskSections.removeWhere((section) => section.id == tempSection.id);
+          sections.remove(tempSection.name);
+        }); 
+      },
+      onSuccess: () async {
+        final allSections = await TasksAdapter.loadSections();
+        final realSection = allSections.firstWhere(
+          (s) => s.name == tempSection.name,
+          orElse: () => tempSection, // fallback, should not happen
         );
-      }
-    } catch (e) {
-      // Step 5: Revert local state if database operation failed
-      setState(() {
-        taskSections.removeWhere((section) => section.id == tempSection.id);
-        sections.remove(tempSection.name);
-      });
 
-      // Step 6: Show error message
-      print('Error creating section: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to create section: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
-    }
+        setState(() {
+          // Replace the temp section in taskSections with the real one
+          final idx = taskSections.indexWhere((s) => s.id == tempSection.id);
+          if (idx != -1) {
+            taskSections[idx] = realSection;
+            // If you ever use section IDs as keys in maps, update those keys here as well
+          }
+        });
+      },
+      context: context,
+      showSuccessMessage: "Section ${tempSection.name} added",
+      showErrorMessage: "Couldn't add new section",
+    );
+    
   }
 
   void _saveTask({
@@ -565,45 +560,42 @@ class _TasksState extends State<Tasks> {
       if (sections[sectionKey] == null) {
         sections[sectionKey] = [];
       }
+      
+      
 
-      // Use OptimisticUpdates service for task creation
-      await OptimisticUpdates.performListOperation<ToDoItem>(
-        list: sections[sectionKey]!,
-        item: tempTask,
-        operation: 'add',
-        databaseOperation: () async {
-          return await TasksAdapter.createTask(
-            section.id,
-            taskText.trim(),
-            deadline,
-          );
-        },
-        onSuccess: () {
-          // Sort the list after adding
+      OptimisticUpdates.perform(
+        updateLocalState: () {
           setState(() {
-            sections[sectionKey]!.sort((a, b) {
+            sections[sectionKey]!.add(tempTask);
+            sections[sectionKey]!.sort((a,b) {
               if (a.deadlineDate.isBefore(b.deadlineDate)) return -1;
               if (a.deadlineDate.isAfter(b.deadlineDate)) return 1;
               return 0;
             });
           });
-
-          // If this is a project section, sync the task back to the project
+        }, 
+        databaseOperation: () => TasksAdapter.createTask(section.id, taskText.trim(), deadline),
+        revertLocalState: () => sections[sectionKey]!.remove(tempTask),
+        onSuccess: () async {
+          final realTasks = await TasksAdapter.getTasksForSection(section.id);
+          setState(() {
+            // Replace the section's task list with the up-to-date list from DB
+            sections[sectionKey] = realTasks.where((t) => !t.isCompleted).toList();
+            completedSections[sectionKey] = realTasks.where((t) => t.isCompleted).toList();
+          });
           if (isProjectSection && section.projectId != null) {
             ProjectTasksSync.syncTaskToProject(
-              projectId: section.projectId!,
-              taskText: taskText.trim(),
-              taskDeadline: deadline,
+              projectId: section.projectId!, 
+              taskText: taskText.trim(), 
+              taskDeadline: deadline
             );
           }
-
-          // Reload data to get the real task ID from database
-          _loadTasksFromDatabase();
+          
         },
-        showSuccessMessage: 'Task "${taskText.trim()}" created successfully',
-        showErrorMessage: 'Failed to create task',
         context: context,
+        showErrorMessage: "Couldn't create task.",
       );
+
     } catch (e) {
       print('Error creating task: $e');
       if (mounted) {
@@ -2058,7 +2050,8 @@ class _TasksState extends State<Tasks> {
     if (index == 0) return false; // Never show separator before first section
 
     List<String> sectionKeys =
-        completed ? completedSections.keys.toList() : sections.keys.toList();
+        completed ? completedSections.keys.toList() 
+          : sections.keys.toList();
     if (index >= sectionKeys.length) return false;
 
     // Find the current and previous sections
@@ -2430,17 +2423,6 @@ class _TasksState extends State<Tasks> {
                                         size: 30,
                                       ),
                                       onPressed: () => _showSectionDialog(),
-                                    ),
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.more_vert,
-                                        color:
-                                            Theme.of(
-                                              context,
-                                            ).colorScheme.onPrimary,
-                                        size: 26,
-                                      ),
-                                      onPressed: () {},
                                     ),
                                   ],
                                 ] else ...[

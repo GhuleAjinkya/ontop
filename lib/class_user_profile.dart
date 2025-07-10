@@ -11,6 +11,7 @@ import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import 'utils/dialog_helper.dart'; // Add dialog helper!
 
+
 class UserProfile extends StatefulWidget {
   final Map<String, dynamic>? userData;
 
@@ -608,6 +609,8 @@ class _UserProfileState extends State<UserProfile> {
                                       _notificationsEnabled = value;
                                     });
                                     await _saveNotificationPreference(value);
+
+                                    await CallNotificationService().reloadNotificationPreference();
 
                                     _showModernSnackBar(
                                       value

@@ -1217,20 +1217,6 @@ class _ProjectsState extends State<Projects> {
                                     ),
                                     onPressed: () => _showProjectDialog(),
                                   ),
-                                  IconButton(
-                                    icon: Icon(
-                                      Icons.more_vert,
-                                      color:
-                                          Theme.of(
-                                            context,
-                                          ).colorScheme.onPrimary,
-                                      size: 28,
-                                    ),
-                                    onPressed: () {
-                                      // TODO: Implement more options menu
-                                      setState(() {});
-                                    },
-                                  ),
                                 ],
                               ],
                             ),

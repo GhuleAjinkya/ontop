@@ -2791,209 +2791,215 @@ class _ContactDetailsState extends State<ContactDetails> {
                     ),
                   ),
                   divLine(context),
-                  ListTile(
-                    // Notes
-                    title: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                    child: Column(
+                      // Notes
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      spacing: 0,
                       children: [
-                        Text(
-                          "Notes",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onPrimary,
-                          ),
-                        ),
-                        if (editingNotes) ...[
-                          Row(
-                            children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Notes",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                                fontSize: 16
+                              ),
+                            ),
+                            if (editingNotes) ...[
+                              Row(
+                                children: [
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.close,
+                                      color:
+                                          Theme.of(context).colorScheme.onPrimary,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        notesController.text = localContact.notes;
+                                        editingNotes = false;
+                                      });
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: Icon(
+                                      Icons.check,
+                                      color:
+                                          Theme.of(context).colorScheme.onPrimary,
+                                    ),
+                                    onPressed: () async {
+                                      if (userId.isEmpty) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Please log in to update notes',
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                              
+                                      try {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Please wait. Updating notes...',
+                                            ),
+                                            duration: Duration(seconds: 1),
+                                            showCloseIcon: true,
+                                          ),
+                                        );
+                                              
+                                        final updatedNotes =
+                                            notesController.text.trim();
+                                        final updatedContact = localContact
+                                            .copyWith(notes: updatedNotes);
+                                              
+                                        // Update in database using ContactsAdapter
+                                        bool success =
+                                            await ContactsAdapter.updateContact({
+                                              '_id': localContact.id,
+                                              'name': localContact.name,
+                                              'organization':
+                                                  localContact.organization,
+                                              'phoneNumber':
+                                                  localContact.phoneNumber,
+                                              'position': localContact.position,
+                                              'email': localContact.email,
+                                              'notes': updatedNotes,
+                                              'starred': localContact.starred,
+                                              'type': 'contact',
+                                            });
+                                              
+                                        if (success) {
+                                          setState(() {
+                                            localContact = updatedContact;
+                                            editingNotes = false;
+                                          });
+                                          widget.onUpdate(localContact);
+                                              
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Notes updated successfully',
+                                                ),
+                                                duration: Duration(seconds: 2),
+                                              ),
+                                            );
+                                          }
+                                        } else {
+                                          if (mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Failed to update notes',
+                                                ),
+                                                duration: Duration(seconds: 2),
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      } catch (e) {
+                                        print("Error updating contact notes: $e");
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Error updating notes: $e',
+                                              ),
+                                              duration: Duration(seconds: 2),
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ] else ...[
                               IconButton(
                                 icon: Icon(
-                                  Icons.close,
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
+                                  Icons.edit,
+                                  color: Theme.of(context).colorScheme.onPrimary,
                                 ),
                                 onPressed: () {
                                   setState(() {
-                                    notesController.text = localContact.notes;
-                                    editingNotes = false;
+                                    editingNotes = true;
                                   });
                                 },
                               ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.check,
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                ),
-                                onPressed: () async {
-                                  if (userId.isEmpty) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Please log in to update notes',
-                                        ),
-                                      ),
-                                    );
-                                    return;
-                                  }
-
-                                  try {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Please wait. Updating notes...',
-                                        ),
-                                        duration: Duration(seconds: 1),
-                                        showCloseIcon: true,
-                                      ),
-                                    );
-
-                                    final updatedNotes =
-                                        notesController.text.trim();
-                                    final updatedContact = localContact
-                                        .copyWith(notes: updatedNotes);
-
-                                    // Update in database using ContactsAdapter
-                                    bool success =
-                                        await ContactsAdapter.updateContact({
-                                          '_id': localContact.id,
-                                          'name': localContact.name,
-                                          'organization':
-                                              localContact.organization,
-                                          'phoneNumber':
-                                              localContact.phoneNumber,
-                                          'position': localContact.position,
-                                          'email': localContact.email,
-                                          'notes': updatedNotes,
-                                          'starred': localContact.starred,
-                                          'type': 'contact',
-                                        });
-
-                                    if (success) {
-                                      setState(() {
-                                        localContact = updatedContact;
-                                        editingNotes = false;
-                                      });
-                                      widget.onUpdate(localContact);
-
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Notes updated successfully',
-                                            ),
-                                            duration: Duration(seconds: 2),
-                                          ),
-                                        );
-                                      }
-                                    } else {
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Failed to update notes',
-                                            ),
-                                            duration: Duration(seconds: 2),
-                                          ),
-                                        );
-                                      }
-                                    }
-                                  } catch (e) {
-                                    print("Error updating contact notes: $e");
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Error updating notes: $e',
-                                          ),
-                                          duration: Duration(seconds: 2),
-                                        ),
-                                      );
-                                    }
-                                  }
-                                },
-                              ),
                             ],
-                          ),
-                        ] else ...[
-                          IconButton(
-                            icon: Icon(
-                              Icons.edit,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                editingNotes = true;
-                              });
-                            },
-                          ),
-                        ],
-                      ],
-                    ),
-                    subtitle: TextField(
-                      controller: notesController,
-                      maxLines: 5,
-                      minLines: 1,
-                      readOnly: !editingNotes,
-                      style: TextStyle(
-                        color:
-                            editingNotes
-                                ? Theme.of(context).colorScheme.onPrimary
-                                : Theme.of(
-                                  context,
-                                ).colorScheme.onPrimary.withValues(alpha: 0.85),
-                      ),
-                      decoration: InputDecoration(
-                        hintText: "Add notes about this contact...",
-                        hintStyle: TextStyle(
-                          color: Theme.of(context).colorScheme.onSecondary,
+                          ],
                         ),
-                        border:
-                            editingNotes
-                                ? OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                  borderSide: BorderSide(
-                                    color:
-                                        Theme.of(
-                                          context,
-                                        ).colorScheme.onSecondary,
-                                    width: 1.2,
-                                  ),
-                                )
-                                : InputBorder.none,
-                        enabledBorder:
-                            editingNotes
-                                ? OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                  borderSide: BorderSide(
-                                    color:
-                                        Theme.of(
-                                          context,
-                                        ).colorScheme.onSecondary,
-                                    width: 1.2,
-                                  ),
-                                )
-                                : InputBorder.none,
-                        focusedBorder:
-                            editingNotes
-                                ? OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                  borderSide: BorderSide(
-                                    color:
-                                        Theme.of(
-                                          context,
-                                        ).colorScheme.onSecondary,
-                                    width: 1.2,
-                                  ),
-                                )
-                                : InputBorder.none,
-                      ),
+                        TextField(
+                          controller: notesController,
+                          maxLines: 5,
+                          minLines: 1,
+                          readOnly: !editingNotes,
+                          style: TextStyle(
+                            color: editingNotes
+                                    ? Theme.of(context).colorScheme.onPrimary
+                                    : Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.85),
+                            fontSize: 14,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: "Add notes about this contact...",
+                            hintStyle: TextStyle(
+                              color: Theme.of(context).colorScheme.onSecondary,
+                            ),
+                            border:
+                                editingNotes
+                                    ? OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: BorderSide(
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onSecondary,
+                                        width: 1.2,
+                                      ),
+                                    )
+                                    : InputBorder.none,
+                            enabledBorder:
+                                editingNotes
+                                    ? OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: BorderSide(
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onSecondary,
+                                        width: 1.2,
+                                      ),
+                                    )
+                                    : InputBorder.none,
+                            focusedBorder:
+                                editingNotes
+                                    ? OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: BorderSide(
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onSecondary,
+                                        width: 1.2,
+                                      ),
+                                    )
+                                    : InputBorder.none,
+                          ),
+                        ),
+                      ]
                     ),
                   ),
                   divLine(context),
@@ -3141,7 +3147,7 @@ class _ContactDetailsState extends State<ContactDetails> {
                       await OptimisticUpdates.perform(
                         updateLocalState: () {
                           setState(() {
-                            starred = !starred;
+                            starred = !starred; 
                             localContact = localContact.copyWith(
                               starred: starred ? 1 : 0,
                             );
