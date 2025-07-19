@@ -525,7 +525,7 @@ class _ContactDetailsState extends State<ContactDetails> {
       body: Stack(
         clipBehavior: Clip.none,
         children: [
-          // Purple blob 1 - Top area, centered horizontally behind the box (BIGGER!)
+          // Purple blob 1 - Top area
           Positioned(
             top: 20, // Moved up a bit for more spread
             left:
@@ -549,7 +549,7 @@ class _ContactDetailsState extends State<ContactDetails> {
               ),
             ),
           ),
-          // Purple blob 2 - Middle area, centered horizontally behind the box (BIGGER!)
+          // Purple blob 2 - Middle area
           Positioned(
             top:
                 MediaQuery.of(context).size.height *
@@ -1198,26 +1198,83 @@ class _ContactDetailsState extends State<ContactDetails> {
             top: -20,
             left: 0,
             right: 0,
-            child: Center(
-              child: Container(
-                padding: EdgeInsets.all(20),
-                child: Container(
-                  padding: EdgeInsets.all(25),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Theme.of(context).colorScheme.primary,
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Icon(
-                    starred ? Icons.star_rounded : Icons.person_2_outlined,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                IconButton(
+                  onPressed: () {
+                    _showEditContactDialog();
+                  },
+                  icon: Icon(
+                    Icons.edit,
                     color: Theme.of(context).colorScheme.onPrimary,
-                    size: 60,
+                    size: 30,
                   ),
                 ),
-              ),
+                Center(
+                  child: Container(
+                    padding: EdgeInsets.all(20),
+                    child: Container(
+                      padding: EdgeInsets.all(25),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Theme.of(context).colorScheme.primary,
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.onPrimary,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Icon(
+                        starred ? Icons.star_rounded : Icons.person_2_outlined,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                        size: 60,
+                      ),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () async {
+                    if (userId.isEmpty) return; // Use optimistic updates for star toggle
+                    await OptimisticUpdates.perform(
+                      updateLocalState: () {
+                        setState(() {
+                          starred = !starred; 
+                          localContact = localContact.copyWith(
+                            starred: starred,
+                          );
+                          widget.onUpdate(localContact);
+                        });
+                      },
+                      databaseOperation: () async {
+                        return await ContactsAdapter.toggleStarContact(
+                          localContact.id,
+                          starred,
+                        );
+                      },
+                      revertLocalState: () {
+                        setState(() {
+                          starred = !starred;
+                          localContact = localContact.copyWith(
+                            starred: starred,
+                          );
+                          widget.onUpdate(localContact);
+                        });
+                      },
+                      showSuccessMessage:
+                          !starred
+                              ? 'Contact starred!'
+                              : 'Contact unstarred!',
+                      showErrorMessage: 'Failed to update star status',
+                      context: context,
+                    );
+                  },
+                  icon: Icon(
+                    starred ? Icons.star_rounded : Icons.star_outline_rounded,
+                    color: Theme.of(context).colorScheme.onPrimary,
+                    size: 35,
+                  ),
+                ),
+              ],
             ),
           ),
           Container(
@@ -1254,11 +1311,6 @@ class _ContactDetailsState extends State<ContactDetails> {
                   IconButton(
                     onPressed: () async {
                       if (userId.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Please log in to update contacts'),
-                          ),
-                        );
                         return;
                       } // Use optimistic updates for star toggle
                       await OptimisticUpdates.perform(
