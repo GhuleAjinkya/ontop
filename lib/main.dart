@@ -2,26 +2,28 @@
 
 // Dependencies
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:ui';
-import 'class_contacts.dart';
+import 'contacts/contacts_list.dart';
+import 'contacts/contact_model.dart';
 // ignore: unused_import
 import 'dart:io';
-// ignore: unused_import
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'class_projects.dart';
-import 'class_events.dart';
-import 'class_tasks.dart';
-import 'models/project.dart';
-import 'mongodb.dart';
-import 'login.dart';
-import 'user_session.dart';
-import 'call_notifications.dart';
-import 'class_user_profile.dart';
-import 'widgets/app_title.dart';
+import 'projects/class_projects.dart';
+import 'events/class_events.dart';
+import 'tasks/class_tasks.dart';
+import 'projects/project_model.dart';
+import 'shared/mongodb.dart';
+import 'login/login.dart';
+import 'shared/user_session.dart';
+import 'notifications/call_notifs/call_notifications.dart';
+import 'home/class_user_profile.dart';
+import 'shared/app_title.dart';
 
 // Global navigator key for navigation from anywhere in the app
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+String appVersion = "";
 
 // Function to navigate to home page from anywhere in the app
 void navigateToHome() {
@@ -66,7 +68,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   print("!!!!! APPLICATION STARTING !!!!!");
-  WidgetsFlutterBinding.ensureInitialized(); // Required for sqflite to work properly
 
   // Load environment variables
   print("Loading environment variables...");
@@ -76,6 +77,7 @@ void main() async {
   print("Connecting to MongoDB...");
   bool connected = await MongoDatabase.connect();
   print("MongoDB connection status: $connected");
+
   // Initialize user session
   print("Initializing user session...");
   bool sessionInitialized = await userSession.initialize();
@@ -85,10 +87,13 @@ void main() async {
     print("Current user: ${userSession.currentUser}");
   }
 
+  // Initialize call notification service for incoming call detection
   final callService = CallNotificationService();
   await callService.init();
-  // Initialize call notification service for incoming call detection
   callService.listenForCalls();
+
+  final info = await PackageInfo.fromPlatform();
+  appVersion = "v${info.version}+${info.buildNumber}";
 
   // Run the app
   runApp(const MyApp());
@@ -147,7 +152,7 @@ class MyApp extends StatelessWidget {
     }
   }
 }
-
+// TODO move home page to seperate file
 class HomePage extends StatefulWidget {
   HomePage({super.key, this.userData});
   final Map<String, dynamic>? userData;
@@ -171,7 +176,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   String greetingTime = 'notInitialized';
-
   // Animation controllers for magical blob animations! ✨
   late AnimationController _pulseController;
   late AnimationController _floatController;
@@ -183,7 +187,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     super.initState();
     greetingTime =
         widget
-            .getGreetingTime(); // Initialize the magical animations! 🌟 (Made even more frequent for liveliness!)
+            .getGreetingTime(); // Initialize the magical animations!  (Made even more frequent for liveliness!)
     _pulseController = AnimationController(
       duration: Duration(milliseconds: 800), // Even faster! 1.2s → 0.8s
       vsync: this,
@@ -609,19 +613,30 @@ class _TabsState extends State<Tabs> {
                 ),
               ),
               // Profile and Settings Button (back at bottom, just a little above lower boundary)
-              IconButton(
-                padding: EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-                icon: Icon(Icons.person_outline, color: Colors.white, size: 30),
-                onPressed: () {
-                  Navigator.pop(context); // Close drawer first
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (context) => UserProfile(userData: widget.userData),
+              Container(
+                margin: EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      appVersion,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
                     ),
-                  );
-                },
+                    IconButton(
+                      icon: Icon(Icons.person_outline, color: Colors.white, size: 30),
+                      onPressed: () {
+                        Navigator.pop(context); // Close drawer first
+                        Navigator.push(context,
+                          MaterialPageRoute(
+                            builder: (context) => UserProfile(userData: widget.userData),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
