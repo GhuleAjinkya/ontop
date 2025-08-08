@@ -93,44 +93,12 @@ MongoDB Atlas / Node.js API
 
 ---
 
-## 📂 App Structure
-
-```
-lib/
-├── main.dart                 # App entry point
-├── login.dart                # Authentication
-├── mongodb.dart              # Database operations
-├── models/                   # Data models
-│   ├── user_model.dart       # User data model
-│   ├── project_model.dart    # Project data model
-│   └── task_model.dart       # Task data model
-├── screens/                  # UI screens
-│   ├── home_screen.dart      # Main dashboard
-│   ├── contact_screen.dart   # Contact management
-│   ├── project_screen.dart   # Project collaboration
-│   └── event_screen.dart     # Event planning
-├── services/                 # Business logic and API integrations
-│   ├── contacts_adapter.dart # Contact-related logic
-│   ├── node_js_api.dart      # Node.js API integration
-│   └── task_service.dart     # Task-related logic
-├── widgets/                  # Reusable UI components
-│   ├── custom_button.dart    # Custom button widget
-│   ├── notification_card.dart # Notification UI component
-│   └── project_card.dart     # Project card UI component
-└── utils/                    # Helper functions and utilities
-    ├── constants.dart        # App-wide constants
-    ├── session_manager.dart  # User session management
-    └── validators.dart       # Input validation utilities
-```
 
 ---
 
 ## 👥 Team
 
+- **Ajinkya Ghule** - GhuleAjinkya[https://github.com/GhuleAjinkya]
 - **Alesha Mulla** - muggloaf[https://github.com/muggloaf]
 
-- **Ajinkya Ghule** - GhuleAjinkya[https://github.com/GhuleAjinkya]
-
 ---
-
-*Built with ❤️ using Flutter & MongoDB*
