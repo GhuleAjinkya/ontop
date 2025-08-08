@@ -1,3 +1,0 @@
-# onTop
-
-* A productivity application
