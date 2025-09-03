@@ -73,7 +73,7 @@ class Contact {
     );
   }
 
-  // Convert Contact to Map for MongoDB
+  // Convert Contact to Map for MongoDB.
   Map<String, dynamic> toMap() {
     return {
       'name': name,
