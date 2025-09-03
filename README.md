@@ -18,13 +18,39 @@ Modern professionals juggle multiple contacts, projects, and tasks across differ
 
 ## ✨ Key Features
 
-- **📞 Smart Contact Management** - Store contacts with call identification and project context
-- **🚀 Project Collaboration** - Team projects with task assignments and linked notes
-- **✅ Task Organization** - Custom sections with deadline tracking
-- **📅 Event Planning** - Schedule and manage events linked to contacts and projects
-- **🔔 Call Notifications** - Instant caller identification with relevant project details
-- **🔐 Secure Data** - User authentication with personal data isolation
-- **⚡ Local-First Performance** - Fast, responsive interactions even before syncing to the cloud
+- **📞 Smart Contact Management**
+  - Store detailed contact profiles with call identification and project context.
+  - Import contacts from your device's contact list.
+  - Link contacts to organizations, projects, and events for seamless collaboration.
+
+- **🚀 Project Collaboration**
+  - Create and manage team projects with task assignments and linked notes.
+  - Track project progress with deadlines and milestones.
+  - Share project updates and notifications with team members.
+
+- **✅ Task Organization**
+  - Organize tasks into custom sections with priority levels and deadline tracking.
+  - Set reminders and recurring tasks for better productivity.
+
+- **📅 Event Planning**
+  - Schedule and manage events linked to contacts and projects.
+  - Sync events with system calendars for unified scheduling.
+
+- **🔔 Call Notifications**
+  - Instant caller identification with relevant project details.
+  - Display contextual information during calls to reduce missed connections.
+
+- **🔐 Secure Data**
+  - User authentication with personal data isolation.
+  - Encrypt sensitive information for enhanced security.
+
+- **⚡ Local-First Performance**
+  - Fast, responsive interactions even before syncing to the cloud.
+  - Offline mode for uninterrupted access to data.
+
+- **📤 Cloud Sync**
+  - Automatic background sync with MongoDB Atlas.
+  - Ensure data consistency across devices.
 
 ---
 

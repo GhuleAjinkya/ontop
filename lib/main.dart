@@ -33,7 +33,7 @@ void navigateToHome() {
 
 standardTile(double borderRadius, {bool isSelected = false}) {
   // Code to create the common tile with the background blur
-  // defiend here to avoid repeating code elsewhere
+  // defiend here to avoid repeating code elsewhere...
   return BoxDecoration(
     color:
         isSelected
@@ -63,8 +63,6 @@ standardTile(double borderRadius, {bool isSelected = false}) {
 }
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
   print("!!!!! APPLICATION STARTING !!!!!");
   WidgetsFlutterBinding.ensureInitialized(); // Required for sqflite to work properly
 
@@ -172,7 +170,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   String greetingTime = 'notInitialized';
 
-  // Animation controllers for magical blob animations! ✨
+  // Animation controllers for magical blob animations! 
   late AnimationController _pulseController;
   late AnimationController _floatController;
   late AnimationController _secondBlobController;
@@ -183,19 +181,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     super.initState();
     greetingTime =
         widget
-            .getGreetingTime(); // Initialize the magical animations! 🌟 (Made even more frequent for liveliness!)
+            .getGreetingTime(); // Initialize the magical animations
     _pulseController = AnimationController(
-      duration: Duration(milliseconds: 800), // Even faster! 1.2s → 0.8s
-      vsync: this,
+      duration: Duration(milliseconds: 800), 
+            vsync: this,
     );
 
     _floatController = AnimationController(
-      duration: Duration(milliseconds: 1200), // Faster! 1.8s → 1.2s
+      duration: Duration(milliseconds: 1200), 
       vsync: this,
     );
 
     _secondBlobController = AnimationController(
-      duration: Duration(milliseconds: 700), // Faster! 1s → 0.7s
+      duration: Duration(milliseconds: 700), 
       vsync: this,
     );
 
@@ -203,7 +201,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    // Start the magical animations! ✨
+    // Start the animations
     _pulseController.repeat(reverse: true);
     _floatController.repeat(reverse: true);
     _secondBlobController.repeat(reverse: true);
